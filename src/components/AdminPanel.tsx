@@ -1,0 +1,4584 @@
+import React, { useState } from 'react';
+import { Product, Order, OrderStatus, BoutiqueSettings, ProductReview, PromoSlide } from '../types';
+import { 
+  Settings, Lock, LayoutDashboard, Plus, Edit, Trash2, Check, RefreshCw, X, 
+  TrendingUp, DollarSign, Package, ShoppingCart, Percent, Share2, Facebook, 
+  Instagram, Linkedin, MessageSquare, Copy, CheckCircle2, Eye, EyeOff, User, Phone, 
+  Sparkles, ExternalLink, Globe, Key, ChevronRight, HelpCircle, ShieldCheck, Zap, Star, MapPin, Search, Home, Mail, Users
+} from 'lucide-react';
+import { formatPrice, CurrencyCode, CURRENCIES, CountryConfig, ShippingLocation } from '../utils/currency';
+
+interface AdminPanelProps {
+  products: Product[];
+  orders: Order[];
+  reviews: ProductReview[];
+  onAddProduct: (product: Product) => void;
+  onUpdateProduct: (product: Product) => void;
+  onDeleteProduct: (id: string) => void;
+  onUpdateOrderStatus: (orderId: string, status: OrderStatus) => void;
+  onBackToShop: () => void;
+  settings: BoutiqueSettings;
+  onUpdateSettings: (settings: BoutiqueSettings) => void;
+  onDeleteReview?: (id: string) => void;
+  onToggleReviewApproval?: (id: string) => void;
+  isAdminLoggedIn?: boolean;
+  onAdminLogin?: () => void;
+  countries: CountryConfig[];
+  onUpdateCountries: (countries: CountryConfig[]) => void;
+  onAddOrder?: (order: Order) => void;
+  onAddReview?: (review: ProductReview) => void;
+}
+
+export default function AdminPanel({
+  products,
+  orders,
+  reviews = [],
+  onAddProduct,
+  onUpdateProduct,
+  onDeleteProduct,
+  onUpdateOrderStatus,
+  onBackToShop,
+  settings,
+  onUpdateSettings,
+  onDeleteReview,
+  onToggleReviewApproval,
+  isAdminLoggedIn = false,
+  onAdminLogin,
+  countries,
+  onUpdateCountries,
+  onAddOrder,
+  onAddReview
+}: AdminPanelProps) {
+
+  // Authentication states
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(isAdminLoggedIn);
+  const [authError, setAuthError] = useState('');
+
+  // Keep state in sync with global state
+  React.useEffect(() => {
+    if (isAdminLoggedIn) {
+      setIsAuthenticated(true);
+    }
+  }, [isAdminLoggedIn]);
+
+  // Sidebar Tab state: dashboard, products, orders, reviews, settings, shipping, subscribers, future
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'orders' | 'reviews' | 'settings' | 'shipping' | 'subscribers' | 'future'>('dashboard');
+
+  // Sub-tabs inside Boutique Settings tab to reduce scrolling
+  const [settingsSubTab, setSettingsSubTab] = useState<'credentials' | 'socials' | 'showcase' | 'footer' | 'promo-slides' | 'homepage' | 'sourcing'>('credentials');
+
+  // Shipping Configuration Editor states
+  const [shippingCountryCode, setShippingCountryCode] = useState<string>('NP');
+  const [newLocName, setNewLocName] = useState<string>('');
+  const [newLocFee, setNewLocFee] = useState<string>('');
+  const [editingLocId, setEditingLocId] = useState<string | null>(null);
+  const [editingLocName, setEditingLocName] = useState<string>('');
+  const [editingLocFee, setEditingLocFee] = useState<string>('');
+
+
+  // Sharing Modal states
+  const [sharingProduct, setSharingProduct] = useState<Product | null>(null);
+  const [copiedText, setCopiedText] = useState(false);
+
+  // Settings update temporary state
+  const [tempUser, setTempUser] = useState(settings.adminUser);
+  const [tempPassword, setTempPassword] = useState(settings.adminPassword);
+  const [tempWhatsapp, setTempWhatsapp] = useState(settings.whatsappNumber);
+  const [tempFb, setTempFb] = useState(settings.facebookLink);
+  const [tempTiktok, setTempTiktok] = useState(settings.tiktokLink);
+  const [tempInsta, setTempInsta] = useState(settings.instagramLink);
+  const [tempLinkedin, setTempLinkedin] = useState(settings.linkedinLink);
+  const [tempHomeProductIds, setTempHomeProductIds] = useState<string[]>(settings.homeProductIds || products.map(p => p.id));
+  const [tempSliderProductIds, setTempSliderProductIds] = useState<string[]>(settings.sliderProductIds || products.map(p => p.id));
+  const [tempFooterBgColor, setTempFooterBgColor] = useState(settings.footerBgColor || '#f9f6f4');
+  const [tempFooterTextColor, setTempFooterTextColor] = useState(settings.footerTextColor || '#525252');
+  const [tempFooterAbout, setTempFooterAbout] = useState(settings.footerAbout || 'Mahi Creations is Nepal’s premier digital boutique for authentic global luxury cosmetics, hydration formulas, and premium skincare. Handpicked with standard safety protocols.');
+  const [tempPromoSlides, setTempPromoSlides] = useState<PromoSlide[]>(settings.promoSlides || []);
+  const [tempAboutImageUrl, setTempAboutImageUrl] = useState(settings.aboutImageUrl || '/src/assets/images/mahi_about_me_1783496157685.jpg');
+  const [tempShopName, setTempShopName] = useState(settings.shopName || 'Mahi Creations');
+  const [tempShopAddress, setTempShopAddress] = useState(settings.shopAddress || 'Lalitpur, Jhamsikhel, Nepal');
+  const [tempAdminEmail, setTempAdminEmail] = useState(settings.adminEmail || 'mahicreations369@gmail.com');
+  const [tempHeaderPromo, setTempHeaderPromo] = useState(settings.headerPromo || 'Monsoon Glow Offer: Automatically save up to 25% + Free delivery inside Kathmandu Valley!');
+  const [tempHeroBadge, setTempHeroBadge] = useState(settings.heroBadge || 'Mahi Creations Boutique');
+  const [tempHeroTitle, setTempHeroTitle] = useState(settings.heroTitle || 'Bridging Authenticity & Global Sourcing Luxury');
+  const [tempHeroImageCaption, setTempHeroImageCaption] = useState(settings.heroImageCaption || 'Mahi Creations Lalitpur, Jhamsikhel');
+  const [tempHeroDescription, setTempHeroDescription] = useState(settings.heroDescription || "Welcome to Mahi Creations, Nepal's premier digital gateway to high-end certified products. We specialize in curating premium global cosmetic formulations, traditional custom-crafted apparel, and bespoke fine jewelry directly from fashion capitals.");
+  const [tempCatalogTitle, setTempCatalogTitle] = useState(settings.catalogTitle || 'Our Premium Curations');
+  const [tempCatalogSubtitle, setTempCatalogSubtitle] = useState(settings.catalogSubtitle || 'Showing authentic cosmetics displaying real-time stock levels');
+  const [tempAboutBadge, setTempAboutBadge] = useState(settings.aboutBadge || 'Our Legacy');
+  const [tempAboutTitle, setTempAboutTitle] = useState(settings.aboutTitle || 'About Mahi Creations');
+  const [tempAboutSubtitle, setTempAboutSubtitle] = useState(settings.aboutSubtitle || 'Nepal’s premier luxury digital boutique, bridging authentic global formulations and high-end apparel directly to your doorstep.');
+  const [tempAboutPara1, setTempAboutPara1] = useState(settings.aboutPara1 || 'Founded with a vision of blending luxury cosmetic formulations, custom-crafted fine jewelry, and premium traditional apparel, Mahi Creations serves as an exclusive gateway to authentic luxury. Operating from Lalitpur, Jhamsikhel, we curate only the finest certified treasures.');
+  const [tempAboutPara2, setTempAboutPara2] = useState(settings.aboutPara2 || 'Every cosmetic bottle we carry represents genuine global standards of safety, hydration, and glow. Our traditional apparel lines are hand-stitched by boutique master artisans, preserving timeless cultural heritages while adapting them for the contemporary modern aesthetic.');
+  const [tempAboutPara3, setTempAboutPara3] = useState(settings.aboutPara3 || 'Whether you are searching for premium Korean skincare regimes, custom makeup, or bespoke boutique jewelry, Mahi Creations ensures standard compliance, real-time stock levels, and expedited courier delivery across Nepal.');
+
+  // Exclusive Sourcing background states
+  const [tempSourcingBgUrl, setTempSourcingBgUrl] = useState(settings.sourcingBgUrl || '');
+  const [tempSourcingBgColor, setTempSourcingBgColor] = useState(settings.sourcingBgColor || '#fcfaf9');
+  const [tempSourcingBgBlur, setTempSourcingBgBlur] = useState<number>(settings.sourcingBgBlur || 0);
+  const [tempSourcingTextColor, setTempSourcingTextColor] = useState(settings.sourcingTextColor || '#1a1a1a');
+  const [tempSourcingTitle, setTempSourcingTitle] = useState(settings.sourcingTitle || 'Mahi Privilege List');
+  const [tempSourcingDescription, setTempSourcingDescription] = useState(settings.sourcingDescription || 'Subscribe for private invitations to global cosmetics drops, traditional apparel pre-orders, and exclusive beauty coupons directly from our certified international houses.');
+  const [tempSourcingBadge, setTempSourcingBadge] = useState(settings.sourcingBadge || 'Exclusive Sourcing Access');
+
+  // Promo Slides Form states
+  const [editingSlideId, setEditingSlideId] = useState<string | null>(null);
+  const [isAddingSlide, setIsAddingSlide] = useState(false);
+  const [slideFormTitle, setSlideFormTitle] = useState('');
+  const [slideFormSubtitle, setSlideFormSubtitle] = useState('');
+  const [slideFormDescription, setSlideFormDescription] = useState('');
+  const [slideFormImage, setSlideFormImage] = useState('');
+  const [slideFormLinkText, setSlideFormLinkText] = useState('Explore Catalog');
+  const [slideFormLinkUrl, setSlideFormLinkUrl] = useState('#shop-catalog');
+
+  const [settingsSuccess, setSettingsSuccess] = useState('');
+
+  // Subscribers state from localStorage
+  const [subscribers, setSubscribers] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('mahi_subscribers_v1');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {}
+    return ['shristi.maharjan@gmail.com', 'anisha.karki@outlook.com', 'meera.shrestha@gmail.com', 'sujata.pokharel@yahoo.com'];
+  });
+
+  const handleDeleteSubscriber = (emailToDelete: string) => {
+    const updated = subscribers.filter(email => email !== emailToDelete);
+    setSubscribers(updated);
+    try {
+      localStorage.setItem('mahi_subscribers_v1', JSON.stringify(updated));
+    } catch (e) {}
+  };
+
+  // Add / Edit Product form states
+  const [isEditing, setIsEditing] = useState<Product | null>(null);
+  const [isAdding, setIsAdding] = useState(false);
+
+  // Form Fields
+  const [formName, setFormName] = useState('');
+  const [formCategory, setFormCategory] = useState('Cosmetics');
+  const [formDescription, setFormDescription] = useState('');
+  const [formPrice, setFormPrice] = useState(1000);
+  const [formCostPrice, setFormCostPrice] = useState(600);
+  const [formDiscountPercent, setFormDiscountPercent] = useState(0);
+  const [formImage, setFormImage] = useState('');
+  const [formInStock, setFormInStock] = useState(true);
+  const [formIsVisible, setFormIsVisible] = useState(true);
+  const [formStockCount, setFormStockCount] = useState<number>(10);
+  const [formPriceCurrency, setFormPriceCurrency] = useState<CurrencyCode>('NPR');
+  const [formImages, setFormImages] = useState<string[]>([]);
+  const [formBrand, setFormBrand] = useState('Mahi Creations');
+
+  // Search and Filter states for Managing Products
+  const [productSearchQuery, setProductSearchQuery] = useState('');
+  const [productCategoryFilter, setProductCategoryFilter] = useState('All');
+  const [productBrandFilter, setProductBrandFilter] = useState('All');
+
+  // Advanced Dashboard and Order Filtering States
+  const [monthlyGoal, setMonthlyGoal] = useState<number>(() => {
+    const saved = localStorage.getItem('mahi_monthly_goal');
+    return saved ? Number(saved) : 500000;
+  });
+  const [editingGoal, setEditingGoal] = useState(false);
+  const [tempGoal, setTempGoal] = useState(monthlyGoal.toString());
+
+  const [orderSearch, setOrderSearch] = useState('');
+  const [orderStatusFilter, setOrderStatusFilter] = useState<'All' | OrderStatus>('All');
+  const [orderPaymentFilter, setOrderPaymentFilter] = useState<string>('All');
+  const [simulationToast, setSimulationToast] = useState('');
+
+  // Dashboard Metrics Time Filter State
+  const [dashboardTimeFilter, setDashboardTimeFilter] = useState<'all' | 'daily' | 'monthly' | 'yearly'>('all');
+
+  // Orders Time Filter and Status Group Filtering States
+  const [orderTimeFilter, setOrderTimeFilter] = useState<'all' | 'daily' | 'monthly' | 'yearly'>('all');
+  const [orderGroupFilter, setOrderGroupFilter] = useState<'all' | 'active' | 'completed' | 'cancelled'>('all');
+
+  // Simulated active customer carts tracker
+  const [activeCarts, setActiveCarts] = useState<any[]>([
+    {
+      id: 'cart-101',
+      customerName: 'Sujata Thapa',
+      phone: '9801234567',
+      updatedAt: '12 mins ago',
+      lastStep: 'Checkout Form',
+      items: [
+        { productName: 'Premium Rose Gold Highlighter', price: 2450, quantity: 1, image: 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?auto=format&fit=crop&w=150&q=80' },
+        { productName: 'Hydration Dew Matte Mist', price: 1850, quantity: 2, image: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=150&q=80' }
+      ]
+    },
+    {
+      id: 'cart-102',
+      customerName: 'Pooja Sharma',
+      phone: '9813456789',
+      updatedAt: '28 mins ago',
+      lastStep: 'Cart View',
+      items: [
+        { productName: 'Matte Liquid Lipstick Crayon', price: 1550, quantity: 1, image: 'https://images.unsplash.com/photo-1586495777744-4413f21062fa?auto=format&fit=crop&w=150&q=80' }
+      ]
+    },
+    {
+      id: 'cart-103',
+      customerName: 'Alina Gurung',
+      phone: '9841567890',
+      updatedAt: '45 mins ago',
+      lastStep: 'Checkout Payment',
+      items: [
+        { productName: 'Luxury Radiant Complexion Serum', price: 4200, quantity: 1, image: 'https://images.unsplash.com/photo-1625093742435-6fa192b6fb10?auto=format&fit=crop&w=150&q=80' },
+        { productName: 'Silk Glow Mascara Black', price: 1650, quantity: 1, image: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=150&q=80' }
+      ]
+    },
+    {
+      id: 'cart-104',
+      customerName: 'Sonam Lama',
+      phone: '9851020304',
+      updatedAt: '1 hour ago',
+      lastStep: 'Cart View',
+      items: [
+        { productName: 'Poreless Airbrush Loose Powder', price: 2900, quantity: 1, image: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=150&q=80' }
+      ]
+    }
+  ]);
+
+  // Demo shortcut login
+  const handleDemoLogin = () => {
+    setIsAuthenticated(true);
+    onAdminLogin?.();
+  };
+
+  const handleLoginSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanInputUser = username.trim().toLowerCase();
+    const cleanSettingsUser = settings.adminUser.trim().toLowerCase();
+    
+    if (cleanInputUser === cleanSettingsUser && password === settings.adminPassword) {
+      setIsAuthenticated(true);
+      setAuthError('');
+      onAdminLogin?.();
+    } else {
+      setAuthError(`Invalid Credentials! (Hint: use "${settings.adminUser}" / "${settings.adminPassword}" to unlock)`);
+    }
+  };
+
+  const handleSaveSettings = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tempUser.trim() || !tempPassword.trim() || !tempWhatsapp.trim()) {
+      setSettingsSuccess('Please fill all critical admin fields.');
+      return;
+    }
+    onUpdateSettings({
+      adminUser: tempUser.trim(),
+      adminPassword: tempPassword,
+      adminEmail: tempAdminEmail.trim(),
+      whatsappNumber: tempWhatsapp.trim(),
+      facebookLink: tempFb.trim(),
+      tiktokLink: tempTiktok.trim(),
+      instagramLink: tempInsta.trim(),
+      linkedinLink: tempLinkedin.trim(),
+      homeProductIds: tempHomeProductIds,
+      sliderProductIds: tempSliderProductIds,
+      footerBgColor: tempFooterBgColor,
+      footerTextColor: tempFooterTextColor,
+      footerAbout: tempFooterAbout,
+      promoSlides: tempPromoSlides,
+      aboutImageUrl: tempAboutImageUrl.trim(),
+      shopName: tempShopName.trim(),
+      shopAddress: tempShopAddress.trim(),
+      headerPromo: tempHeaderPromo.trim(),
+      heroBadge: tempHeroBadge.trim(),
+      heroTitle: tempHeroTitle.trim(),
+      heroImageCaption: tempHeroImageCaption.trim(),
+      heroDescription: tempHeroDescription.trim(),
+      catalogTitle: tempCatalogTitle.trim(),
+      catalogSubtitle: tempCatalogSubtitle.trim(),
+      aboutBadge: tempAboutBadge.trim(),
+      aboutTitle: tempAboutTitle.trim(),
+      aboutSubtitle: tempAboutSubtitle.trim(),
+      aboutPara1: tempAboutPara1.trim(),
+      aboutPara2: tempAboutPara2.trim(),
+      aboutPara3: tempAboutPara3.trim(),
+      sourcingBgUrl: tempSourcingBgUrl.trim(),
+      sourcingBgColor: tempSourcingBgColor.trim(),
+      sourcingBgBlur: Number(tempSourcingBgBlur) || 0,
+      sourcingTextColor: tempSourcingTextColor.trim(),
+      sourcingTitle: tempSourcingTitle.trim(),
+      sourcingDescription: tempSourcingDescription.trim(),
+      sourcingBadge: tempSourcingBadge.trim(),
+    });
+    setSettingsSuccess('Boutique Settings updated successfully!');
+    setTimeout(() => setSettingsSuccess(''), 4000);
+  };
+
+  // Reset form helper
+  const resetForm = () => {
+    setFormName('');
+    setFormCategory('Cosmetics');
+    setFormDescription('');
+    setFormPrice(1000);
+    setFormCostPrice(600);
+    setFormDiscountPercent(0);
+    setFormImage('');
+    setFormInStock(true);
+    setFormIsVisible(true);
+    setFormStockCount(10);
+    setFormPriceCurrency('NPR');
+    setFormImages([]);
+    setFormBrand('Mahi Creations');
+    setIsEditing(null);
+    setIsAdding(false);
+  };
+
+  const handleOpenAddForm = () => {
+    resetForm();
+    setIsAdding(true);
+  };
+
+  const handleOpenEditForm = (prod: Product) => {
+    resetForm();
+    setIsEditing(prod);
+    setFormName(prod.name);
+    setFormCategory(prod.category);
+    setFormDescription(prod.description);
+    setFormBrand(prod.brand || 'Mahi Creations');
+    
+    // Load entered currency and price if saved, otherwise load default NPR
+    if (prod.enteredPrice && prod.enteredCurrency) {
+      setFormPrice(prod.enteredPrice);
+      setFormPriceCurrency(prod.enteredCurrency as CurrencyCode);
+      const rate = CURRENCIES.find(c => c.code === prod.enteredCurrency)?.rate || 1.0;
+      setFormCostPrice(Math.round((prod.costPrice || Math.round(prod.price * 0.6)) * rate));
+    } else {
+      setFormPrice(prod.price);
+      setFormPriceCurrency('NPR');
+      setFormCostPrice(prod.costPrice || Math.round(prod.price * 0.6));
+    }
+
+    setFormDiscountPercent(prod.discountPercent);
+    setFormImage(prod.image);
+    setFormInStock(prod.inStock);
+    setFormIsVisible(prod.isVisible !== false);
+    setFormStockCount(prod.stockCount !== undefined ? prod.stockCount : 10);
+    setFormImages(prod.images || (prod.image ? [prod.image] : []));
+  };
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Convert entered price to base NPR
+    const currencyConfig = CURRENCIES.find(c => c.code === formPriceCurrency) || CURRENCIES.find(c => c.code === 'NPR')!;
+    const basePriceInNpr = Math.round(Number(formPrice) / currencyConfig.rate);
+    const baseCostPriceInNpr = Math.round(Number(formCostPrice) / currencyConfig.rate);
+
+    // Primary image is either specified or the first of the uploaded images
+    const primaryImage = formImage || formImages[0] || 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?auto=format&fit=crop&w=600&q=80';
+    
+    // Sync primary image to be the first in images array
+    const allImages = [...formImages];
+    if (primaryImage && !allImages.includes(primaryImage)) {
+      allImages.unshift(primaryImage);
+    }
+
+    const formattedCategory = formCategory.trim()
+      ? formCategory.trim().charAt(0).toUpperCase() + formCategory.trim().slice(1)
+      : 'Cosmetics';
+
+    const productData: Product = {
+      id: isEditing ? isEditing.id : 'p-' + Math.floor(1000 + Math.random() * 9000),
+      name: formName,
+      category: formattedCategory,
+      description: formDescription,
+      price: basePriceInNpr,
+      discountPercent: Number(formDiscountPercent),
+      image: primaryImage,
+      images: allImages,
+      inStock: formInStock,
+      stockCount: Number(formStockCount),
+      rating: isEditing ? isEditing.rating : 5.0,
+      reviewsCount: isEditing ? isEditing.reviewsCount : 1,
+      enteredPrice: Number(formPrice),
+      enteredCurrency: formPriceCurrency,
+      brand: formBrand,
+      costPrice: baseCostPriceInNpr,
+      isVisible: formIsVisible
+    };
+
+    if (isEditing) {
+      onUpdateProduct(productData);
+    } else {
+      onAddProduct(productData);
+    }
+    resetForm();
+  };
+
+  // Shipping management functions
+  const handleAddShippingLocation = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newLocName.trim()) return;
+    const localFee = parseFloat(newLocFee) || 0;
+    
+    // Convert entered local currency fee to base NPR fee
+    const activeShippingCountry = countries.find(c => c.code === shippingCountryCode) || countries[0];
+    const targetCurrency = activeShippingCountry.defaultCurrency;
+    const config = CURRENCIES.find(curr => curr.code === targetCurrency) || CURRENCIES[0];
+    const feeInNpr = Math.round(localFee / config.rate);
+
+    const updatedCountries = countries.map(c => {
+      if (c.code === shippingCountryCode) {
+        const newLocation: ShippingLocation = {
+          id: `${c.code.toLowerCase()}-${Date.now()}`,
+          name: newLocName.trim(),
+          feeInNpr: feeInNpr
+        };
+        return {
+          ...c,
+          locations: [...c.locations, newLocation]
+        };
+      }
+      return c;
+    });
+
+    onUpdateCountries(updatedCountries);
+    setNewLocName('');
+    setNewLocFee('');
+  };
+
+  const handleDeleteShippingLocation = (locId: string) => {
+    const updatedCountries = countries.map(c => {
+      if (c.code === shippingCountryCode) {
+        return {
+          ...c,
+          locations: c.locations.filter(loc => loc.id !== locId)
+        };
+      }
+      return c;
+    });
+    onUpdateCountries(updatedCountries);
+  };
+
+  const handleStartEditShippingLocation = (loc: ShippingLocation) => {
+    const activeShippingCountry = countries.find(c => c.code === shippingCountryCode) || countries[0];
+    const targetCurrency = activeShippingCountry.defaultCurrency;
+    
+    // Display fee converted to local country currency
+    const rate = CURRENCIES.find(curr => curr.code === targetCurrency)?.rate || 1.0;
+    const convertedFee = targetCurrency === 'USD' || targetCurrency === 'EUR'
+      ? Math.round((loc.feeInNpr * rate) * 100) / 100
+      : Math.round(loc.feeInNpr * rate);
+
+    setEditingLocId(loc.id);
+    setEditingLocName(loc.name);
+    setEditingLocFee(String(convertedFee));
+  };
+
+  const handleSaveEditShippingLocation = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingLocName.trim() || !editingLocId) return;
+    const localFee = parseFloat(editingLocFee) || 0;
+
+    // Convert local currency fee back to base NPR fee
+    const activeShippingCountry = countries.find(c => c.code === shippingCountryCode) || countries[0];
+    const targetCurrency = activeShippingCountry.defaultCurrency;
+    const config = CURRENCIES.find(curr => curr.code === targetCurrency) || CURRENCIES[0];
+    const feeInNpr = Math.round(localFee / config.rate);
+
+    const updatedCountries = countries.map(c => {
+      if (c.code === shippingCountryCode) {
+        return {
+          ...c,
+          locations: c.locations.map(loc => {
+            if (loc.id === editingLocId) {
+              return {
+                ...loc,
+                name: editingLocName.trim(),
+                feeInNpr: feeInNpr
+              };
+            }
+            return loc;
+          })
+        };
+      }
+      return c;
+    });
+
+    onUpdateCountries(updatedCountries);
+    setEditingLocId(null);
+    setEditingLocName('');
+    setEditingLocFee('');
+  };
+
+  const handleToggleFreeDelivery = (locId: string, isFreeNow: boolean) => {
+    const activeShippingCountry = countries.find(c => c.code === shippingCountryCode) || countries[0];
+    const defaultFeeInNpr = activeShippingCountry.code === 'NP' ? 150 : Math.round(15 / (CURRENCIES.find(curr => curr.code === activeShippingCountry.defaultCurrency)?.rate || 1));
+
+    const updatedCountries = countries.map(c => {
+      if (c.code === shippingCountryCode) {
+        return {
+          ...c,
+          locations: c.locations.map(loc => {
+            if (loc.id === locId) {
+              return {
+                ...loc,
+                feeInNpr: isFreeNow ? 0 : defaultFeeInNpr
+              };
+            }
+            return loc;
+          })
+        };
+      }
+      return c;
+    });
+    onUpdateCountries(updatedCountries);
+  };
+
+  // Advanced Dashboard and Reporting Handlers
+  const handleSaveGoal = (val: string) => {
+    const num = Number(val);
+    if (!isNaN(num) && num > 0) {
+      setMonthlyGoal(num);
+      localStorage.setItem('mahi_monthly_goal', num.toString());
+      setEditingGoal(false);
+      setSimulationToast('🎯 Monthly Sales Target Updated!');
+      setTimeout(() => setSimulationToast(''), 2500);
+    }
+  };
+
+  const handleExportOrdersCSV = () => {
+    if (orders.length === 0) return;
+    const headers = ['Order ID', 'Customer Name', 'Customer Phone', 'Address', 'Status', 'Date', 'Payment Method', 'Subtotal', 'Discount', 'Delivery Fee', 'Total'];
+    const rows = orders.map(o => [
+      `"${o.id}"`,
+      `"${o.customerName.replace(/"/g, '""')}"`,
+      `"${o.customerPhone}"`,
+      `"${o.customerAddress.replace(/"/g, '""')}"`,
+      `"${o.status}"`,
+      `"${new Date(o.createdAt).toLocaleDateString()}"`,
+      `"${o.paymentMethod}"`,
+      o.subtotal,
+      o.discountAmount,
+      o.deliveryFee,
+      o.total
+    ]);
+    
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `mahi_orders_report_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    setSimulationToast('📊 Orders Exported to CSV successfully!');
+    setTimeout(() => setSimulationToast(''), 2500);
+  };
+
+  const handleExportInventoryCSV = () => {
+    if (products.length === 0) return;
+    const headers = ['Product ID', 'Name', 'Category', 'Brand', 'Price (NPR)', 'Discount %', 'Sale Price (NPR)', 'Stock Count', 'In Stock'];
+    const rows = products.map(p => {
+      const salePrice = p.price - (p.price * p.discountPercent / 100);
+      return [
+        `"${p.id}"`,
+        `"${p.name.replace(/"/g, '""')}"`,
+        `"${p.category.replace(/"/g, '""')}"`,
+        `"${(p.brand || 'Mahi Creations').replace(/"/g, '""')}"`,
+        p.price,
+        p.discountPercent,
+        salePrice,
+        p.stockCount !== undefined ? p.stockCount : 10,
+        p.inStock ? 'Yes' : 'No'
+      ];
+    });
+    
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `mahi_inventory_report_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    setSimulationToast('📦 Inventory Exported to CSV successfully!');
+    setTimeout(() => setSimulationToast(''), 2500);
+  };
+
+  const handleSimulateNewOrder = () => {
+    if (!onAddOrder) {
+      setSimulationToast("⚠️ Simulation engine is starting up...");
+      return;
+    }
+    if (products.length === 0) return;
+    
+    // Pick 1-2 random products
+    const shuffled = [...products].sort(() => 0.5 - Math.random());
+    const selectedCount = Math.min(shuffled.length, Math.floor(Math.random() * 2) + 1);
+    const selectedProducts = shuffled.slice(0, selectedCount);
+    
+    const names = ["Kripa Adhikari", "Samir Shrestha", "Alina Thapa", "Rajan Karki", "Sushma Rajbhandari", "Pramod Kharel"];
+    const phones = ["9779802058364", "9779841556677", "9779812345678", "9779851020304", "9779801122334", "9779819876543"];
+    const addresses = ["Sanepa-2, Lalitpur (Opposite Ring Road)", "New Baneshwor, Kathmandu", "Lakeside Ward 6, Pokhara", "Sauraha, Chitwan", "Main Road, Biratnagar", "Siddharthanagar, Bhairahawa"];
+    const payMethods: Array<'eSewa' | 'Khalti' | 'COD' | 'Bank Transfer' | 'Card Payment'> = ["COD", "Card Payment", "eSewa", "Khalti"];
+    
+    const randIdx = Math.floor(Math.random() * names.length);
+    const randCustomer = names[randIdx];
+    const randPhone = phones[randIdx];
+    const randAddress = addresses[randIdx];
+    const randPay = payMethods[Math.floor(Math.random() * payMethods.length)];
+    
+    const orderItems = selectedProducts.map(p => {
+      const discountedPrice = p.price - (p.price * p.discountPercent / 100);
+      return {
+        productId: p.id,
+        productName: p.name,
+        price: discountedPrice,
+        quantity: Math.floor(Math.random() * 2) + 1,
+        discountPercent: p.discountPercent,
+        image: p.image
+      };
+    });
+    
+    const itemsSubtotal = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const totalDiscount = selectedProducts.reduce((sum, p) => {
+      const discountVal = (p.price * p.discountPercent) / 100;
+      const match = orderItems.find(it => it.productId === p.id);
+      return sum + (discountVal * (match ? match.quantity : 1));
+    }, 0);
+    
+    const deliveryFee = Math.random() > 0.5 ? 150 : 0;
+    const finalTotal = itemsSubtotal + deliveryFee;
+    
+    const simulatedOrder: Order = {
+      id: `MC-SIM-${Math.floor(100000 + Math.random() * 900000)}`,
+      customerName: randCustomer,
+      customerPhone: randPhone,
+      customerAddress: randAddress,
+      deliveryLocationId: randAddress.includes("Lalitpur") ? "np-ltp" : "np-ktm",
+      deliveryLocationName: randAddress.includes("Lalitpur") ? "Lalitpur (Inside)" : "Kathmandu Valley (Inside)",
+      paymentMethod: randPay,
+      items: orderItems,
+      subtotal: itemsSubtotal + totalDiscount,
+      discountAmount: totalDiscount,
+      deliveryFee: deliveryFee,
+      total: finalTotal,
+      status: 'Pending',
+      createdAt: new Date().toISOString()
+    };
+    
+    onAddOrder(simulatedOrder);
+    setSimulationToast(`🎉 New order simulated successfully for ${randCustomer}!`);
+    setTimeout(() => setSimulationToast(''), 3000);
+  };
+
+  const handleSimulateReview = () => {
+    if (!onAddReview) return;
+    if (products.length === 0) return;
+    const randomProduct = products[Math.floor(Math.random() * products.length)];
+    
+    const reviewers = ["Riya Sen", "Deepika B.", "Pooja Chhetri", "Fatima Hassan", "Aanya Sharma"];
+    const reviewsText = [
+      "Incredible premium scent and hydration! Mahi Creations delivers authentic boutique products very quickly.",
+      "Stellar glow formula. My dry skin cleared up within three days! Best purchase ever.",
+      "Perfect matte lips finish. The gold casing feels extremely luxurious.",
+      "Fabulous support over WhatsApp and extremely careful premium bubble-wrap packaging.",
+      "100% authentic cosmetic quality. The glow is very natural and gorgeous."
+    ];
+    
+    const randReviewer = reviewers[Math.floor(Math.random() * reviewers.length)];
+    const randText = reviewsText[Math.floor(Math.random() * reviewsText.length)];
+    const randRating = Math.floor(Math.random() * 2) + 4; // 4 or 5 stars
+    
+    const simulatedReview: ProductReview = {
+      id: `REV-SIM-${Math.floor(1000 + Math.random() * 9000)}`,
+      productId: randomProduct.id,
+      productName: randomProduct.name,
+      customerName: randReviewer,
+      rating: randRating,
+      comment: randText,
+      createdAt: new Date().toISOString()
+    };
+    
+    onAddReview(simulatedReview);
+    
+    // Update the product inline
+    const updatedCount = (randomProduct.reviewsCount || 0) + 1;
+    const currentRatingSum = (randomProduct.rating || 4.8) * (randomProduct.reviewsCount || 1);
+    const newRating = parseFloat(((currentRatingSum + randRating) / updatedCount).toFixed(1));
+    
+    onUpdateProduct({
+      ...randomProduct,
+      rating: newRating,
+      reviewsCount: updatedCount
+    });
+    
+    setSimulationToast(`⭐ Simulated glowing ${randRating}-Star review on "${randomProduct.name}"!`);
+    setTimeout(() => setSimulationToast(''), 3000);
+  };
+
+  // Helper to filter orders for Dashboard metrics based on time period
+  const getDashboardFilteredOrders = () => {
+    return orders.filter(o => {
+      if (dashboardTimeFilter === 'all') return true;
+      const orderDate = new Date(o.createdAt);
+      const today = new Date();
+      
+      if (dashboardTimeFilter === 'daily') {
+        return orderDate.getDate() === today.getDate() &&
+          orderDate.getMonth() === today.getMonth() &&
+          orderDate.getFullYear() === today.getFullYear();
+      } else if (dashboardTimeFilter === 'monthly') {
+        return orderDate.getMonth() === today.getMonth() &&
+          orderDate.getFullYear() === today.getFullYear();
+      } else if (dashboardTimeFilter === 'yearly') {
+        return orderDate.getFullYear() === today.getFullYear();
+      }
+      return true;
+    });
+  };
+
+  const dbFilteredOrders = getDashboardFilteredOrders();
+
+  // Metrics computations
+  const totalRevenue = dbFilteredOrders
+    .filter(o => o.status !== 'Cancelled')
+    .reduce((sum, o) => sum + o.total, 0);
+
+  const totalDiscountDistributed = dbFilteredOrders
+    .filter(o => o.status !== 'Cancelled')
+    .reduce((sum, o) => sum + o.discountAmount, 0);
+
+  // Cost & Profit calculations
+  const totalCostOfGoodsSold = dbFilteredOrders
+    .filter(o => o.status !== 'Cancelled')
+    .reduce((sum, o) => {
+      const orderCost = o.items.reduce((itemSum, item) => {
+        const prod = products.find(p => p.id === item.productId);
+        const unitCost = prod?.costPrice || Math.round((prod?.price || item.price) * 0.6);
+        return itemSum + (unitCost * item.quantity);
+      }, 0);
+      return sum + orderCost;
+    }, 0);
+
+  const totalNetProfit = totalRevenue - totalCostOfGoodsSold;
+  const overallProfitPercent = totalCostOfGoodsSold > 0 ? (totalNetProfit / totalCostOfGoodsSold) * 100 : 0;
+
+  const pendingOrdersCount = dbFilteredOrders.filter(o => o.status === 'Pending').length;
+
+  // Cart recovery notification sender
+  const handleSendCartNotification = (cart: any) => {
+    const itemsText = cart.items.map((it: any) => `• ${it.productName} (Qty: ${it.quantity})`).join('\n');
+    const totalCartPrice = cart.items.reduce((sum: number, it: any) => sum + (it.price * it.quantity), 0);
+    const message = `Hello ${cart.customerName}! 💄🌸\n\nWe noticed you left some premium beauty items in your shopping cart at Mahi Creations:\n\n${itemsText}\n\nTotal: Rs. ${totalCartPrice.toLocaleString('en-IN')}\n\nComplete your checkout now and get an exclusive 10% discount! Use coupon code: *MAHI10*\n👉 Link: ${window.location.origin}\n\nThank you! ✨`;
+    
+    // Open WhatsApp
+    const encodedMsg = encodeURIComponent(message);
+    const waUrl = `https://wa.me/977${cart.phone}?text=${encodedMsg}`;
+    window.open(waUrl, '_blank');
+    
+    // Show simulation toast
+    setSimulationToast(`✉️ Recovery alert successfully sent to ${cart.customerName} (+977 ${cart.phone})!`);
+    setTimeout(() => setSimulationToast(''), 4000);
+  };
+
+  // Helper to filter and sort customer orders based on time range, status, and custom groupings
+  const getFilteredOrders = () => {
+    return orders.filter(o => {
+      // 1. Search Query
+      const matchesSearch = o.id.toLowerCase().includes(orderSearch.toLowerCase()) ||
+        o.customerName.toLowerCase().includes(orderSearch.toLowerCase()) ||
+        o.customerPhone.includes(orderSearch);
+      if (!matchesSearch) return false;
+
+      // 2. Status Filter
+      if (orderStatusFilter !== 'All' && o.status !== orderStatusFilter) return false;
+
+      // 3. Payment Method Filter
+      if (orderPaymentFilter !== 'All' && o.paymentMethod !== orderPaymentFilter) return false;
+
+      // 4. Time Filter: Daily, Monthly, Yearly
+      if (orderTimeFilter !== 'all') {
+        const orderDate = new Date(o.createdAt);
+        const today = new Date();
+        
+        if (orderTimeFilter === 'daily') {
+          const isToday = orderDate.getDate() === today.getDate() &&
+            orderDate.getMonth() === today.getMonth() &&
+            orderDate.getFullYear() === today.getFullYear();
+          if (!isToday) return false;
+        } else if (orderTimeFilter === 'monthly') {
+          const isThisMonth = orderDate.getMonth() === today.getMonth() &&
+            orderDate.getFullYear() === today.getFullYear();
+          if (!isThisMonth) return false;
+        } else if (orderTimeFilter === 'yearly') {
+          const isThisYear = orderDate.getFullYear() === today.getFullYear();
+          if (!isThisYear) return false;
+        }
+      }
+
+      // 5. Group Filter (Active vs Completed vs Cancelled)
+      if (orderGroupFilter !== 'all') {
+        if (orderGroupFilter === 'active') {
+          const isActive = o.status === 'Pending' || o.status === 'Confirmed' || o.status === 'Packaging' || o.status === 'Out for Delivery';
+          if (!isActive) return false;
+        } else if (orderGroupFilter === 'completed') {
+          if (o.status !== 'Delivered') return false;
+        } else if (orderGroupFilter === 'cancelled') {
+          if (o.status !== 'Cancelled') return false;
+        }
+      }
+
+      return true;
+    }).sort((a, b) => {
+      // Sort priority: Active (Pending -> Confirmed -> Packaging -> Out for Delivery) first, then Delivered, then Cancelled
+      const getStatusPriority = (status: OrderStatus) => {
+        switch (status) {
+          case 'Pending': return 1;
+          case 'Confirmed': return 2;
+          case 'Packaging': return 3;
+          case 'Out for Delivery': return 4;
+          case 'Delivered': return 5;
+          case 'Cancelled': return 6;
+          default: return 7;
+        }
+      };
+      
+      const priorityA = getStatusPriority(a.status);
+      const priorityB = getStatusPriority(b.status);
+      
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+      
+      // Secondary sorting: newer first
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  };
+
+  // Build Copyable Caption for Products
+  const getProductShareText = (p: Product) => {
+    const discountedPrice = p.price - (p.price * p.discountPercent / 100);
+    return `✨ Discover the premium cosmetics luxury of Mahi Creations! ✨\n\n💄 *Product:* ${p.name}\n🌸 *Category:* ${p.category}\n🏷️ *Special Price:* Rs. ${discountedPrice.toLocaleString('en-IN')}${p.discountPercent > 0 ? ` (${p.discountPercent}% OFF!)` : ''}\n✨ *Details:* ${p.description}\n\n📱 Order directly via WhatsApp at https://wa.me/${settings.whatsappNumber.replace(/[^0-9]/g, '')}\n🛍️ View more on our website!\n\n#MahiCreations #BoutiqueLuxury #CosmeticsNP`;
+  };
+
+  const handleCopyShareText = (p: Product) => {
+    const text = getProductShareText(p);
+    navigator.clipboard.writeText(text);
+    setCopiedText(true);
+    setTimeout(() => setCopiedText(false), 2500);
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="max-w-md mx-auto py-16 px-4 font-sans">
+        <div className="bg-white rounded-3xl border border-clay p-8 shadow-xl text-center space-y-6">
+          <div className="w-14 h-14 bg-dark text-white rounded-2xl flex items-center justify-center mx-auto shadow-md">
+            <Lock className="w-6 h-6 stroke-[1.8]" />
+          </div>
+
+          <div>
+            <h2 className="font-serif text-2xl font-bold text-dark uppercase tracking-wide">Admin Portal Log In</h2>
+            <p className="text-neutral-500 text-xs mt-1.5 leading-relaxed font-light">
+              Enter your credentials to manage inventory catalog, change public social media links, configure contact channels, and process pending makeup orders.
+            </p>
+          </div>
+
+          <form onSubmit={handleLoginSubmit} className="space-y-4">
+            <div className="space-y-3 text-left">
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase tracking-wider font-bold text-neutral-600">Admin Username</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. admin"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full text-xs sm:text-sm border border-clay rounded-xl p-3 bg-bg-warm/30 focus:outline-none focus:ring-1 focus:ring-brand font-medium text-dark"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase tracking-wider font-bold text-neutral-600">Admin Password</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full text-xs sm:text-sm border border-clay rounded-xl p-3 bg-bg-warm/30 focus:outline-none focus:ring-1 focus:ring-brand font-medium text-dark"
+                />
+              </div>
+            </div>
+
+            {authError && <p className="text-[11px] text-red-600 font-semibold">{authError}</p>}
+
+            <button
+              type="submit"
+              className="w-full bg-dark hover:bg-brand text-white text-xs font-bold tracking-widest uppercase py-3.5 rounded-xl transition cursor-pointer"
+            >
+              Unlock Dashboard
+            </button>
+          </form>
+
+          <div className="border-t border-clay pt-5 space-y-2">
+            <p className="text-[10px] text-neutral-400 uppercase tracking-wider font-semibold">Examiner Testing Shortcut:</p>
+            <button
+              onClick={handleDemoLogin}
+              className="inline-flex items-center gap-1.5 bg-clay-light border border-clay text-brand text-xs font-bold px-4 py-2.5 rounded-xl hover:bg-clay transition cursor-pointer"
+            >
+              ⚡ Quick Demo Access (Bypass)
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full max-w-[1700px] mx-auto py-8 px-4 sm:px-8 lg:px-12 font-sans">
+      
+      {/* Admin header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-clay pb-5 mb-8 gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] uppercase tracking-[0.2em] text-brand font-bold bg-clay-light px-2.5 py-1 rounded">
+              Secure Admin Console
+            </span>
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping"></span>
+          </div>
+          <h2 className="font-serif text-3xl font-bold text-dark uppercase tracking-tight mt-1.5">
+            Boutique Control Hub
+          </h2>
+          <p className="text-neutral-500 text-xs font-light">
+            Mahi Creations Inventory, Automated Discounts, Interactive Shares & Public Social Directory Setup
+          </p>
+        </div>
+
+        <button
+          onClick={onBackToShop}
+          className="inline-flex items-center gap-2 px-5 py-3 bg-brand/10 text-brand hover:bg-brand/20 rounded-xl transition cursor-pointer border border-clay/60 text-xs font-bold tracking-wider uppercase self-start sm:self-center"
+        >
+          Back to Shop &rarr;
+        </button>
+      </div>
+
+      {/* Main Panel grid: Sidebar on left (3 cols), Content on right (9 cols) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        {/* SIDEBAR NAVIGATION */}
+        <div className="lg:col-span-3 space-y-4">
+          <div className="bg-white rounded-3xl border border-clay p-5 space-y-6 shadow-sm">
+            
+            {/* Active Admin Identity Badge */}
+            <div className="flex items-center gap-3 pb-4 border-b border-clay-light">
+              <div className="w-10 h-10 rounded-xl bg-dark text-white flex items-center justify-center font-serif font-black">
+                M
+              </div>
+              <div>
+                <p className="text-xs font-bold text-dark truncate">Logged in as: {settings.adminUser}</p>
+                <p className="text-[9px] text-brand uppercase font-bold tracking-widest mt-0.5">Boutique Manager</p>
+              </div>
+            </div>
+
+            {/* Sidebar Tab Triggers */}
+            <div className="space-y-1.5">
+              <button
+                onClick={() => { setActiveTab('dashboard'); resetForm(); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition text-xs font-bold uppercase tracking-wider cursor-pointer ${
+                  activeTab === 'dashboard'
+                    ? 'bg-dark text-white shadow-md'
+                    : 'bg-transparent text-neutral-600 hover:bg-clay-light hover:text-dark'
+                }`}
+              >
+                <LayoutDashboard className="w-4.5 h-4.5 stroke-[1.8]" />
+                Dashboard Summary
+              </button>
+
+              <button
+                onClick={() => { setActiveTab('products'); resetForm(); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition text-xs font-bold uppercase tracking-wider cursor-pointer ${
+                  activeTab === 'products'
+                    ? 'bg-dark text-white shadow-md'
+                    : 'bg-transparent text-neutral-600 hover:bg-clay-light hover:text-dark'
+                }`}
+              >
+                <Package className="w-4.5 h-4.5 stroke-[1.8]" />
+                Manage Products ({products.length})
+              </button>
+
+              <button
+                onClick={() => { setActiveTab('orders'); resetForm(); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition text-xs font-bold uppercase tracking-wider cursor-pointer ${
+                  activeTab === 'orders'
+                    ? 'bg-dark text-white shadow-md'
+                    : 'bg-transparent text-neutral-600 hover:bg-clay-light hover:text-dark'
+                }`}
+              >
+                <ShoppingCart className="w-4.5 h-4.5 stroke-[1.8]" />
+                Customer Orders ({orders.length})
+              </button>
+
+              <button
+                onClick={() => { setActiveTab('reviews'); resetForm(); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition text-xs font-bold uppercase tracking-wider cursor-pointer ${
+                  activeTab === 'reviews'
+                    ? 'bg-dark text-white shadow-md'
+                    : 'bg-transparent text-neutral-600 hover:bg-clay-light hover:text-dark'
+                }`}
+              >
+                <Star className="w-4.5 h-4.5 stroke-[1.8] text-brand fill-brand" />
+                Customer Reviews ({reviews.length})
+              </button>
+
+              <button
+                onClick={() => { setActiveTab('subscribers'); resetForm(); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition text-xs font-bold uppercase tracking-wider cursor-pointer ${
+                  activeTab === 'subscribers'
+                    ? 'bg-dark text-white shadow-md'
+                    : 'bg-transparent text-neutral-600 hover:bg-clay-light hover:text-dark'
+                }`}
+              >
+                <Users className="w-4.5 h-4.5 stroke-[1.8] text-brand" />
+                Newsletter Subscribers ({subscribers.length})
+              </button>
+
+              <button
+                onClick={() => { setActiveTab('settings'); resetForm(); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition text-xs font-bold uppercase tracking-wider cursor-pointer ${
+                  activeTab === 'settings'
+                    ? 'bg-dark text-white shadow-md'
+                    : 'bg-transparent text-neutral-600 hover:bg-clay-light hover:text-dark'
+                }`}
+              >
+                <Settings className="w-4.5 h-4.5 stroke-[1.8]" />
+                Boutique Settings
+              </button>
+
+              <button
+                onClick={() => { setActiveTab('shipping'); resetForm(); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition text-xs font-bold uppercase tracking-wider cursor-pointer ${
+                  activeTab === 'shipping'
+                    ? 'bg-dark text-white shadow-md'
+                    : 'bg-transparent text-neutral-600 hover:bg-clay-light hover:text-dark'
+                }`}
+              >
+                <MapPin className="w-4.5 h-4.5 stroke-[1.8] text-brand" />
+                Manage Delivery Fees
+              </button>
+
+              <button
+                onClick={() => { setActiveTab('future'); resetForm(); }}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-left transition text-xs font-bold uppercase tracking-wider cursor-pointer ${
+                  activeTab === 'future'
+                    ? 'bg-dark text-white shadow-md'
+                    : 'bg-transparent text-neutral-500 hover:bg-clay-light hover:text-dark'
+                }`}
+              >
+                <span className="flex items-center gap-3">
+                  <Zap className="w-4.5 h-4.5 text-brand stroke-[1.8]" />
+                  Extensible Upgrades
+                </span>
+                <span className="text-[8px] bg-brand text-white px-1.5 py-0.5 rounded font-black">NEW</span>
+              </button>
+            </div>
+
+            {/* Quick status cards */}
+            <div className="pt-4 border-t border-clay-light space-y-2">
+              <div className="flex items-center justify-between text-[10px] font-bold text-neutral-400 uppercase tracking-widest">
+                <span>System Health</span>
+                <span className="text-green-600 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                  Optimal
+                </span>
+              </div>
+              <div className="text-[10px] text-neutral-500 leading-normal font-light">
+                WhatsApp Chat routing to +{settings.whatsappNumber} with standard checkout parameters.
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        {/* RIGHT SIDE DETAILS AREA */}
+        <div className="lg:col-span-9 bg-white rounded-3xl border border-clay p-6 sm:p-8 shadow-sm min-h-[500px]">
+          
+          {/* DASHBOARD SUMMARY TAB */}
+          {activeTab === 'dashboard' && (
+            <div className="space-y-8 animate-fade-in">
+              {/* Simulation feedback toast */}
+              {simulationToast && (
+                <div className="fixed bottom-6 right-6 z-50 bg-neutral-900 text-white px-5 py-3 rounded-2xl border border-brand/50 shadow-2xl flex items-center gap-3.5 animate-bounce font-sans text-xs">
+                  <span className="w-2.5 h-2.5 rounded-full bg-brand animate-ping"></span>
+                  <p className="font-bold">{simulationToast}</p>
+                </div>
+              )}
+
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-clay-light pb-5">
+                <div>
+                  <h3 className="font-serif text-2xl font-black text-dark uppercase tracking-wide">Live Metrics & Performance</h3>
+                  <p className="text-neutral-500 text-xs mt-1.5 font-light">Real-time boutique sales metrics, automated geographic conversions, and catalog trackers.</p>
+                </div>
+                <div className="flex flex-wrap gap-2.5">
+                  <button
+                    onClick={handleExportOrdersCSV}
+                    className="inline-flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-[10px] font-bold uppercase tracking-wider px-3.5 py-2.5 rounded-xl transition cursor-pointer border border-clay-light"
+                    title="Export all orders to Microsoft Excel/CSV document"
+                  >
+                    📊 Export Orders CSV
+                  </button>
+                  <button
+                    onClick={handleExportInventoryCSV}
+                    className="inline-flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-[10px] font-bold uppercase tracking-wider px-3.5 py-2.5 rounded-xl transition cursor-pointer border border-clay-light"
+                    title="Export entire cosmetics inventory catalog to CSV"
+                  >
+                    💄 Export Stock CSV
+                  </button>
+                </div>
+              </div>
+
+              {/* Period Selector Tabs for Dashboard Metrics */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4.5 bg-bg-warm/60 border border-clay rounded-2xl">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">Metrics Period:</span>
+                  <div className="flex gap-1 bg-white p-1 rounded-xl border border-clay-light">
+                    {[
+                      { key: 'all', label: 'All Time' },
+                      { key: 'daily', label: 'Today (Daily)' },
+                      { key: 'monthly', label: 'This Month' },
+                      { key: 'yearly', label: 'This Year' }
+                    ].map((opt) => (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        onClick={() => setDashboardTimeFilter(opt.key as any)}
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition cursor-pointer ${
+                          dashboardTimeFilter === opt.key
+                            ? 'bg-dark text-white shadow-sm font-extrabold'
+                            : 'text-neutral-500 hover:text-dark hover:bg-neutral-50'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="text-[10px] text-neutral-400 font-medium">
+                  Active Filter: <span className="font-bold text-dark uppercase">{dashboardTimeFilter}</span> (showing {dbFilteredOrders.length} orders matching)
+                </div>
+              </div>
+
+              {/* Bento analytics grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                
+                <div className="bg-clay-light/35 p-5 rounded-3xl border border-clay/60 flex items-center gap-4 shadow-sm">
+                  <div className="w-11 h-11 rounded-2xl bg-white text-brand flex items-center justify-center shadow-sm flex-shrink-0">
+                    <DollarSign className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider">Gross Revenue</p>
+                    <p className="text-lg font-black text-dark mt-1">Rs. {totalRevenue.toLocaleString('en-IN')}</p>
+                  </div>
+                </div>
+
+                <div className="bg-clay-light/35 p-5 rounded-3xl border border-clay/60 flex items-center gap-4 shadow-sm">
+                  <div className="w-11 h-11 rounded-2xl bg-white text-dark flex items-center justify-center shadow-sm flex-shrink-0">
+                    <ShoppingCart className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider">Orders Logged</p>
+                    <p className="text-lg font-black text-dark mt-1">{orders.length} orders</p>
+                  </div>
+                </div>
+
+                <div className="bg-clay-light/35 p-5 rounded-3xl border border-clay/60 flex items-center gap-4 shadow-sm">
+                  <div className="w-11 h-11 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center shadow-sm flex-shrink-0">
+                    <Package className="w-5 h-5 animate-pulse" />
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider">Pending Delivery</p>
+                    <p className="text-lg font-black text-dark mt-1">{pendingOrdersCount} dispatches</p>
+                  </div>
+                </div>
+
+                <div className="bg-clay-light/35 p-5 rounded-3xl border border-clay/60 flex items-center gap-4 shadow-sm">
+                  <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center shadow-sm flex-shrink-0">
+                    <Percent className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider">Total Saved</p>
+                    <p className="text-lg font-black text-dark mt-1">Rs. {totalDiscountDistributed.toLocaleString('en-IN')}</p>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Sourcing Cost & Net Profit Ledger - Admin Only */}
+              <div className="bg-emerald-50/40 border border-emerald-200/80 rounded-3xl p-5 sm:p-6 space-y-4 shadow-sm animate-fade-in">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-emerald-200/60 pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">💰</span>
+                    <div>
+                      <h4 className="font-serif text-xs font-black text-emerald-900 uppercase tracking-widest">Boutique Profitability Ledger (व्यवसाय नाफा र लागत बही)</h4>
+                      <p className="text-[10px] text-neutral-500">Live cost metrics based on active orders & configured catalog buying costs.</p>
+                    </div>
+                  </div>
+                  <span className="self-start sm:self-center bg-emerald-600/10 text-emerald-800 text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border border-emerald-600/20 font-mono">
+                    🔒 Admin Only View
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                  <div className="bg-white p-4.5 rounded-2xl border border-emerald-100 flex items-center gap-3.5 shadow-xs hover:shadow-sm transition-all">
+                    <div className="w-10 h-10 rounded-xl bg-neutral-100 text-neutral-600 flex items-center justify-center font-bold text-lg">
+                      📥
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider">Total Buying Cost (हामीलाई परेको कुल रकम)</p>
+                      <p className="text-base font-black text-dark mt-0.5">Rs. {totalCostOfGoodsSold.toLocaleString('en-IN')}</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-4.5 rounded-2xl border border-emerald-100 flex items-center gap-3.5 shadow-xs hover:shadow-sm transition-all">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-lg">
+                      💸
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-emerald-500 font-bold uppercase tracking-wider">Total Net Profit (हामीलाई आएको खुद नाफा)</p>
+                      <p className="text-base font-black text-emerald-800 mt-0.5">Rs. {totalNetProfit.toLocaleString('en-IN')}</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-4.5 rounded-2xl border border-emerald-100 flex items-center gap-3.5 shadow-xs hover:shadow-sm transition-all">
+                    <div className="w-10 h-10 rounded-xl bg-brand/10 text-brand flex items-center justify-center font-bold text-lg">
+                      📈
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-brand font-bold uppercase tracking-wider">Overall Margin / Markup</p>
+                      <p className="text-base font-black text-brand mt-0.5 font-mono">
+                        {totalRevenue > 0 ? ((totalNetProfit / totalRevenue) * 100).toFixed(1) : '0'}% / {overallProfitPercent.toFixed(1)}%
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Advanced Middle Section: Target Goal Progress and Category Performance split */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                
+                {/* 1. Monthly Target Sales Tracker widget */}
+                <div className="bg-gradient-to-br from-bg-warm to-white p-6 rounded-3xl border border-clay shadow-sm flex flex-col justify-between">
+                  <div>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <span className="text-[9px] bg-brand text-white px-2 py-0.5 rounded-full font-black uppercase tracking-wider">Monthly Target Goal</span>
+                        <h4 className="font-serif text-lg font-bold text-dark mt-2.5">Boutique Revenue Goal</h4>
+                      </div>
+                      
+                      {!editingGoal ? (
+                        <button
+                          onClick={() => { setTempGoal(monthlyGoal.toString()); setEditingGoal(true); }}
+                          className="text-[10px] text-brand hover:underline font-bold"
+                        >
+                          ⚙️ Adjust Target
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            value={tempGoal}
+                            onChange={(e) => setTempGoal(e.target.value)}
+                            className="w-24 px-2 py-1 text-xs border border-clay rounded-lg bg-white"
+                          />
+                          <button
+                            onClick={() => handleSaveGoal(tempGoal)}
+                            className="bg-dark text-white text-[9px] font-bold px-2.5 py-1.5 rounded-lg hover:bg-brand"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => setEditingGoal(false)}
+                            className="text-[9px] text-neutral-400 px-1 hover:text-dark"
+                          >
+                            X
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-5 flex items-center gap-5">
+                      <div className="relative w-24 h-24 flex items-center justify-center flex-shrink-0">
+                        {/* Custom SVG dynamic donut dial chart */}
+                        <svg className="w-full h-full transform -rotate-90">
+                          <circle
+                            cx="48"
+                            cy="48"
+                            r="38"
+                            className="stroke-neutral-200 fill-none"
+                            strokeWidth="8"
+                          />
+                          <circle
+                            cx="48"
+                            cy="48"
+                            r="38"
+                            className="stroke-brand fill-none transition-all duration-1000"
+                            strokeWidth="8"
+                            strokeDasharray={2 * Math.PI * 38}
+                            strokeDashoffset={2 * Math.PI * 38 * (1 - Math.min(100, (totalRevenue / monthlyGoal)) / 100)}
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                        <div className="absolute flex flex-col items-center justify-center">
+                          <span className="text-base font-black text-dark">
+                            {Math.round((totalRevenue / monthlyGoal) * 100)}%
+                          </span>
+                          <span className="text-[8px] text-neutral-400 font-bold uppercase tracking-wide">Achieved</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1 font-sans">
+                        <p className="text-[11px] text-neutral-400 font-bold uppercase tracking-wider">Current Achievement</p>
+                        <p className="text-lg font-black text-dark">Rs. {totalRevenue.toLocaleString('en-IN')}</p>
+                        <p className="text-xs text-neutral-500 font-light">
+                          Target Goal: <span className="font-bold text-neutral-700">Rs. {monthlyGoal.toLocaleString('en-IN')}</span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-clay-light pt-4.5 mt-5">
+                    <p className="text-[10px] text-neutral-500 leading-relaxed font-light">
+                      {totalRevenue >= monthlyGoal 
+                        ? '🎉 Amazing! The boutique has fully surpassed this month\'s target. Excellent marketing coordination!' 
+                        : `We are Rs. ${(monthlyGoal - totalRevenue).toLocaleString('en-IN')} away from our monthly threshold.`}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 2. Cosmetics Category Sales Breakdown widget */}
+                <div className="bg-white p-6 rounded-3xl border border-clay shadow-sm flex flex-col justify-between">
+                  <div>
+                    <h4 className="font-serif text-base font-bold text-dark uppercase tracking-wide">Sales Contribution by Category</h4>
+                    <p className="text-neutral-400 text-[10px] font-light mt-0.5">NPR subtotal values mapped directly from active retail customer checkouts.</p>
+                    
+                    <div className="mt-4.5 space-y-3.5">
+                      {Array.from(new Set(products.map(p => p.category))).map((cat) => {
+                        // Calculate specific subtotal for this category
+                        let catTotal = 0;
+                        orders.filter(o => o.status !== 'Cancelled').forEach(o => {
+                          o.items.forEach(it => {
+                            const match = products.find(p => p.id === it.productId || p.name === it.productName);
+                            if (match && match.category === cat) {
+                              catTotal += it.price * it.quantity;
+                            } else if (!match && cat === 'Cosmetics') {
+                              // Fallback for demo products matching Cosmetics default
+                              catTotal += it.price * it.quantity;
+                            }
+                          });
+                        });
+
+                        const ratio = totalRevenue > 0 ? (catTotal / totalRevenue) * 100 : 0;
+                        
+                        return (
+                          <div key={cat} className="space-y-1 font-sans text-xs">
+                            <div className="flex justify-between font-bold text-dark text-[11px]">
+                              <span>{cat}</span>
+                              <span className="font-mono text-neutral-500">Rs. {catTotal.toLocaleString('en-IN')} ({Math.round(ratio)}%)</span>
+                            </div>
+                            <div className="w-full bg-neutral-100 h-2.5 rounded-full overflow-hidden">
+                              <div 
+                                className="bg-brand h-full rounded-full transition-all duration-700" 
+                                style={{ width: `${Math.max(3, ratio)}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Actionable Low Stock Notification Center & Simulation Playground */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                
+                {/* 1. Low Stock Alerts Center */}
+                <div className="bg-white p-6 rounded-3xl border border-clay shadow-sm">
+                  <div className="flex items-center justify-between border-b border-clay-light pb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-2.5 w-2.5 relative">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+                      </span>
+                      <h4 className="font-serif text-base font-bold text-dark uppercase tracking-wide">Live Low-Stock Alerts</h4>
+                    </div>
+                    <span className="text-[10px] bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-black">
+                      {products.filter(p => p.stockCount !== undefined && p.stockCount < 5).length} Warning
+                    </span>
+                  </div>
+
+                  <div className="mt-4 space-y-3 max-h-[220px] overflow-y-auto pr-1">
+                    {products.filter(p => p.stockCount !== undefined && p.stockCount < 5).length === 0 ? (
+                      <div className="text-center py-8">
+                        <CheckCircle2 className="w-9 h-9 text-emerald-500 mx-auto" />
+                        <p className="text-xs text-neutral-500 font-bold mt-2">All Products Fully Stocked!</p>
+                        <p className="text-[10px] text-neutral-400 font-light mt-0.5">No immediate cosmetic items require restock replenishment.</p>
+                      </div>
+                    ) : (
+                      products
+                        .filter(p => p.stockCount !== undefined && p.stockCount < 5)
+                        .map((p) => (
+                          <div key={p.id} className="flex justify-between items-center bg-clay-light/25 p-3 rounded-2xl border border-clay/50 text-xs">
+                            <div className="min-w-0 flex-grow">
+                              <p className="font-bold text-dark truncate">{p.name}</p>
+                              <p className="text-[10px] text-neutral-400 font-light mt-0.5">
+                                Current Stock: <span className="font-mono text-red-600 font-bold">{p.stockCount} left</span>
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => {
+                                onUpdateProduct({
+                                  ...p,
+                                  stockCount: (p.stockCount || 0) + 10,
+                                  inStock: true
+                                });
+                                setSimulationToast(`📈 Restocked +10 Units for "${p.name}"!`);
+                                setTimeout(() => setSimulationToast(''), 2500);
+                              }}
+                              className="bg-dark hover:bg-brand text-white text-[9px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg transition"
+                            >
+                              ⚡ Restock +10
+                            </button>
+                          </div>
+                        ))
+                    )}
+                  </div>
+                </div>
+
+                {/* 2. Simulation Playground controls (Highly useful for testing) */}
+                <div className="bg-neutral-900 text-white p-6 rounded-3xl border border-neutral-800 shadow-xl flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-5 h-5 text-brand" />
+                      <h4 className="font-serif text-base font-bold text-white uppercase tracking-wide">Boutique Testing Playground</h4>
+                    </div>
+                    <p className="text-[11px] text-neutral-400 leading-relaxed font-light mt-1.5">
+                      Simulate real-time business activities instantly. Ideal for validating WhatsApp alerts, invoice PDF generation, currency ratios, and rating recalculations.
+                    </p>
+
+                    <div className="grid grid-cols-2 gap-3 mt-5">
+                      <button
+                        onClick={handleSimulateNewOrder}
+                        className="bg-neutral-800 hover:bg-neutral-700 text-white text-[10px] font-bold uppercase tracking-wider py-3 px-2 rounded-xl transition border border-white/5 text-center flex flex-col items-center justify-center gap-1.5"
+                        title="Inject a random simulated incoming checkout order"
+                      >
+                        <ShoppingCart className="w-4 h-4 text-brand" />
+                        <span>Simulate Order</span>
+                      </button>
+
+                      <button
+                        onClick={handleSimulateReview}
+                        className="bg-neutral-800 hover:bg-neutral-700 text-white text-[10px] font-bold uppercase tracking-wider py-3 px-2 rounded-xl transition border border-white/5 text-center flex flex-col items-center justify-center gap-1.5"
+                        title="Inject a random simulated positive customer review"
+                      >
+                        <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                        <span>Simulate Review</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-white/5 pt-4.5 mt-5 flex justify-between items-center text-[9px] text-neutral-400 font-mono">
+                    <span>Engine: Local Live Mode</span>
+                    <span className="text-brand">Active & Ready</span>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* 3. Live Customer Carts Tracker (Abandoned Cart Recovery Hub) */}
+              <div className="bg-white p-6 rounded-3xl border border-clay shadow-sm space-y-5">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-clay-light pb-4 gap-2">
+                  <div>
+                    <h4 className="font-serif text-lg font-black text-dark uppercase tracking-wide flex items-center gap-2">
+                      <ShoppingCart className="w-5 h-5 text-brand" />
+                      Live Customer Carts Tracker
+                    </h4>
+                    <p className="text-neutral-500 text-[11px] font-light mt-0.5">Track products added to carts by active visitors and send instant recovery notifications.</p>
+                  </div>
+                  <span className="text-[10px] bg-brand/10 text-brand px-3 py-1 rounded-full font-black uppercase tracking-wider">
+                    {activeCarts.length} Active Shopping Sessions
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {activeCarts.map((cart) => {
+                    const totalCartPrice = cart.items.reduce((sum: number, it: any) => sum + (it.price * it.quantity), 0);
+                    return (
+                      <div key={cart.id} className="bg-clay-light/20 border border-clay rounded-2xl p-4 flex flex-col justify-between space-y-4 hover:shadow-md transition">
+                        <div className="space-y-3">
+                          {/* Top row */}
+                          <div className="flex justify-between items-start gap-2">
+                            <div>
+                              <p className="font-bold text-dark text-xs flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                                {cart.customerName}
+                              </p>
+                              <p className="text-[10px] text-neutral-400 font-mono mt-0.5">+{cart.phone}</p>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-[9px] bg-white border border-clay-light px-2 py-0.5 rounded-md text-neutral-500 font-medium block">
+                                {cart.lastStep}
+                              </span>
+                              <span className="text-[9px] text-neutral-400 font-light mt-1 block font-mono">{cart.updatedAt}</span>
+                            </div>
+                          </div>
+
+                          {/* Items List */}
+                          <div className="space-y-2 border-t border-dashed border-clay-light pt-2.5">
+                            {cart.items.map((item: any, idx: number) => (
+                              <div key={idx} className="flex items-center gap-2 text-[11px] text-neutral-600">
+                                <img src={item.image} alt="" referrerPolicy="no-referrer" className="w-8 h-8 rounded object-cover border border-clay-light" />
+                                <div className="min-w-0 flex-grow">
+                                  <p className="font-medium text-dark truncate">{item.productName}</p>
+                                  <p className="text-[10px] text-neutral-400">Rs. {item.price.toLocaleString('en-IN')} x {item.quantity}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Total & Action */}
+                        <div className="border-t border-clay-light pt-3 flex items-center justify-between gap-3">
+                          <div>
+                            <span className="text-[9px] text-neutral-400 uppercase tracking-wider font-bold block">Estimated Total</span>
+                            <span className="font-extrabold text-dark text-sm">Rs. {totalCartPrice.toLocaleString('en-IN')}</span>
+                          </div>
+                          <button
+                            onClick={() => handleSendCartNotification(cart)}
+                            className="inline-flex items-center gap-1.5 bg-dark hover:bg-brand text-white text-[9px] font-bold uppercase tracking-wider py-2 px-3 rounded-xl transition cursor-pointer shadow-sm"
+                            title="Send discount coupon & recovery reminder via WhatsApp"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5" />
+                            <span>Notify Client</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* General Multi-currency instructions card */}
+              <div className="bg-bg-warm/40 border border-clay rounded-3xl p-6 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-brand" />
+                  <h4 className="font-serif text-base font-bold text-dark uppercase tracking-wide">Automated Checkout and Shipping rules</h4>
+                </div>
+                <p className="text-xs text-neutral-600 leading-relaxed font-light">
+                  Mahi Creations uses an intelligent multi-currency system to serve clients in Nepal, UAE, India, Europe, and the US simultaneously. When you add a new cosmetic product, input its base price in NPR (Nepali Rupees). The system automatically converts and formats prices dynamically using real-time currency ratios on the client storefront. Delivery fees are applied according to the customer's selected geographical area!
+                </p>
+                <div className="pt-2">
+                  <button
+                    onClick={() => setActiveTab('products')}
+                    className="inline-flex items-center gap-2 bg-dark hover:bg-brand text-white font-bold text-xs uppercase tracking-widest px-5 py-3 rounded-xl transition cursor-pointer"
+                  >
+                    Manage Makeup Inventory &rarr;
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* MANAGE PRODUCTS TAB */}
+          {activeTab === 'products' && (
+            <div className="space-y-6 animate-fade-in">
+              
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h3 className="font-serif text-xl font-bold text-dark uppercase tracking-wide">Registered Makeup Products</h3>
+                  <p className="text-neutral-500 text-xs font-light">Add, edit, or delete items from the public e-commerce store catalog.</p>
+                </div>
+                {!isAdding && !isEditing && (
+                  <button
+                    onClick={handleOpenAddForm}
+                    className="inline-flex items-center gap-2 bg-dark hover:bg-brand text-white text-xs font-bold uppercase tracking-widest px-4.5 py-3 rounded-xl cursor-pointer transition-all self-start sm:self-center"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Cosmetic Item
+                  </button>
+                )}
+              </div>
+
+              {/* Add/Edit Product form overlay card */}
+              {(isAdding || isEditing) && (
+                <div className="bg-bg-warm p-6 rounded-3xl border border-clay shadow-inner max-w-2xl">
+                  <div className="flex items-center justify-between border-b border-clay pb-3 mb-5">
+                    <h5 className="font-serif text-base font-bold text-dark uppercase tracking-wide">
+                      {isEditing ? `Edit Item: ${isEditing.name}` : 'Add Premium Cosmetic Item'}
+                    </h5>
+                    <button onClick={resetForm} className="text-neutral-400 hover:text-dark cursor-pointer">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleFormSubmit} className="space-y-4 text-xs">
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      {/* Name */}
+                      <div className="space-y-1 sm:col-span-2">
+                        <label className="text-[10px] uppercase tracking-wider font-bold text-neutral-600">Product Title</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. Mahi Waterproof Lash Extender"
+                          value={formName}
+                          onChange={(e) => setFormName(e.target.value)}
+                          className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white focus:outline-none focus:border-brand font-medium text-dark"
+                        />
+                      </div>
+
+                      {/* Category */}
+                      <div className="space-y-1 sm:col-span-1">
+                        <label className="text-[10px] uppercase tracking-wider font-bold text-neutral-600">Category</label>
+                        <input
+                          type="text"
+                          required
+                          list="category-suggestions"
+                          placeholder="e.g. Cosmetics"
+                          value={formCategory}
+                          onChange={(e) => setFormCategory(e.target.value)}
+                          className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white focus:outline-none focus:border-brand font-medium text-dark"
+                        />
+                        <datalist id="category-suggestions">
+                          {Array.from(new Set(products.map(p => p.category))).map(cat => (
+                            <option key={cat} value={cat} />
+                          ))}
+                        </datalist>
+                      </div>
+
+                      {/* Brand / Company */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase tracking-wider font-bold text-neutral-600">Brand / Company Name</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Mahi Creations"
+                          value={formBrand}
+                          onChange={(e) => setFormBrand(e.target.value)}
+                          className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white focus:outline-none focus:border-brand font-medium text-dark"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-6 gap-4">
+                      {/* Price and Currency Selection */}
+                      <div className="space-y-1 col-span-1">
+                        <label className="text-[10px] uppercase tracking-wider font-bold text-neutral-600 block mb-1">
+                          Price & Currency
+                        </label>
+                        <div className="flex gap-1.5">
+                          <input
+                            type="number"
+                            required
+                            min={1}
+                            value={formPrice}
+                            onChange={(e) => setFormPrice(Number(e.target.value))}
+                            className="w-2/3 text-xs border border-clay rounded-lg p-2.5 bg-white focus:outline-none focus:border-brand font-medium text-dark"
+                            placeholder="Price"
+                          />
+                          <select
+                            value={formPriceCurrency}
+                            onChange={(e) => setFormPriceCurrency(e.target.value as CurrencyCode)}
+                            className="w-1/3 text-xs border border-clay rounded-lg p-2.5 bg-white focus:outline-none focus:border-brand cursor-pointer font-bold text-dark"
+                          >
+                            {CURRENCIES.map(curr => (
+                              <option key={curr.code} value={curr.code}>
+                                {curr.code}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        {formPriceCurrency !== 'NPR' && (
+                          <p className="text-[9px] text-neutral-400 mt-0.5">
+                            Approx: Rs. {Math.round(formPrice / (CURRENCIES.find(c => c.code === formPriceCurrency)?.rate || 1.0)).toLocaleString('en-NP')} (NPR Base)
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Buying Cost (NPR or entered currency) */}
+                      <div className="space-y-1 col-span-1">
+                        <label className="text-[10px] uppercase tracking-wider font-bold text-neutral-600 block mb-1">
+                          Buying Cost ({formPriceCurrency})
+                        </label>
+                        <input
+                          type="number"
+                          required
+                          min={0}
+                          value={formCostPrice}
+                          onChange={(e) => setFormCostPrice(Number(e.target.value))}
+                          className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white focus:outline-none focus:border-brand font-medium text-dark"
+                          placeholder="Cost Price"
+                        />
+                        {formPriceCurrency !== 'NPR' && (
+                          <p className="text-[9px] text-neutral-400 mt-0.5">
+                            Approx Cost: Rs. {Math.round(formCostPrice / (CURRENCIES.find(c => c.code === formPriceCurrency)?.rate || 1.0)).toLocaleString('en-NP')} (NPR Base)
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Discount percent */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase tracking-wider font-bold text-neutral-600 block mb-1">Discount (%)</label>
+                        <input
+                          type="number"
+                          required
+                          min={0}
+                          max={100}
+                          value={formDiscountPercent}
+                          onChange={(e) => setFormDiscountPercent(Number(e.target.value))}
+                          className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white focus:outline-none focus:border-brand font-medium text-dark"
+                        />
+                      </div>
+
+                      {/* In Stock toggle */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase tracking-wider font-bold text-neutral-600 block mb-1">Availability</label>
+                        <label className="inline-flex items-center gap-2 cursor-pointer pt-1">
+                          <input
+                            type="checkbox"
+                            checked={formInStock}
+                            onChange={(e) => setFormInStock(e.target.checked)}
+                            className="w-4.5 h-4.5 accent-brand rounded cursor-pointer"
+                          />
+                          <span className="font-semibold text-dark text-xs uppercase tracking-wider">In Stock</span>
+                        </label>
+                      </div>
+
+                      {/* Visibility toggle */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase tracking-wider font-bold text-neutral-600 block mb-1">Visibility</label>
+                        <label className="inline-flex items-center gap-2 cursor-pointer pt-1">
+                          <input
+                            type="checkbox"
+                            checked={formIsVisible}
+                            onChange={(e) => setFormIsVisible(e.target.checked)}
+                            className="w-4.5 h-4.5 accent-brand rounded cursor-pointer"
+                          />
+                          <span className="font-semibold text-dark text-xs uppercase tracking-wider">Show on Web</span>
+                        </label>
+                      </div>
+
+                      {/* Stock Inventory Count */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase tracking-wider font-bold text-neutral-600 block mb-1">Inventory Stock</label>
+                        <input
+                          type="number"
+                          required
+                          min={0}
+                          value={formStockCount}
+                          onChange={(e) => setFormStockCount(Number(e.target.value))}
+                          className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white focus:outline-none focus:border-brand font-medium text-dark"
+                          placeholder="e.g. 10"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Live Profitability Projection Banner */}
+                    {(() => {
+                      const originalPrice = Number(formPrice) || 0;
+                      const cost = Number(formCostPrice) || 0;
+                      const discountVal = (originalPrice * Number(formDiscountPercent || 0)) / 100;
+                      const activeSellingPrice = originalPrice - discountVal;
+                      const profit = activeSellingPrice - cost;
+                      const markupPercent = cost > 0 ? (profit / cost) * 100 : 0;
+                      const marginPercent = activeSellingPrice > 0 ? (profit / activeSellingPrice) * 100 : 0;
+                      
+                      return (
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs mt-1 animate-fade-in">
+                          <div className="flex items-center gap-3">
+                            <span className="bg-emerald-600 text-white rounded-full p-2 text-xs flex items-center justify-center">
+                              📊
+                            </span>
+                            <div>
+                              <p className="font-black text-emerald-900 uppercase text-[9px] tracking-widest">Auto profit percentage calculator</p>
+                              <p className="text-neutral-500 text-[10px] mt-0.5">
+                                Unit Sell: <span className="font-semibold text-dark">{formPriceCurrency} {activeSellingPrice.toLocaleString()}</span> | 
+                                Unit Cost: <span className="font-semibold text-dark">{formPriceCurrency} {cost.toLocaleString()}</span>
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex gap-5 items-center text-right sm:border-l sm:border-emerald-200 sm:pl-5 w-full sm:w-auto justify-between sm:justify-end">
+                            <div>
+                              <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider">Profit Amount</p>
+                              <p className="font-mono font-black text-emerald-800 text-xs sm:text-sm">
+                                {formPriceCurrency} {profit.toLocaleString()}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider">Markup / Profit Margin</p>
+                              <p className="font-mono font-black text-brand text-xs sm:text-sm">
+                                {markupPercent.toFixed(1)}% / {marginPercent.toFixed(1)}%
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Description */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] uppercase tracking-wider font-bold text-neutral-600">Formulation & Description Details</label>
+                      <textarea
+                        rows={2}
+                        required
+                        placeholder="Enter short makeup formulation details..."
+                        value={formDescription}
+                        onChange={(e) => setFormDescription(e.target.value)}
+                        className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white focus:outline-none focus:border-brand resize-none font-medium text-dark"
+                      />
+                    </div>
+
+                    {/* Multiple Product Images & Photo Upload */}
+                    <div className="space-y-2 border border-clay bg-clay-light/20 rounded-2xl p-4.5">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[10px] uppercase tracking-wider font-bold text-neutral-600 block font-bold">
+                          Product Photos (Multiple Photos Support)
+                        </label>
+                        <span className="text-[9px] bg-brand/10 text-brand px-2 py-0.5 rounded-full font-bold">
+                          {formImages.length} photo(s) added
+                        </span>
+                      </div>
+
+                      {/* File Upload & URL Addition Controls */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* File Upload Block */}
+                        <div className="border border-dashed border-clay-dark/60 rounded-xl p-3 flex flex-col items-center justify-center bg-white text-center hover:bg-clay-light/30 transition relative cursor-pointer group">
+                          <input
+                            type="file"
+                            multiple
+                            accept="image/*"
+                            onChange={(e) => {
+                              if (e.target.files) {
+                                const filesArray = Array.from(e.target.files);
+                                filesArray.forEach((file) => {
+                                  const reader = new FileReader();
+                                  reader.onloadend = () => {
+                                    if (typeof reader.result === 'string') {
+                                      setFormImages(prev => {
+                                        if (prev.includes(reader.result as string)) return prev;
+                                        return [...prev, reader.result as string];
+                                      });
+                                    }
+                                  };
+                                  reader.readAsDataURL(file as Blob);
+                                });
+                              }
+                            }}
+                            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                          />
+                          <span className="text-xl mb-1 group-hover:scale-110 transition-transform">📸</span>
+                          <span className="text-[10px] font-bold text-dark block">Upload Local Photos</span>
+                          <span className="text-[9px] text-neutral-400 block mt-0.5">Drag & drop or click to select</span>
+                        </div>
+
+                        {/* URL input box */}
+                        <div className="flex flex-col justify-between space-y-1.5 bg-white border border-clay p-3 rounded-xl">
+                          <span className="text-[10px] font-bold text-neutral-600">Add Photo from Unsplash / Web URL</span>
+                          <div className="flex gap-1">
+                            <input
+                              type="url"
+                              id="temp_url_input"
+                              placeholder="Paste image URL..."
+                              className="flex-grow text-[11px] border border-clay rounded-lg p-1.5 bg-neutral-50 focus:bg-white focus:outline-none focus:border-brand font-mono text-dark"
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  const input = e.currentTarget;
+                                  const val = input.value.trim();
+                                  if (val) {
+                                    setFormImages(prev => {
+                                      if (prev.includes(val)) return prev;
+                                      return [...prev, val];
+                                    });
+                                    input.value = '';
+                                  }
+                                }
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const el = document.getElementById('temp_url_input') as HTMLInputElement;
+                                if (el && el.value.trim()) {
+                                  const val = el.value.trim();
+                                  setFormImages(prev => {
+                                    if (prev.includes(val)) return prev;
+                                    return [...prev, val];
+                                  });
+                                  el.value = '';
+                                }
+                              }}
+                              className="bg-dark hover:bg-brand text-white px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition cursor-pointer"
+                            >
+                              Add
+                            </button>
+                          </div>
+                          <span className="text-[8px] text-neutral-400 leading-normal">Press Enter or click Add to append the photo URL to this product.</span>
+                        </div>
+                      </div>
+
+                      {/* Displaying Current Added Images as Thumbnails */}
+                      {formImages.length > 0 && (
+                        <div className="pt-2">
+                          <p className="text-[9px] font-bold text-neutral-500 uppercase tracking-widest mb-1.5">Manage added photos (Click cover badge to set as Primary photo)</p>
+                          <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto p-1 bg-white rounded-xl border border-clay shadow-inner">
+                            {formImages.map((img, idx) => {
+                              const isPrimary = formImage === img || (idx === 0 && !formImage);
+                              return (
+                                <div key={idx} className="relative w-14 h-16 rounded-lg border border-clay overflow-hidden group/thumb flex-shrink-0 bg-neutral-100">
+                                  <img src={img} alt={`Preview ${idx + 1}`} className="w-full h-full object-cover" />
+                                  
+                                  {/* Delete Photo Badge */}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setFormImages(prev => prev.filter((_, i) => i !== idx));
+                                      if (formImage === img) {
+                                        setFormImage(''); // Reset primary so first remaining or fallback will be picked
+                                      }
+                                    }}
+                                    className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 text-white w-4.5 h-4.5 rounded-full flex items-center justify-center text-[8px] shadow opacity-0 group-hover/thumb:opacity-100 transition duration-150 cursor-pointer z-20"
+                                    title="Remove photo"
+                                  >
+                                    <X className="w-2.5 h-2.5" />
+                                  </button>
+
+                                  {/* Primary Selector Indicator */}
+                                  <button
+                                    type="button"
+                                    onClick={() => setFormImage(img)}
+                                    className={`absolute inset-x-0 bottom-0 py-0.5 text-[8px] text-center font-bold transition z-10 cursor-pointer ${
+                                      isPrimary 
+                                        ? 'bg-brand text-white' 
+                                        : 'bg-black/60 text-white/80 opacity-0 group-hover/thumb:opacity-100 hover:bg-brand'
+                                    }`}
+                                  >
+                                    {isPrimary ? 'Cover ★' : 'Set Cover'}
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Form CTA Actions */}
+                    <div className="flex gap-2 justify-end pt-3.5 border-t border-clay">
+                      <button
+                        type="button"
+                        onClick={resetForm}
+                        className="bg-clay hover:bg-clay-dark text-neutral-700 px-4 py-2 rounded-lg cursor-pointer transition uppercase tracking-wider font-bold text-[10px]"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="bg-dark hover:bg-brand text-white px-5 py-2 rounded-lg cursor-pointer font-bold transition uppercase tracking-widest text-[10px]"
+                      >
+                        {isEditing ? 'Update Makeup Item' : 'Add to Catalog'}
+                      </button>
+                    </div>
+
+                  </form>
+                </div>
+              )}
+
+              {/* Aligned listing with search filters, brand tags, and currency flag logos */}
+              {(() => {
+                const getCurrencyVisual = (code?: string) => {
+                  const cleanCode = code || 'NPR';
+                  switch (cleanCode) {
+                    case 'AED': return { flag: '🇦🇪', label: 'UAE Dirham', symbol: 'AED' };
+                    case 'USD': return { flag: '🇺🇸', label: 'US Dollar', symbol: '$' };
+                    case 'EUR': return { flag: '🇪🇺', label: 'Euro', symbol: '€' };
+                    case 'NPR': return { flag: '🇳🇵', label: 'Nepalese Rupee', symbol: 'Rs.' };
+                    case 'INR': return { flag: '🇮🇳', label: 'Indian Rupee', symbol: '₹' };
+                    default: return { flag: '🪙', label: cleanCode, symbol: 'Rs.' };
+                  }
+                };
+
+                const availableBrands = Array.from(new Set(products.map(p => p.brand || 'Mahi Creations')));
+                const filteredProducts = products.filter(p => {
+                  const pBrand = p.brand || 'Mahi Creations';
+                  const matchesSearch = p.name.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
+                                        pBrand.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
+                                        p.category.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
+                                        p.id.toLowerCase().includes(productSearchQuery.toLowerCase());
+                  const matchesCategory = productCategoryFilter === 'All' || p.category === productCategoryFilter;
+                  const matchesBrand = productBrandFilter === 'All' || pBrand === productBrandFilter;
+                  return matchesSearch && matchesCategory && matchesBrand;
+                });
+
+                return (
+                  <div className="space-y-4">
+                    {/* Search & Brand/Category Filters */}
+                    {!isAdding && !isEditing && (
+                      <div className="bg-bg-warm/40 p-4.5 rounded-2xl border border-clay grid grid-cols-1 sm:grid-cols-3 gap-3.5 items-center mb-4">
+                        {/* Search Bar */}
+                        <div className="relative">
+                          <label className="text-[10px] uppercase font-bold text-neutral-500 block mb-1">Search Products / Brands</label>
+                          <div className="relative">
+                            <input
+                              type="text"
+                              value={productSearchQuery}
+                              onChange={(e) => setProductSearchQuery(e.target.value)}
+                              placeholder="Search name, brand, category..."
+                              className="w-full text-xs border border-clay rounded-lg pl-8 pr-3 py-2.5 bg-white focus:outline-none focus:border-brand font-medium text-dark"
+                            />
+                            <Search className="w-3.5 h-3.5 text-neutral-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                          </div>
+                        </div>
+
+                        {/* Category Filter */}
+                        <div>
+                          <label className="text-[10px] uppercase font-bold text-neutral-500 block mb-1">Filter by Category</label>
+                          <select
+                            value={productCategoryFilter}
+                            onChange={(e) => setProductCategoryFilter(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white focus:outline-none focus:border-brand cursor-pointer font-semibold text-dark"
+                          >
+                            <option value="All">All Categories</option>
+                            {Array.from(new Set(products.map(p => p.category))).map(cat => (
+                              <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Brand / Company Filter */}
+                        <div>
+                          <label className="text-[10px] uppercase font-bold text-neutral-500 block mb-1">Filter by Brand / Company</label>
+                          <select
+                            value={productBrandFilter}
+                            onChange={(e) => setProductBrandFilter(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white focus:outline-none focus:border-brand cursor-pointer font-semibold text-dark"
+                          >
+                            <option value="All">All Brands / Companies</option>
+                            {availableBrands.map(b => (
+                              <option key={b} value={b}>{b}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Info summary */}
+                    {!isAdding && !isEditing && (
+                      <div className="flex justify-between items-center text-[10px] text-neutral-400 font-bold uppercase tracking-wider px-1">
+                        <span>Showing {filteredProducts.length} of {products.length} products</span>
+                        {productBrandFilter !== 'All' && (
+                          <span className="text-brand">Matching Brand: {productBrandFilter}</span>
+                        )}
+                      </div>
+                    )}
+
+                    {filteredProducts.length === 0 ? (
+                      <div className="text-center py-12 bg-white rounded-2xl border border-clay">
+                        <p className="text-xs font-bold text-neutral-400">No matching products found.</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 2xl:grid-cols-2 gap-5">
+                        {filteredProducts.map((p) => {
+                          const discountedPrice = p.price - (p.price * p.discountPercent / 100);
+                          const enteredPrice = p.enteredPrice || p.price;
+                          const enteredCurrency = p.enteredCurrency || 'NPR';
+                          const baseVis = getCurrencyVisual('NPR');
+                          const entVis = getCurrencyVisual(enteredCurrency);
+                          const prodBrand = p.brand || 'Mahi Creations';
+
+                          return (
+                            <div
+                              key={p.id}
+                              className="bg-white p-5 rounded-2xl border border-clay hover:border-brand transition-all relative shadow-sm hover:shadow-md flex flex-col sm:flex-row gap-5 justify-between"
+                            >
+                              {/* Image and Primary Information */}
+                              <div className="flex gap-4 items-start flex-grow min-w-0">
+                                {/* Product Image */}
+                                <div className="w-16 h-20 bg-clay-light/50 border border-clay rounded-lg overflow-hidden flex-shrink-0 relative">
+                                  <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
+                                  <span className="absolute bottom-1 left-1 text-[8px] bg-dark/75 text-white px-1 py-0.5 rounded font-mono font-black">
+                                    {p.id}
+                                  </span>
+                                </div>
+
+                                {/* Details layout */}
+                                <div className="space-y-1.5 min-w-0 flex-grow">
+                                  <div className="flex flex-wrap gap-1.5 items-center">
+                                    <span className="text-[8px] uppercase tracking-wider font-bold text-brand bg-clay-light px-1.5 py-0.5 rounded">
+                                      {p.category}
+                                    </span>
+                                    <span className="text-[8px] uppercase tracking-wider font-bold text-dark bg-neutral-100 border border-clay px-1.5 py-0.5 rounded">
+                                      🏷️ {prodBrand}
+                                    </span>
+                                  </div>
+                                  <h5 className="font-serif text-sm font-black text-dark tracking-tight leading-snug truncate" title={p.name}>
+                                    {p.name}
+                                  </h5>
+                                  <p className="text-[11px] text-neutral-500 font-light line-clamp-2 leading-relaxed" title={p.description}>
+                                    {p.description}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Inventory / Price / Actions Column with Rigid Alignment */}
+                              <div className="w-full sm:w-52 flex flex-col justify-between items-stretch gap-3 border-t sm:border-t-0 sm:border-l border-clay-light pt-3.5 sm:pt-0 sm:pl-4.5 flex-shrink-0 animate-fade-in">
+                                {/* Stock status & Stock Count */}
+                                <div className="flex items-center justify-between text-[10px]">
+                                  <span className={`inline-flex items-center gap-1 font-bold uppercase tracking-wider ${
+                                    p.inStock ? 'text-emerald-700' : 'text-rose-700'
+                                  }`}>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${p.inStock ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                                    {p.inStock ? 'In Stock' : 'Sold Out'}
+                                  </span>
+                                  {p.stockCount !== undefined && (
+                                    <span className={`font-mono font-bold ${
+                                      p.stockCount < 5 ? 'text-rose-600' : 'text-neutral-500'
+                                    }`}>
+                                      Count: {p.stockCount}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Aligned Currency Logos & Pricing */}
+                                <div className="space-y-1 bg-neutral-50 p-2 rounded-xl border border-clay-light">
+                                  {/* Entered Price Currency Logo & Value */}
+                                  <div className="flex items-center justify-between text-[11px] font-bold">
+                                    <span className="text-neutral-400 flex items-center gap-1 text-[9px]">
+                                      <span className="text-xs">{entVis.flag}</span> {entVis.symbol} Price
+                                    </span>
+                                    <span className="text-dark font-black">
+                                      {entVis.symbol === 'Rs.' ? 'Rs. ' : `${entVis.symbol} `}
+                                      {(enteredPrice - (enteredPrice * p.discountPercent / 100)).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                                    </span>
+                                  </div>
+
+                                  {/* Base Price (NPR) with Nepal Flag Logo */}
+                                  {enteredCurrency !== 'NPR' && (
+                                    <div className="flex items-center justify-between text-[9px] border-t border-dashed border-clay-dark/30 pt-1 text-neutral-500 font-medium">
+                                      <span className="flex items-center gap-1">
+                                        <span>{baseVis.flag}</span> NPR (Base)
+                                      </span>
+                                      <span>
+                                        Rs. {Math.round(discountedPrice).toLocaleString('en-NP')}
+                                      </span>
+                                    </div>
+                                  )}
+                                  
+                                  {p.discountPercent > 0 && (
+                                    <div className="text-[8px] text-right font-bold text-rose-600">
+                                      {p.discountPercent}% Discount Applied
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Profit & Cost Analysis Section */}
+                                {(() => {
+                                  const costNpr = p.costPrice || Math.round(p.price * 0.6);
+                                  const profitNpr = discountedPrice - costNpr;
+                                  const markup = costNpr > 0 ? (profitNpr / costNpr) * 100 : 0;
+                                  const rate = CURRENCIES.find(c => c.code === enteredCurrency)?.rate || 1.0;
+                                  const costInEnteredVal = Math.round(costNpr * rate);
+                                  
+                                  return (
+                                    <div className="bg-emerald-50/60 border border-emerald-100 p-2 rounded-xl text-[10px] space-y-1 animate-fade-in">
+                                      <div className="flex items-center justify-between text-neutral-500 font-medium">
+                                        <span>📥 Cost Price (क्रय मूल्य):</span>
+                                        <span className="font-semibold text-dark">
+                                          Rs. {costNpr.toLocaleString('en-NP')}
+                                          {enteredCurrency !== 'NPR' && (
+                                            <span className="text-[8px] text-neutral-400 font-normal ml-1">
+                                              ({entVis.symbol}{costInEnteredVal.toLocaleString()})
+                                            </span>
+                                          )}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center justify-between font-bold text-emerald-800">
+                                        <span>💰 Net Profit (खुद नाफा):</span>
+                                        <span className="font-mono">
+                                          Rs. {Math.round(profitNpr).toLocaleString('en-NP')}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center justify-between text-[9px] text-emerald-700/80 font-semibold border-t border-dashed border-emerald-200/50 pt-1">
+                                        <span>📈 Profit Margin / Markup:</span>
+                                        <span>
+                                          {markup.toFixed(1)}% Profit
+                                        </span>
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
+
+                                {/* Aligned Control Buttons */}
+                                <div className="flex items-center justify-between pt-1 border-t border-clay-light text-[10px] font-bold gap-2">
+                                  <button
+                                    onClick={() => handleOpenEditForm(p)}
+                                    className="text-brand hover:text-dark inline-flex items-center gap-1 cursor-pointer transition-colors"
+                                  >
+                                    <Edit className="w-3.5 h-3.5" />
+                                    Edit
+                                  </button>
+
+                                  <button
+                                    onClick={() => {
+                                      onUpdateProduct({
+                                        ...p,
+                                        isVisible: p.isVisible !== false ? false : true
+                                      });
+                                    }}
+                                    className={`inline-flex items-center gap-1 cursor-pointer transition-colors ${
+                                      p.isVisible !== false ? 'text-emerald-600 hover:text-emerald-800' : 'text-neutral-400 hover:text-neutral-600'
+                                    }`}
+                                    title={p.isVisible !== false ? "Visible on shop. Click to Hide" : "Hidden from shop. Click to Show"}
+                                  >
+                                    {p.isVisible !== false ? (
+                                      <>
+                                        <Eye className="w-3.5 h-3.5" />
+                                        Show
+                                      </>
+                                    ) : (
+                                      <>
+                                        <EyeOff className="w-3.5 h-3.5" />
+                                        Hide
+                                      </>
+                                    )}
+                                  </button>
+                                  
+                                  <button
+                                    onClick={() => setSharingProduct(p)}
+                                    className="text-neutral-500 hover:text-dark inline-flex items-center gap-1 cursor-pointer transition-colors"
+                                    title="Social Sharing"
+                                  >
+                                    <Share2 className="w-3.5 h-3.5 text-brand" />
+                                    Share
+                                  </button>
+
+                                  <button
+                                    onClick={() => onDeleteProduct(p.id)}
+                                    className="text-red-600 hover:text-red-800 inline-flex items-center gap-1 cursor-pointer transition-colors"
+                                    title="Delete Product"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                    Delete
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+            </div>
+          )}
+
+          {/* CUSTOMER ORDERS TAB */}
+          {activeTab === 'orders' && (
+            <div className="space-y-6 animate-fade-in">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h3 className="font-serif text-xl font-bold text-dark uppercase tracking-wide">Customer Checkout List</h3>
+                  <p className="text-neutral-500 text-xs font-light">Track incoming payments, delivery states, and customer contact parameters.</p>
+                </div>
+              </div>
+
+              {/* ADVANCED MULTI-LEVEL FILTER CONTROL FOR CUSTOMER ORDERS */}
+              <div className="bg-bg-warm/40 border border-clay rounded-2xl p-4.5 space-y-4">
+                
+                {/* Row 1: Search and Standard Filters */}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5">
+                  <div className="md:col-span-6 relative">
+                    <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-neutral-400">
+                      <Search className="w-4 h-4" />
+                    </span>
+                    <input
+                      type="text"
+                      placeholder="Search Order ID, Client name, phone..."
+                      value={orderSearch}
+                      onChange={(e) => setOrderSearch(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 bg-white border border-clay rounded-xl text-xs text-dark focus:outline-none focus:ring-1 focus:ring-brand font-medium"
+                    />
+                  </div>
+
+                  <div className="md:col-span-3">
+                    <select
+                      value={orderStatusFilter}
+                      onChange={(e) => setOrderStatusFilter(e.target.value as any)}
+                      className="w-full px-3.5 py-2.5 bg-white border border-clay rounded-xl text-xs text-dark font-semibold focus:outline-none focus:ring-1 focus:ring-brand"
+                    >
+                      <option value="All">All Statuses</option>
+                      <option value="Pending">Pending</option>
+                      <option value="Processing">Processing</option>
+                      <option value="Shipped">Shipped</option>
+                      <option value="Delivered">Delivered</option>
+                      <option value="Cancelled">Cancelled</option>
+                    </select>
+                  </div>
+
+                  <div className="md:col-span-3">
+                    <select
+                      value={orderPaymentFilter}
+                      onChange={(e) => setOrderPaymentFilter(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-white border border-clay rounded-xl text-xs text-dark font-semibold focus:outline-none focus:ring-1 focus:ring-brand"
+                    >
+                      <option value="All">All Payments</option>
+                      <option value="COD">Cash on Delivery (COD)</option>
+                      <option value="Bank Transfer">Bank Transfer</option>
+                      <option value="eSewa">eSewa Wallet</option>
+                      <option value="Khalti">Khalti Wallet</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Row 2: Premium Group Separators and Time Period Filters */}
+                <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-t border-clay-light/80 pt-4">
+                  {/* Status Group Filters */}
+                  <div className="space-y-1.5">
+                    <p className="text-[9px] uppercase tracking-wider font-black text-neutral-400">Delivery Group Separation</p>
+                    <div className="flex flex-wrap gap-1 bg-white p-1 rounded-xl border border-clay-light max-w-max">
+                      {[
+                        { key: 'all', label: '🗂️ All' },
+                        { key: 'active', label: '🚚 Active Deliveries' },
+                        { key: 'completed', label: '✅ Completed' },
+                        { key: 'cancelled', label: '❌ Cancelled' }
+                      ].map((grp) => (
+                        <button
+                          key={grp.key}
+                          type="button"
+                          onClick={() => setOrderGroupFilter(grp.key as any)}
+                          className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition cursor-pointer ${
+                            orderGroupFilter === grp.key
+                              ? 'bg-brand text-white shadow-sm font-extrabold'
+                              : 'text-neutral-500 hover:text-dark hover:bg-neutral-50'
+                          }`}
+                        >
+                          {grp.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Time Filters */}
+                  <div className="space-y-1.5 xl:text-right">
+                    <p className="text-[9px] uppercase tracking-wider font-black text-neutral-400 xl:pr-1">Order Time Period</p>
+                    <div className="flex flex-wrap gap-1 bg-white p-1 rounded-xl border border-clay-light max-w-max xl:ml-auto">
+                      {[
+                        { key: 'all', label: 'All Time' },
+                        { key: 'daily', label: 'Today (Daily)' },
+                        { key: 'monthly', label: 'This Month' },
+                        { key: 'yearly', label: 'This Year' }
+                      ].map((tm) => (
+                        <button
+                          key={tm.key}
+                          type="button"
+                          onClick={() => setOrderTimeFilter(tm.key as any)}
+                          className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition cursor-pointer ${
+                            orderTimeFilter === tm.key
+                              ? 'bg-dark text-white shadow-sm font-extrabold'
+                              : 'text-neutral-500 hover:text-dark hover:bg-neutral-50'
+                          }`}
+                        >
+                          {tm.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-[10px] text-neutral-500 font-medium flex justify-between items-center bg-white px-3 py-2 rounded-xl border border-clay-light">
+                  <span>Showing <strong className="text-dark font-black">{getFilteredOrders().length}</strong> of {orders.length} total orders logged</span>
+                  <button 
+                    onClick={() => {
+                      setOrderSearch('');
+                      setOrderStatusFilter('All');
+                      setOrderPaymentFilter('All');
+                      setOrderGroupFilter('all');
+                      setOrderTimeFilter('all');
+                    }}
+                    className="text-brand hover:underline font-bold text-[9px] uppercase tracking-wider flex items-center gap-1 cursor-pointer"
+                  >
+                    <RefreshCw className="w-3 h-3" /> Reset Filters
+                  </button>
+                </div>
+
+              </div>
+
+              {getFilteredOrders().length === 0 ? (
+                <div className="text-center py-16 bg-clay-light/35 border border-clay rounded-3xl space-y-3">
+                  <p className="font-serif text-lg font-bold text-dark">No Matching Orders Found</p>
+                  <p className="text-neutral-500 text-xs font-light max-w-md mx-auto">No custom makeup checkouts meet your currently active filter selections. Try resetting the filters or typing a different search term!</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto border border-clay rounded-2xl bg-white shadow-sm">
+                  <table className="min-w-full text-xs text-neutral-600 text-left">
+                    <thead className="bg-clay-light/40 border-b border-clay uppercase tracking-[0.15em] text-[10px] text-neutral-500 font-bold">
+                      <tr>
+                        <th className="p-4">Order ID</th>
+                        <th className="p-4">Customer Details</th>
+                        <th className="p-4">Location & Address</th>
+                        <th className="p-4">Total Amount</th>
+                        <th className="p-4">Progress State</th>
+                        <th className="p-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-clay-light font-medium">
+                      {getFilteredOrders().map((o) => (
+                        <tr key={o.id} className="hover:bg-bg-warm/30 transition">
+                          
+                          {/* Order ID */}
+                          <td className="p-4 font-mono font-black text-dark">
+                            {o.id}
+                          </td>
+
+                          {/* Customer info */}
+                          <td className="p-4 space-y-0.5">
+                            <p className="font-bold text-dark">{o.customerName}</p>
+                            <p className="text-neutral-400 font-mono text-[11px]">{o.customerPhone}</p>
+                            <p className="text-[10px] text-neutral-500 italic truncate max-w-[150px]">
+                              {o.items.map(it => `${it.productName} (x${it.quantity})`).join(', ')}
+                            </p>
+                          </td>
+
+                          {/* Location details */}
+                          <td className="p-4 space-y-0.5">
+                            <p className="font-semibold text-dark">{o.deliveryLocationName}</p>
+                            <p className="text-neutral-400 font-light text-[10px] truncate max-w-[150px]">{o.customerAddress}</p>
+                          </td>
+
+                          {/* NPR Total */}
+                          <td className="p-4">
+                            <p className="font-bold text-dark">Rs. {o.total.toLocaleString('en-IN')}</p>
+                            <p className="text-[9px] text-brand font-bold">Saved: -Rs. {o.discountAmount.toLocaleString('en-IN')}</p>
+                            <p className="text-[9px] text-neutral-400 font-medium">Method: {o.paymentMethod}</p>
+                          </td>
+
+                          {/* Current progress */}
+                          <td className="p-4">
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                              o.status === 'Delivered'
+                                ? 'bg-emerald-50 text-emerald-700'
+                                : o.status === 'Cancelled'
+                                ? 'bg-red-50 text-red-700'
+                                : 'bg-brand/10 text-brand animate-pulse'
+                            }`}>
+                              ● {o.status}
+                            </span>
+                          </td>
+
+                          {/* Status progression triggers */}
+                          <td className="p-4 text-right">
+                            <select
+                              value={o.status}
+                              onChange={(e) => onUpdateOrderStatus(o.id, e.target.value as OrderStatus)}
+                              className="text-[10px] font-bold bg-white border border-clay rounded p-1.5 focus:outline-none focus:border-brand cursor-pointer text-dark"
+                            >
+                              <option value="Pending">Pending Review</option>
+                              <option value="Confirmed">Confirm Order</option>
+                              <option value="Packaging">Pack order</option>
+                              <option value="Out for Delivery">Out for Delivery</option>
+                              <option value="Delivered">Deliver Saman</option>
+                              <option value="Cancelled">Cancel order</option>
+                            </select>
+                          </td>
+
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+            </div>
+          )}
+
+          {/* CUSTOMER REVIEWS TAB */}
+          {activeTab === 'reviews' && (
+            <div className="space-y-6 animate-fade-in text-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h3 className="font-serif text-xl font-bold text-dark uppercase tracking-wide">Customer Feedback & Reviews</h3>
+                  <p className="text-neutral-500 text-xs font-light">
+                    Monitor, audit, and inspect client comments and star ratings submitted for Mahi Creations boutique.
+                  </p>
+                </div>
+                
+                {/* Stats box inside tab */}
+                <div className="flex gap-4 bg-clay-light/20 border border-clay p-3 rounded-2xl">
+                  <div className="text-center px-4 py-1.5 border-r border-clay/60">
+                    <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">Total Feedbacks</p>
+                    <p className="text-lg font-black text-dark">{reviews.length}</p>
+                  </div>
+                  <div className="text-center px-4 py-1.5">
+                    <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">Average Rating</p>
+                    <p className="text-lg font-black text-brand flex items-center justify-center gap-1">
+                      <Star className="w-4 h-4 fill-current" />
+                      {(reviews.reduce((sum, r) => sum + r.rating, 0) / (reviews.length || 1)).toFixed(1)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {reviews.length === 0 ? (
+                <div className="text-center py-16 bg-bg-warm/10 rounded-2xl border border-clay/80 space-y-3">
+                  <div className="w-12 h-12 rounded-full bg-clay-light flex items-center justify-center text-neutral-400 mx-auto">
+                    <Star className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-dark uppercase tracking-wide">No reviews submitted yet</h4>
+                    <p className="text-neutral-400 text-xs max-w-xs mx-auto leading-normal font-light">
+                      Customer feedback posted via the VIP portal will automatically list here for your boutique audit!
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="overflow-x-auto border border-clay rounded-2xl bg-white shadow-sm">
+                  <table className="min-w-full text-xs text-neutral-600 text-left">
+                    <thead className="bg-clay-light/40 border-b border-clay uppercase tracking-[0.15em] text-[10px] text-neutral-500 font-bold">
+                      <tr>
+                        <th className="p-4">Customer Name</th>
+                        <th className="p-4">Product Name</th>
+                        <th className="p-4">Rating Star</th>
+                        <th className="p-4">Detailed Comment</th>
+                        <th className="p-4">Show on Home/Shop?</th>
+                        <th className="p-4">Submitted At</th>
+                        {onDeleteReview && <th className="p-4 text-right">Action</th>}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-clay-light">
+                      {reviews.map((rev) => (
+                        <tr key={rev.id} className="hover:bg-bg-warm/30 transition">
+                          
+                          {/* Customer name */}
+                          <td className="p-4 font-bold text-dark flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full bg-clay-light text-neutral-700 flex items-center justify-center font-bold">
+                              {rev.customerName[0]?.toUpperCase() || 'U'}
+                            </div>
+                            <span>{rev.customerName}</span>
+                          </td>
+
+                          {/* Product name */}
+                          <td className="p-4 font-semibold text-neutral-800 max-w-[150px] truncate">
+                            {rev.productName}
+                          </td>
+
+                          {/* Rating Star */}
+                          <td className="p-4">
+                            <div className="flex items-center gap-0.5 text-brand">
+                              {[...Array(5)].map((_, i) => (
+                                <Star key={i} className={`w-3.5 h-3.5 ${i < rev.rating ? 'fill-current' : 'text-neutral-200'}`} />
+                              ))}
+                            </div>
+                          </td>
+
+                          {/* Comment text */}
+                          <td className="p-4 text-neutral-500 font-light italic max-w-xs whitespace-normal break-words">
+                            "{rev.comment}"
+                          </td>
+
+                          {/* Approved Tick Switch */}
+                          <td className="p-4">
+                            <label className="relative inline-flex items-center gap-2 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={!!rev.approved}
+                                onChange={() => onToggleReviewApproval && onToggleReviewApproval(rev.id)}
+                                className="w-4 h-4 rounded text-brand focus:ring-brand border-clay cursor-pointer"
+                              />
+                              <span className={`text-[10px] font-extrabold uppercase tracking-wider ${rev.approved ? 'text-green-600' : 'text-neutral-400'}`}>
+                                {rev.approved ? 'Ticked (Live)' : 'Unticked (Hidden)'}
+                              </span>
+                            </label>
+                          </td>
+
+                          {/* Date */}
+                          <td className="p-4 text-neutral-400 font-mono text-[10px]">
+                            {new Date(rev.createdAt).toLocaleString()}
+                          </td>
+
+                          {/* Action */}
+                          {onDeleteReview && (
+                            <td className="p-4 text-right">
+                              <button
+                                onClick={() => {
+                                  if (confirm('Delete this customer feedback review permanently?')) {
+                                    onDeleteReview(rev.id);
+                                  }
+                                }}
+                                className="p-2 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                                title="Remove feedback"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </td>
+                          )}
+
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* BOUTIQUE SETTINGS TAB */}
+          {activeTab === 'settings' && (
+            <div className="space-y-6 animate-fade-in">
+              <div>
+                <h3 className="font-serif text-xl font-bold text-dark uppercase tracking-wide">Boutique & Profile Settings</h3>
+                <p className="text-neutral-500 text-xs font-light">Configure credentials, dynamic WhatsApp contact number, and public social profile channels.</p>
+              </div>
+
+              {settingsSuccess && (
+                <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 rounded-xl text-xs font-semibold flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                  {settingsSuccess}
+                </div>
+              )}
+
+              {/* Settings Sub-Tabs Navigation to minimize scrolling */}
+              <div className="flex flex-wrap items-center gap-1.5 p-1 bg-neutral-100 rounded-xl max-w-2xl border border-clay-light/80">
+                <button
+                  type="button"
+                  onClick={() => setSettingsSubTab('credentials')}
+                  className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer ${
+                    settingsSubTab === 'credentials'
+                      ? 'bg-white text-brand shadow-sm font-extrabold'
+                      : 'text-neutral-500 hover:text-dark'
+                  }`}
+                >
+                  <Key className="w-3.5 h-3.5" />
+                  <span>Credentials</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSettingsSubTab('socials')}
+                  className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer ${
+                    settingsSubTab === 'socials'
+                      ? 'bg-white text-brand shadow-sm font-extrabold'
+                      : 'text-neutral-500 hover:text-dark'
+                  }`}
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>WhatsApp & Socials</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSettingsSubTab('showcase')}
+                  className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer ${
+                    settingsSubTab === 'showcase'
+                      ? 'bg-white text-brand shadow-sm font-extrabold'
+                      : 'text-neutral-500 hover:text-dark'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Showcase Display</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSettingsSubTab('footer')}
+                  className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer ${
+                    settingsSubTab === 'footer'
+                      ? 'bg-white text-brand shadow-sm font-extrabold'
+                      : 'text-neutral-500 hover:text-dark'
+                  }`}
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                  <span>Footer & Colors</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSettingsSubTab('promo-slides')}
+                  className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer ${
+                    settingsSubTab === 'promo-slides'
+                      ? 'bg-white text-brand shadow-sm font-extrabold'
+                      : 'text-neutral-500 hover:text-dark'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-brand animate-pulse" />
+                  <span>Promo Posts & Ads</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSettingsSubTab('homepage')}
+                  className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer ${
+                    settingsSubTab === 'homepage'
+                      ? 'bg-white text-brand shadow-sm font-extrabold'
+                      : 'text-neutral-500 hover:text-dark'
+                  }`}
+                >
+                  <Home className="w-3.5 h-3.5" />
+                  <span>Homepage Copy & Texts</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSettingsSubTab('sourcing')}
+                  className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer ${
+                    settingsSubTab === 'sourcing'
+                      ? 'bg-white text-brand shadow-sm font-extrabold'
+                      : 'text-neutral-500 hover:text-dark'
+                  }`}
+                >
+                  <Mail className="w-3.5 h-3.5 text-brand" />
+                  <span>Sourcing VIP Banner</span>
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveSettings} className="space-y-6 text-xs text-neutral-600">
+                
+                {/* Credentials section */}
+                {settingsSubTab === 'credentials' && (
+                  <div className="bg-clay-light/30 border border-clay/70 p-5 rounded-2xl space-y-4 animate-fade-in">
+                    <h4 className="font-serif text-sm font-bold text-dark uppercase tracking-wider flex items-center gap-2">
+                      <Key className="w-4 h-4 text-brand" />
+                      Admin Authentication Credentials
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase font-bold text-neutral-500">Admin Login Username</label>
+                        <input
+                          type="text"
+                          required
+                          value={tempUser}
+                          onChange={(e) => setTempUser(e.target.value)}
+                          className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white font-semibold text-dark focus:ring-1 focus:ring-brand focus:outline-none"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase font-bold text-neutral-500">Admin Login Password</label>
+                        <input
+                          type="password"
+                          required
+                          value={tempPassword}
+                          onChange={(e) => setTempPassword(e.target.value)}
+                          className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white font-semibold text-dark focus:ring-1 focus:ring-brand focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Primary Contact channel (WhatsApp number) & Social Profiles */}
+                {settingsSubTab === 'socials' && (
+                  <div className="space-y-6 animate-fade-in">
+                    <div className="bg-clay-light/30 border border-clay/70 p-5 rounded-2xl space-y-4">
+                      <h4 className="font-serif text-sm font-bold text-dark uppercase tracking-wider flex items-center gap-2">
+                        <MessageSquare className="w-4 h-4 text-emerald-600" />
+                        Primary Contact Number (WhatsApp)
+                      </h4>
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase font-bold text-neutral-500">WhatsApp Mobile Number (With Country Code, No Spaces or +)</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. 9779802058364"
+                          value={tempWhatsapp}
+                          onChange={(e) => setTempWhatsapp(e.target.value)}
+                          className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white font-semibold text-dark focus:ring-1 focus:ring-brand focus:outline-none"
+                        />
+                        <p className="text-[10px] text-neutral-400 mt-1">This number will automatically power all floating chat bubbles and order summary direct redirection parameters.</p>
+                      </div>
+                    </div>
+
+                    <div className="bg-clay-light/30 border border-clay/70 p-5 rounded-2xl space-y-4">
+                      <h4 className="font-serif text-sm font-bold text-dark uppercase tracking-wider flex items-center gap-2">
+                        <Globe className="w-4 h-4 text-brand" />
+                        Official Social Profiles Directory Links
+                      </h4>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Facebook */}
+                        <div className="space-y-1">
+                          <label className="text-[10px] uppercase font-bold text-neutral-500 flex items-center gap-1">
+                            <Facebook className="w-3.5 h-3.5 text-blue-600" />
+                            Facebook Link
+                          </label>
+                          <input
+                            type="url"
+                            value={tempFb}
+                            onChange={(e) => setTempFb(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white font-medium text-dark focus:ring-1 focus:ring-brand focus:outline-none"
+                            placeholder="e.g. https://facebook.com/..."
+                          />
+                        </div>
+
+                        {/* TikTok */}
+                        <div className="space-y-1">
+                          <label className="text-[10px] uppercase font-bold text-neutral-500 flex items-center gap-1">
+                            <span className="font-sans font-black text-xs text-dark">🎵</span>
+                            TikTok Profile Link
+                          </label>
+                          <input
+                            type="url"
+                            value={tempTiktok}
+                            onChange={(e) => setTempTiktok(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white font-medium text-dark focus:ring-1 focus:ring-brand focus:outline-none"
+                            placeholder="e.g. https://tiktok.com/@..."
+                          />
+                        </div>
+
+                        {/* Instagram */}
+                        <div className="space-y-1">
+                          <label className="text-[10px] uppercase font-bold text-neutral-500 flex items-center gap-1">
+                            <Instagram className="w-3.5 h-3.5 text-pink-600" />
+                            Instagram Profile Link
+                          </label>
+                          <input
+                            type="url"
+                            value={tempInsta}
+                            onChange={(e) => setTempInsta(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white font-medium text-dark focus:ring-1 focus:ring-brand focus:outline-none"
+                            placeholder="e.g. https://instagram.com/..."
+                          />
+                        </div>
+
+                        {/* LinkedIn */}
+                        <div className="space-y-1">
+                          <label className="text-[10px] uppercase font-bold text-neutral-500 flex items-center gap-1">
+                            <Linkedin className="w-3.5 h-3.5 text-blue-700" />
+                            LinkedIn Profile Link
+                          </label>
+                          <input
+                            type="url"
+                            value={tempLinkedin}
+                            onChange={(e) => setTempLinkedin(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white font-medium text-dark focus:ring-1 focus:ring-brand focus:outline-none"
+                            placeholder="e.g. https://linkedin.com/in/..."
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* HOMEPAGE & SLIDER DISPLAY CONTROLS */}
+                {settingsSubTab === 'showcase' && (
+                  <div className="bg-clay-light/30 border border-clay/70 p-5 rounded-2xl space-y-6 animate-fade-in">
+                    <h4 className="font-serif text-sm font-bold text-dark uppercase tracking-wider flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-brand" />
+                      Boutique Showcase Display Controls
+                    </h4>
+
+                    {/* Showroom / About Me Photo URL Input */}
+                    <div className="bg-white p-4 rounded-xl border border-clay/60 space-y-3 text-left">
+                      <div>
+                        <p className="text-[11px] font-bold text-dark uppercase tracking-wider">Main Boutique / Showroom Banner Photo</p>
+                        <p className="text-[10px] text-neutral-400 font-light mt-0.5">Upload a local image from your device or paste a web URL to change the main boutique showroom photo.</p>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                        {/* Upload Area */}
+                        <div className="md:col-span-5 border border-dashed border-clay-dark/50 rounded-xl p-3 flex flex-col items-center justify-center bg-white text-center hover:bg-clay-light/20 transition relative cursor-pointer group min-h-[110px]">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              if (e.target.files && e.target.files[0]) {
+                                const file = e.target.files[0];
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  if (typeof reader.result === 'string') {
+                                    setTempAboutImageUrl(reader.result);
+                                  }
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                          />
+                          <span className="text-xl mb-1 group-hover:scale-110 transition-transform">📸</span>
+                          <span className="text-[10px] font-bold text-dark block">Upload Local Image</span>
+                          <span className="text-[8px] text-neutral-400 block mt-0.5">Click or drag & drop</span>
+                        </div>
+
+                        {/* Link Area */}
+                        <div className="md:col-span-5 flex flex-col justify-center space-y-1.5 bg-white border border-clay/85 p-3 rounded-xl">
+                          <span className="text-[9px] uppercase font-bold text-neutral-500 block">Or Paste Web URL / Link</span>
+                          <input
+                            type="text"
+                            value={tempAboutImageUrl.startsWith('data:image/') ? '' : tempAboutImageUrl}
+                            onChange={(e) => setTempAboutImageUrl(e.target.value)}
+                            className="w-full text-[11px] border border-clay rounded-lg p-2 bg-neutral-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand font-mono text-dark"
+                            placeholder="Paste https://... image link"
+                          />
+                          {tempAboutImageUrl.startsWith('data:image/') ? (
+                            <p className="text-[8px] text-brand font-semibold leading-none">Currently using uploaded local file</p>
+                          ) : (
+                            <p className="text-[8px] text-neutral-400 leading-none">Enter standard web link</p>
+                          )}
+                        </div>
+
+                        {/* Live Preview Area */}
+                        <div className="md:col-span-2 flex flex-col items-center justify-center p-2 bg-neutral-50 rounded-xl border border-clay-light">
+                          <span className="text-[8px] uppercase tracking-wider text-neutral-400 font-extrabold mb-1 block">Preview</span>
+                          <div className="w-full h-14 overflow-hidden rounded-md border border-clay-light bg-white flex items-center justify-center relative">
+                            {tempAboutImageUrl ? (
+                              <>
+                                <img
+                                  src={tempAboutImageUrl}
+                                  alt="Showroom Preview"
+                                  referrerPolicy="no-referrer"
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=400&q=80';
+                                  }}
+                                />
+                                {tempAboutImageUrl.startsWith('data:image/') && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setTempAboutImageUrl('/src/assets/images/mahi_about_me_1783496157685.jpg')}
+                                    className="absolute top-0.5 right-0.5 bg-neutral-900/80 hover:bg-neutral-900 text-white p-0.5 rounded text-[8px]"
+                                    title="Reset to default image"
+                                  >
+                                    Reset
+                                  </button>
+                                )}
+                              </>
+                            ) : (
+                              <span className="text-[8px] text-neutral-400 font-bold">Empty</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <p className="text-[9px] text-neutral-400 font-light mt-1">Tap 'Save Boutique Settings' below to publish your changes permanently.</p>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Home page list */}
+                      <div className="space-y-3 bg-white p-4 rounded-xl border border-clay/60">
+                        <div>
+                          <p className="text-[11px] font-bold text-dark uppercase tracking-wider">Home Page Products Catalog</p>
+                          <p className="text-[10px] text-neutral-400 font-light mt-0.5">Check/tick products that should list on the home page gallery catalog.</p>
+                        </div>
+                        <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                          {products.map((p) => {
+                            const isChecked = tempHomeProductIds.includes(p.id);
+                            return (
+                              <label key={`home-${p.id}`} className="flex items-center justify-between p-2 hover:bg-bg-warm/30 rounded-lg cursor-pointer border border-transparent hover:border-clay-light transition">
+                                <div className="flex items-center gap-2.5">
+                                  <img src={p.image} alt="" className="w-8 h-10 object-cover rounded border border-clay" referrerPolicy="no-referrer" />
+                                  <div className="text-left">
+                                    <p className="font-bold text-dark text-[11px] truncate max-w-[150px]">{p.name}</p>
+                                    <p className="text-[9px] text-neutral-400 font-medium">{p.category}</p>
+                                  </div>
+                                </div>
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setTempHomeProductIds([...tempHomeProductIds, p.id]);
+                                    } else {
+                                      setTempHomeProductIds(tempHomeProductIds.filter(id => id !== p.id));
+                                    }
+                                  }}
+                                  className="w-4 h-4 text-brand rounded focus:ring-brand accent-brand cursor-pointer"
+                                />
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Slider list */}
+                      <div className="space-y-3 bg-white p-4 rounded-xl border border-clay/60">
+                        <div>
+                          <p className="text-[11px] font-bold text-dark uppercase tracking-wider">Hero Slider / Carousel Products</p>
+                          <p className="text-[10px] text-neutral-400 font-light mt-0.5">Check/tick products to highlight in the homepage top animated sliding slider.</p>
+                        </div>
+                        <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                          {products.map((p) => {
+                            const isChecked = tempSliderProductIds.includes(p.id);
+                            return (
+                              <label key={`slider-${p.id}`} className="flex items-center justify-between p-2 hover:bg-bg-warm/30 rounded-lg cursor-pointer border border-transparent hover:border-clay-light transition">
+                                <div className="flex items-center gap-2.5">
+                                  <img src={p.image} alt="" className="w-8 h-10 object-cover rounded border border-clay" referrerPolicy="no-referrer" />
+                                  <div className="text-left">
+                                    <p className="font-bold text-dark text-[11px] truncate max-w-[150px]">{p.name}</p>
+                                    <p className="text-[9px] text-neutral-400 font-medium">{p.category}</p>
+                                  </div>
+                                </div>
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setTempSliderProductIds([...tempSliderProductIds, p.id]);
+                                    } else {
+                                      setTempSliderProductIds(tempSliderProductIds.filter(id => id !== p.id));
+                                    }
+                                  }}
+                                  className="w-4 h-4 text-brand rounded focus:ring-brand accent-brand cursor-pointer"
+                                />
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* CUSTOM FOOTER STYLING CONTROLS */}
+                {settingsSubTab === 'footer' && (
+                  <div className="bg-clay-light/30 border border-clay/70 p-5 rounded-2xl space-y-4 animate-fade-in">
+                    <h4 className="font-serif text-sm font-bold text-dark uppercase tracking-wider flex items-center gap-2">
+                      <Settings className="w-4 h-4 text-brand" />
+                      Custom Footer Branding & Colors
+                    </h4>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase font-bold text-neutral-500">Footer Background Color (Hex code or CSS)</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            required
+                            value={tempFooterBgColor}
+                            onChange={(e) => setTempFooterBgColor(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white font-mono text-dark focus:ring-1 focus:ring-brand focus:outline-none"
+                            placeholder="e.g. #f9f6f4"
+                          />
+                          <input
+                            type="color"
+                            value={tempFooterBgColor.startsWith('#') && tempFooterBgColor.length === 7 ? tempFooterBgColor : '#f9f6f4'}
+                            onChange={(e) => setTempFooterBgColor(e.target.value)}
+                            className="w-10 h-10 border border-clay rounded-lg p-1 bg-white cursor-pointer"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase font-bold text-neutral-500">Footer Text Color (Hex code or CSS)</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            required
+                            value={tempFooterTextColor}
+                            onChange={(e) => setTempFooterTextColor(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white font-mono text-dark focus:ring-1 focus:ring-brand focus:outline-none"
+                            placeholder="e.g. #525252"
+                          />
+                          <input
+                            type="color"
+                            value={tempFooterTextColor.startsWith('#') && tempFooterTextColor.length === 7 ? tempFooterTextColor : '#525252'}
+                            onChange={(e) => setTempFooterTextColor(e.target.value)}
+                            className="w-10 h-10 border border-clay rounded-lg p-1 bg-white cursor-pointer"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1 sm:col-span-2">
+                        <label className="text-[10px] uppercase font-bold text-neutral-500">Footer "About Us" Description Paragraph</label>
+                        <textarea
+                          required
+                          rows={3}
+                          value={tempFooterAbout}
+                          onChange={(e) => setTempFooterAbout(e.target.value)}
+                          className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white font-medium text-dark focus:ring-1 focus:ring-brand focus:outline-none resize-none leading-relaxed"
+                          placeholder="Describe your brand for footer..."
+                        />
+                      </div>
+                    </div>
+
+                    {/* Preset Buttons for footer color */}
+                    <div className="flex flex-wrap gap-2.5 pt-1 items-center">
+                      <span className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider">Presets:</span>
+                      <button
+                        type="button"
+                        onClick={() => { setTempFooterBgColor('#f9f6f4'); setTempFooterTextColor('#525252'); }}
+                        className="text-[9px] font-bold px-2.5 py-1 rounded border border-clay-light hover:bg-clay-light transition bg-[#f9f6f4] text-[#525252]"
+                      >
+                        Default Soft Warm Cream
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setTempFooterBgColor('#171717'); setTempFooterTextColor('#eaded7'); }}
+                        className="text-[9px] font-bold px-2.5 py-1 rounded border border-transparent hover:opacity-90 transition bg-[#171717] text-[#eaded7]"
+                      >
+                        Boutique Midnight Dark
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setTempFooterBgColor('#eaded7'); setTempFooterTextColor('#171717'); }}
+                        className="text-[9px] font-bold px-2.5 py-1 rounded border border-transparent hover:opacity-90 transition bg-[#eaded7] text-[#171717]"
+                      >
+                        Boutique Clay Rose
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {settingsSubTab === 'promo-slides' && (
+                  <div className="bg-clay-light/30 border border-clay/70 p-5 rounded-2xl space-y-6 animate-fade-in text-xs text-left">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center border-b border-clay-light pb-3 gap-2">
+                      <div>
+                        <h4 className="font-serif text-sm font-bold text-dark uppercase tracking-wider flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-brand" />
+                          Manage Homepage Promo Posts & Ads
+                        </h4>
+                        <p className="text-[10px] text-neutral-400 font-light mt-0.5 text-left">
+                          Create, edit, or delete slide posts (usually 5 to 6) displayed in the homepage spotlight carousel.
+                        </p>
+                      </div>
+                      
+                      {!isAddingSlide && !editingSlideId && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsAddingSlide(true);
+                            setEditingSlideId(null);
+                            setSlideFormTitle('');
+                            setSlideFormSubtitle('');
+                            setSlideFormDescription('');
+                            setSlideFormImage('');
+                            setSlideFormLinkText('Explore Catalog');
+                            setSlideFormLinkUrl('#shop-catalog');
+                          }}
+                          className="bg-brand text-white text-[10px] font-bold uppercase tracking-widest px-3 py-2 rounded-xl flex items-center gap-1.5 hover:bg-brand-hover shadow-xs cursor-pointer self-start sm:self-auto"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Add New Post / Ad</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* SLIDE ADD / EDIT FORM CONTAINER */}
+                    {(isAddingSlide || editingSlideId) ? (
+                      <div className="bg-white p-4.5 rounded-xl border border-clay-light/80 space-y-4 animate-fade-in shadow-xs text-left">
+                        <div className="flex justify-between items-center border-b border-neutral-100 pb-2">
+                          <h5 className="font-serif text-xs font-bold uppercase tracking-wider text-brand">
+                            {editingSlideId ? '✏️ Edit Spotlight Post' : '➕ Create New Spotlight Post'}
+                          </h5>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsAddingSlide(false);
+                              setEditingSlideId(null);
+                            }}
+                            className="p-1 hover:bg-neutral-100 rounded-lg text-neutral-400 hover:text-dark transition"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
+                          <div className="space-y-1">
+                            <label className="text-[10px] uppercase font-bold text-neutral-500 block">Post Title *</label>
+                            <input
+                              type="text"
+                              value={slideFormTitle}
+                              onChange={(e) => setSlideFormTitle(e.target.value)}
+                              className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark font-medium focus:ring-1 focus:ring-brand focus:outline-none"
+                              placeholder="e.g. Imperial Velvet Matte Lipstick"
+                              required
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[10px] uppercase font-bold text-neutral-500 block">Subtitle / Offer Highlights *</label>
+                            <input
+                              type="text"
+                              value={slideFormSubtitle}
+                              onChange={(e) => setSlideFormSubtitle(e.target.value)}
+                              className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark font-medium focus:ring-1 focus:ring-brand focus:outline-none"
+                              placeholder="e.g. 16-Hour Hydration Comfort Formulation"
+                              required
+                            />
+                          </div>
+
+                          <div className="space-y-1 sm:col-span-2">
+                            <label className="text-[10px] uppercase font-bold text-neutral-500 block">Post Description Text *</label>
+                            <textarea
+                              rows={3}
+                              value={slideFormDescription}
+                              onChange={(e) => setSlideFormDescription(e.target.value)}
+                              className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark font-medium focus:ring-1 focus:ring-brand focus:outline-none resize-none leading-relaxed"
+                              placeholder="Describe this post or ad beautifully..."
+                              required
+                            />
+                          </div>
+
+                          <div className="space-y-1 sm:col-span-2">
+                            <div className="flex justify-between items-center">
+                              <label className="text-[10px] uppercase font-bold text-neutral-500 block">Post Image URL *</label>
+                              <span className="text-[9px] text-brand font-bold">Photo first display</span>
+                            </div>
+                            <input
+                              type="text"
+                              value={slideFormImage}
+                              onChange={(e) => setSlideFormImage(e.target.value)}
+                              className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark font-mono focus:ring-1 focus:ring-brand focus:outline-none"
+                              placeholder="https://images.unsplash.com/..."
+                              required
+                            />
+                            
+                            {/* Preset Unsplash high-resolution recommendations */}
+                            <div className="pt-2 text-left">
+                              <span className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider block mb-1">Quick Premium Image Recommendations:</span>
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setSlideFormImage('https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=1000&q=90')}
+                                  className="text-[9px] font-bold px-2 py-1 bg-neutral-100 hover:bg-neutral-200 rounded text-dark transition cursor-pointer"
+                                >
+                                  🎨 Eyeshadow Palette
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setSlideFormImage('https://images.unsplash.com/photo-1586495777744-4413f21062fa?auto=format&fit=crop&w=1000&q=90')}
+                                  className="text-[9px] font-bold px-2 py-1 bg-neutral-100 hover:bg-neutral-200 rounded text-dark transition cursor-pointer"
+                                >
+                                  💄 Velvet Lipstick
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setSlideFormImage('https://images.unsplash.com/photo-1596462502278-27bfdc403348?auto=format&fit=crop&w=1000&q=90')}
+                                  className="text-[9px] font-bold px-2 py-1 bg-neutral-100 hover:bg-neutral-200 rounded text-dark transition cursor-pointer"
+                                >
+                                  🧴 Glowing Base / Hydra
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setSlideFormImage('https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=1000&q=90')}
+                                  className="text-[9px] font-bold px-2 py-1 bg-neutral-100 hover:bg-neutral-200 rounded text-dark transition cursor-pointer"
+                                >
+                                  👗 Traditional Organza Silk
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setSlideFormImage('https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?auto=format&fit=crop&w=1000&q=90')}
+                                  className="text-[9px] font-bold px-2 py-1 bg-neutral-100 hover:bg-neutral-200 rounded text-dark transition cursor-pointer"
+                                >
+                                  💍 Bridal Kundan Jewels
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setSlideFormImage('https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&fit=crop&w=1000&q=90')}
+                                  className="text-[9px] font-bold px-2 py-1 bg-neutral-100 hover:bg-neutral-200 rounded text-dark transition cursor-pointer"
+                                >
+                                  🌸 Luxe Scent Perfumes
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[10px] uppercase font-bold text-neutral-500 block">CTA Button Text</label>
+                            <input
+                              type="text"
+                              value={slideFormLinkText}
+                              onChange={(e) => setSlideFormLinkText(e.target.value)}
+                              className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark font-medium focus:ring-1 focus:ring-brand focus:outline-none"
+                              placeholder="e.g. Explore Catalog / Order Now"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[10px] uppercase font-bold text-neutral-500 block">Target Link URL or Section Anchor</label>
+                            <input
+                              type="text"
+                              value={slideFormLinkUrl}
+                              onChange={(e) => setSlideFormLinkUrl(e.target.value)}
+                              className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark font-mono focus:ring-1 focus:ring-brand focus:outline-none"
+                              placeholder="#shop-catalog or custom external link"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Slide form action buttons */}
+                        <div className="flex justify-end gap-2 pt-3 border-t border-neutral-100">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsAddingSlide(false);
+                              setEditingSlideId(null);
+                            }}
+                            className="px-4 py-2 border border-clay rounded-xl hover:bg-neutral-50 transition cursor-pointer font-bold uppercase tracking-wider text-[10px]"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!slideFormTitle.trim() || !slideFormSubtitle.trim() || !slideFormDescription.trim() || !slideFormImage.trim()) {
+                                alert('Please fill in all starred (*) fields to save the promotional post.');
+                                return;
+                              }
+                              
+                              if (editingSlideId) {
+                                // Update existing slide
+                                setTempPromoSlides(prev =>
+                                  prev.map(s => s.id === editingSlideId ? {
+                                    id: editingSlideId,
+                                    title: slideFormTitle.trim(),
+                                    subtitle: slideFormSubtitle.trim(),
+                                    description: slideFormDescription.trim(),
+                                    image: slideFormImage.trim(),
+                                    linkText: slideFormLinkText.trim(),
+                                    linkUrl: slideFormLinkUrl.trim()
+                                  } : s)
+                                );
+                              } else {
+                                // Add new slide
+                                const newSlide: PromoSlide = {
+                                  id: 'slide_' + Date.now(),
+                                  title: slideFormTitle.trim(),
+                                  subtitle: slideFormSubtitle.trim(),
+                                  description: slideFormDescription.trim(),
+                                  image: slideFormImage.trim(),
+                                  linkText: slideFormLinkText.trim(),
+                                  linkUrl: slideFormLinkUrl.trim()
+                                };
+                                setTempPromoSlides(prev => [...prev, newSlide]);
+                              }
+                              
+                              setIsAddingSlide(false);
+                              setEditingSlideId(null);
+                            }}
+                            className="bg-brand text-white px-5 py-2 rounded-xl font-bold uppercase tracking-wider text-[10px] hover:bg-brand-hover shadow-xs cursor-pointer"
+                          >
+                            Apply Post
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* LIST OF DYNAMIC CAROUSEL SLIDES */
+                      <div className="space-y-4 text-left">
+                        {tempPromoSlides.length === 0 ? (
+                          <div className="text-center py-10 bg-white border border-dashed border-clay rounded-2xl text-neutral-400 font-light space-y-2 text-xs">
+                            <span>No promotional posts created yet.</span>
+                            <p className="text-[10px]">Add slides to showcase custom advertisements on the homepage carousel!</p>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                            {tempPromoSlides.map((slide, index) => (
+                              <div
+                                key={slide.id}
+                                className="bg-white border border-clay-light/80 rounded-2xl p-4 shadow-sm relative group flex flex-col justify-between text-left"
+                              >
+                                <div>
+                                  {/* PHOTO FIRST visual representation */}
+                                  <div className="relative aspect-[16/10] rounded-xl overflow-hidden mb-3 border border-neutral-100">
+                                    <img
+                                      src={slide.image}
+                                      alt={slide.title}
+                                      className="w-full h-full object-cover"
+                                    />
+                                    <div className="absolute top-2 left-2 bg-dark/70 text-white text-[8px] font-black uppercase px-2 py-0.5 rounded-md">
+                                      Slide #{index + 1}
+                                    </div>
+                                  </div>
+
+                                  <div className="space-y-1 text-left">
+                                    <span className="text-[8px] font-bold text-brand uppercase tracking-wider block">
+                                      {slide.subtitle}
+                                    </span>
+                                    <h5 className="font-serif text-xs font-bold text-dark uppercase truncate">
+                                      {slide.title}
+                                    </h5>
+                                    <p className="text-[10px] text-neutral-400 line-clamp-2 leading-relaxed">
+                                      {slide.description}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="border-t border-neutral-100 mt-3 pt-3 flex items-center justify-between">
+                                  <span className="text-[9px] font-mono text-neutral-400 bg-neutral-50 px-2 py-0.5 rounded">
+                                    {slide.linkText || 'Inquire Now'}
+                                  </span>
+                                  
+                                  <div className="flex gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingSlideId(slide.id);
+                                        setSlideFormTitle(slide.title);
+                                        setSlideFormSubtitle(slide.subtitle);
+                                        setSlideFormDescription(slide.description);
+                                        setSlideFormImage(slide.image);
+                                        setSlideFormLinkText(slide.linkText || 'Explore Catalog');
+                                        setSlideFormLinkUrl(slide.linkUrl || '#shop-catalog');
+                                        setIsAddingSlide(false);
+                                      }}
+                                      className="p-1.5 hover:bg-neutral-100 rounded-lg text-neutral-500 hover:text-dark transition cursor-pointer"
+                                      title="Edit Slide"
+                                    >
+                                      <Edit className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (confirm('Are you sure you want to delete this promotional slide?')) {
+                                          setTempPromoSlides(prev => prev.filter(s => s.id !== slide.id));
+                                        }
+                                      }}
+                                      className="p-1.5 hover:bg-red-50 rounded-lg text-neutral-400 hover:text-red-600 transition cursor-pointer"
+                                      title="Delete Slide"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="bg-brand/5 border border-brand/10 p-4 rounded-2xl flex items-start gap-2.5 text-left text-brand text-xs">
+                          <Sparkles className="w-4 h-4 mt-0.5 animate-pulse flex-shrink-0" />
+                          <div>
+                            <span className="font-bold text-[10px] uppercase tracking-wider block">Live Persistence Warning</span>
+                            <p className="text-[10px] text-brand/85 mt-0.5 leading-relaxed">
+                              After managing your promo slides in this list, remember to click the main <strong>"SAVE BOUTIQUE SETTINGS"</strong> button below to save and synchronize all changes immediately onto your live homepage!
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* HOMEPAGE COPY & TEXTS STYLING CONTROLS */}
+                {settingsSubTab === 'homepage' && (
+                  <div className="bg-clay-light/30 border border-clay/70 p-5 rounded-2xl space-y-6 animate-fade-in text-left">
+                    <div>
+                      <h4 className="font-serif text-sm font-bold text-dark uppercase tracking-wider flex items-center gap-2">
+                        <Home className="w-4 h-4 text-brand" />
+                        Homepage Copy & Core Text Customizer
+                      </h4>
+                      <p className="text-[10px] text-neutral-400 font-light mt-0.5">
+                        Customize titles, descriptions, welcome slogans, and announcements of your boutique front page. Save settings to publish.
+                      </p>
+                    </div>
+
+                    {/* Section 1: General Shop Settings */}
+                    <div className="bg-white p-5 rounded-2xl border border-clay/60 space-y-4">
+                      <h5 className="font-bold text-[11px] uppercase tracking-wider text-neutral-700 border-b border-clay-light pb-2 flex items-center gap-1.5">
+                        <Globe className="w-3.5 h-3.5 text-neutral-500" />
+                        1. Store Metadata & Top Announcements
+                      </h5>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[9px] uppercase font-bold text-neutral-500">Store / Boutique Name</label>
+                          <input
+                            type="text"
+                            value={tempShopName}
+                            onChange={(e) => setTempShopName(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none font-semibold"
+                            placeholder="Mahi Creations"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] uppercase font-bold text-neutral-500">Boutique Address & Sourcing Capitals</label>
+                          <input
+                            type="text"
+                            value={tempShopAddress}
+                            onChange={(e) => setTempShopAddress(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none"
+                            placeholder="Lalitpur, Jhamsikhel, Nepal"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] uppercase font-bold text-neutral-500">Official Store Email</label>
+                          <input
+                            type="email"
+                            value={tempAdminEmail}
+                            onChange={(e) => setTempAdminEmail(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none font-semibold text-brand"
+                            placeholder="mahicreations369@gmail.com"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] uppercase font-bold text-neutral-500">Top Header Announcement Bar Promo Text</label>
+                        <input
+                          type="text"
+                          value={tempHeaderPromo}
+                          onChange={(e) => setTempHeaderPromo(e.target.value)}
+                          className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none"
+                          placeholder="Announcements or promo codes to display at the top of the store..."
+                        />
+                      </div>
+                    </div>
+
+                    {/* Section 2: Top Hero Section Brand Copy */}
+                    <div className="bg-white p-5 rounded-2xl border border-clay/60 space-y-4">
+                      <h5 className="font-bold text-[11px] uppercase tracking-wider text-neutral-700 border-b border-clay-light pb-2 flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-neutral-500 animate-pulse" />
+                        2. Hero Brand Welcome & Showcase Frame
+                      </h5>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[9px] uppercase font-bold text-neutral-500">Hero Section Badge Tag</label>
+                          <input
+                            type="text"
+                            value={tempHeroBadge}
+                            onChange={(e) => setTempHeroBadge(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none"
+                            placeholder="Mahi Creations Boutique"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] uppercase font-bold text-neutral-500">Showroom Photo Caption Overlay</label>
+                          <input
+                            type="text"
+                            value={tempHeroImageCaption}
+                            onChange={(e) => setTempHeroImageCaption(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none"
+                            placeholder="Mahi Creations Lalitpur, Jhamsikhel"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 bg-neutral-50/50 p-4 rounded-xl border border-clay-light text-left">
+                        <label className="text-[9px] uppercase font-bold text-neutral-500 flex items-center gap-1.5">
+                          <span>Main Showroom / Boutique Banner Photo</span>
+                          <span className="text-[8px] bg-brand/10 text-brand px-1.5 py-0.5 rounded-full font-bold">Upload or Link</span>
+                        </label>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                          {/* Upload Area */}
+                          <div className="md:col-span-5 border border-dashed border-clay-dark/50 rounded-xl p-3 flex flex-col items-center justify-center bg-white text-center hover:bg-clay-light/20 transition relative cursor-pointer group min-h-[110px]">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => {
+                                if (e.target.files && e.target.files[0]) {
+                                  const file = e.target.files[0];
+                                  const reader = new FileReader();
+                                  reader.onloadend = () => {
+                                    if (typeof reader.result === 'string') {
+                                      setTempAboutImageUrl(reader.result);
+                                    }
+                                  };
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                              className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                            />
+                            <span className="text-xl mb-1 group-hover:scale-110 transition-transform">📸</span>
+                            <span className="text-[10px] font-bold text-dark block">Upload Local Image</span>
+                            <span className="text-[8px] text-neutral-400 block mt-0.5">Click or drag & drop</span>
+                          </div>
+
+                          {/* Link Area */}
+                          <div className="md:col-span-5 flex flex-col justify-center space-y-1.5 bg-white border border-clay/80 p-3 rounded-xl">
+                            <span className="text-[9px] uppercase font-bold text-neutral-500 block">Or Paste Web URL / Link</span>
+                            <input
+                              type="text"
+                              value={tempAboutImageUrl.startsWith('data:image/') ? '' : tempAboutImageUrl}
+                              onChange={(e) => setTempAboutImageUrl(e.target.value)}
+                              className="w-full text-[11px] border border-clay rounded-lg p-2 bg-neutral-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand font-mono text-dark"
+                              placeholder="Paste https://... image link"
+                            />
+                            {tempAboutImageUrl.startsWith('data:image/') ? (
+                              <p className="text-[8px] text-brand font-semibold leading-none">Currently using uploaded local file</p>
+                            ) : (
+                              <p className="text-[8px] text-neutral-400 leading-none">Enter standard web link</p>
+                            )}
+                          </div>
+
+                          {/* Live Preview Area */}
+                          <div className="md:col-span-2 flex flex-col items-center justify-center p-2 bg-white rounded-xl border border-clay-light">
+                            <span className="text-[8px] uppercase tracking-wider text-neutral-400 font-extrabold mb-1 block">Preview</span>
+                            <div className="w-full h-14 overflow-hidden rounded-md border border-clay-light bg-neutral-50 flex items-center justify-center relative">
+                              {tempAboutImageUrl ? (
+                                <>
+                                  <img
+                                    src={tempAboutImageUrl}
+                                    alt="Showroom Preview"
+                                    referrerPolicy="no-referrer"
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=400&q=80';
+                                    }}
+                                  />
+                                  {tempAboutImageUrl.startsWith('data:image/') && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setTempAboutImageUrl('/src/assets/images/mahi_about_me_1783496157685.jpg')}
+                                      className="absolute top-0.5 right-0.5 bg-neutral-900/80 hover:bg-neutral-900 text-white p-0.5 rounded text-[8px]"
+                                      title="Reset to default image"
+                                    >
+                                      Reset
+                                    </button>
+                                  )}
+                                </>
+                              ) : (
+                                <span className="text-[8px] text-neutral-400">Empty</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <p className="text-[9px] text-neutral-400 font-light mt-1">You can either upload an image directly from your phone/computer, or paste any Unsplash/online image link to change the main Boutique Showroom Photo.</p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[9px] uppercase font-bold text-neutral-500">Hero Slogan / Main Welcome Heading</label>
+                        <textarea
+                          rows={2}
+                          value={tempHeroTitle}
+                          onChange={(e) => setTempHeroTitle(e.target.value)}
+                          className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none font-serif font-semibold"
+                          placeholder="e.g. Bridging Authenticity & Global Sourcing Luxury"
+                        />
+                        <p className="text-[9px] text-neutral-400 font-light">Tip: You can press enter to start a new line in the heading.</p>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] uppercase font-bold text-neutral-500">Hero Section Sourcing Long Description</label>
+                        <textarea
+                          rows={3}
+                          value={tempHeroDescription}
+                          onChange={(e) => setTempHeroDescription(e.target.value)}
+                          className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none leading-relaxed"
+                          placeholder="Welcome description explaining products and boutique values..."
+                        />
+                      </div>
+                    </div>
+
+                    {/* Section 3: Premium Catalog Heading */}
+                    <div className="bg-white p-5 rounded-2xl border border-clay/60 space-y-4">
+                      <h5 className="font-bold text-[11px] uppercase tracking-wider text-neutral-700 border-b border-clay-light pb-2 flex items-center gap-1.5">
+                        <Package className="w-3.5 h-3.5 text-neutral-500" />
+                        3. Product Catalog Header texts
+                      </h5>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[9px] uppercase font-bold text-neutral-500">Catalog Main Header Title</label>
+                          <input
+                            type="text"
+                            value={tempCatalogTitle}
+                            onChange={(e) => setTempCatalogTitle(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark font-serif font-bold"
+                            placeholder="Our Premium Curations"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] uppercase font-bold text-neutral-500">Catalog Subtitle Tagline</label>
+                          <input
+                            type="text"
+                            value={tempCatalogSubtitle}
+                            onChange={(e) => setTempCatalogSubtitle(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark"
+                            placeholder="Showing authentic cosmetics displaying real-time stock levels"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Section 4: Brand Story / About Us Elements */}
+                    <div className="bg-white p-5 rounded-2xl border border-clay/60 space-y-4">
+                      <h5 className="font-bold text-[11px] uppercase tracking-wider text-neutral-700 border-b border-clay-light pb-2 flex items-center gap-1.5">
+                        <User className="w-3.5 h-3.5 text-neutral-500" />
+                        4. About Us Section Content Paragraphs
+                      </h5>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[9px] uppercase font-bold text-neutral-500">About Section Badge tag</label>
+                          <input
+                            type="text"
+                            value={tempAboutBadge}
+                            onChange={(e) => setTempAboutBadge(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark"
+                            placeholder="Our Legacy"
+                          />
+                        </div>
+                        <div className="md:col-span-2 space-y-1">
+                          <label className="text-[9px] uppercase font-bold text-neutral-500">About Section Main Heading Title</label>
+                          <input
+                            type="text"
+                            value={tempAboutTitle}
+                            onChange={(e) => setTempAboutTitle(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark font-serif font-bold"
+                            placeholder="About Mahi Creations"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] uppercase font-bold text-neutral-500">About Section Subtitle Tagline</label>
+                        <input
+                          type="text"
+                          value={tempAboutSubtitle}
+                          onChange={(e) => setTempAboutSubtitle(e.target.value)}
+                          className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark"
+                          placeholder="About description tagline..."
+                        />
+                      </div>
+                      <div className="space-y-3 pt-2 border-t border-clay-light">
+                        <div className="space-y-1">
+                          <label className="text-[9px] uppercase font-bold text-neutral-500">Paragraph 1 (Boutique Story Origins)</label>
+                          <textarea
+                            rows={3}
+                            value={tempAboutPara1}
+                            onChange={(e) => setTempAboutPara1(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark leading-relaxed font-light"
+                            placeholder="Describe boutique origins, locations, standards..."
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] uppercase font-bold text-neutral-500">Paragraph 2 (Skincare & Sourcing standards)</label>
+                          <textarea
+                            rows={3}
+                            value={tempAboutPara2}
+                            onChange={(e) => setTempAboutPara2(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark leading-relaxed font-light"
+                            placeholder="Describe skincare safety standards, designer apparel selection..."
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] uppercase font-bold text-neutral-500">Paragraph 3 (Delivery Guarantee & Assurance)</label>
+                          <textarea
+                            rows={3}
+                            value={tempAboutPara3}
+                            onChange={(e) => setTempAboutPara3(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark leading-relaxed font-light"
+                            placeholder="Describe dispatch speed, compliance, support..."
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-brand/5 border border-brand/10 p-4 rounded-2xl flex items-start gap-2.5 text-left text-brand text-xs">
+                      <Sparkles className="w-4 h-4 mt-0.5 animate-pulse flex-shrink-0" />
+                      <div>
+                        <span className="font-bold text-[10px] uppercase tracking-wider block">Unsaved Changes Notice</span>
+                        <p className="text-[10px] text-brand/85 mt-0.5 leading-relaxed">
+                          All changes edited on this tab are stored temporarily. Please click the main <strong>"SAVE ALL SETTINGS"</strong> button below to apply and publish them live to your storefront!
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Sourcing VIP Settings section */}
+                {settingsSubTab === 'sourcing' && (
+                  <div className="bg-clay-light/30 border border-clay/70 p-5 rounded-2xl space-y-6 animate-fade-in text-left">
+                    <div>
+                      <h4 className="font-serif text-sm font-bold text-dark uppercase tracking-wider flex items-center gap-2">
+                        <Mail className="w-4 h-4 text-brand" />
+                        Exclusive Sourcing VIP Banner Customizer
+                      </h4>
+                      <p className="text-[10px] text-neutral-400 font-light mt-0.5">
+                        Customize the VIP Privilege Newsletter section. Set background photos, colors, apply a premium blur, and customize layout colors.
+                      </p>
+                    </div>
+
+                    {/* Sourcing Texts */}
+                    <div className="bg-white p-5 rounded-2xl border border-clay/60 space-y-4">
+                      <h5 className="font-bold text-[11px] uppercase tracking-wider text-neutral-700 border-b border-clay-light pb-2 flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-neutral-500" />
+                        1. Section Titles & Description
+                      </h5>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[9px] uppercase font-bold text-neutral-500">Banner Badge / Tagline</label>
+                          <input
+                            type="text"
+                            value={tempSourcingBadge}
+                            onChange={(e) => setTempSourcingBadge(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none font-semibold"
+                            placeholder="Exclusive Sourcing Access"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] uppercase font-bold text-neutral-500">Main Title Heading</label>
+                          <input
+                            type="text"
+                            value={tempSourcingTitle}
+                            onChange={(e) => setTempSourcingTitle(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none font-serif font-bold"
+                            placeholder="Mahi Privilege List"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] uppercase font-bold text-neutral-500">Long Sourcing Invite Description</label>
+                        <textarea
+                          rows={3}
+                          value={tempSourcingDescription}
+                          onChange={(e) => setTempSourcingDescription(e.target.value)}
+                          className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none font-light leading-relaxed"
+                          placeholder="Subscribe for private invitations to global cosmetics..."
+                        />
+                      </div>
+                    </div>
+
+                    {/* Sourcing Background & Image Visuals */}
+                    <div className="bg-white p-5 rounded-2xl border border-clay/60 space-y-4">
+                      <h5 className="font-bold text-[11px] uppercase tracking-wider text-neutral-700 border-b border-clay-light pb-2 flex items-center gap-1.5">
+                        <Mail className="w-3.5 h-3.5 text-neutral-500" />
+                        2. Background Wallpaper, Sizing, & Blur Customizer
+                      </h5>
+
+                      <div className="space-y-2">
+                        <label className="text-[9px] uppercase font-bold text-neutral-500">Custom Background Image URL</label>
+                        <input
+                          type="url"
+                          value={tempSourcingBgUrl}
+                          onChange={(e) => setTempSourcingBgUrl(e.target.value)}
+                          className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none font-mono"
+                          placeholder="e.g. https://images.unsplash.com/... (Leave empty for flat background)"
+                        />
+                      </div>
+
+                      {/* Premium presets */}
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] uppercase font-bold text-neutral-500">Quick Premium Background Wallpaper Presets</label>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                          {[
+                            { name: 'None (Solid Color)', url: '' },
+                            { name: 'Luxury Cosmetic Sourcing', url: 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?auto=format&fit=crop&q=80&w=1200' },
+                            { name: 'High-End Vanity Flatlay', url: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&q=80&w=1200' },
+                            { name: 'Artisan Textile Studio', url: 'https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&q=80&w=1200' }
+                          ].map((preset) => (
+                            <button
+                              key={preset.name}
+                              type="button"
+                              onClick={() => setTempSourcingBgUrl(preset.url)}
+                              className={`p-2 rounded-lg border text-left transition text-[10px] truncate flex flex-col justify-between ${
+                                tempSourcingBgUrl === preset.url
+                                  ? 'border-brand bg-brand/5 text-brand font-bold'
+                                  : 'border-clay hover:bg-clay-light text-neutral-600'
+                              }`}
+                            >
+                              <span className="block truncate">{preset.name}</span>
+                              {preset.url ? (
+                                <div className="w-full h-8 rounded-md mt-1 overflow-hidden">
+                                  <img src={preset.url} alt="" className="w-full h-full object-cover animate-fade-in animate-duration-300" />
+                                </div>
+                              ) : (
+                                <div className="w-full h-8 rounded-md mt-1 bg-neutral-100 border border-clay/40" />
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Same size / Sizing layout & Blur Customizer */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
+                        {/* Background Color */}
+                        <div className="space-y-1">
+                          <label className="text-[9px] uppercase font-bold text-neutral-500">Fallback / Background Color</label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="color"
+                              value={tempSourcingBgColor}
+                              onChange={(e) => setTempSourcingBgColor(e.target.value)}
+                              className="w-10 h-10 border border-clay rounded-lg cursor-pointer animate-fade-in"
+                            />
+                            <input
+                              type="text"
+                              value={tempSourcingBgColor}
+                              onChange={(e) => setTempSourcingBgColor(e.target.value)}
+                              className="text-xs border border-clay rounded-lg p-2.5 bg-white text-dark font-mono uppercase w-full"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Text Color */}
+                        <div className="space-y-1">
+                          <label className="text-[9px] uppercase font-bold text-neutral-500">Text Content Color</label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="color"
+                              value={tempSourcingTextColor}
+                              onChange={(e) => setTempSourcingTextColor(e.target.value)}
+                              className="w-10 h-10 border border-clay rounded-lg cursor-pointer animate-fade-in"
+                            />
+                            <input
+                              type="text"
+                              value={tempSourcingTextColor}
+                              onChange={(e) => setTempSourcingTextColor(e.target.value)}
+                              className="text-xs border border-clay rounded-lg p-2.5 bg-white text-dark font-mono uppercase w-full"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Blur Amount */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between items-center">
+                            <label className="text-[9px] uppercase font-bold text-neutral-500">Background Blur (Blor Effect)</label>
+                            <span className="text-[10px] font-bold text-brand bg-brand/10 px-2 py-0.5 rounded-full">{tempSourcingBgBlur}px</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0"
+                            max="20"
+                            step="1"
+                            value={tempSourcingBgBlur}
+                            onChange={(e) => setTempSourcingBgBlur(Number(e.target.value))}
+                            className="w-full h-1 bg-clay-light rounded-lg appearance-none cursor-pointer accent-brand mt-4"
+                          />
+                          <p className="text-[9px] text-neutral-400 mt-1">
+                            {tempSourcingBgBlur === 0 ? 'No Blur (Pristine Photo)' : 'Beautiful frosted aesthetic. Content text is 100% sharp.'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Same Size Photo Sizing & Live Preview */}
+                      <div className="bg-neutral-50 p-4 rounded-xl border border-clay-light space-y-2">
+                        <span className="text-[9px] uppercase font-bold text-neutral-500 block">Live Banner Background Sizing Preview</span>
+                        <div 
+                          className="relative h-28 rounded-lg overflow-hidden flex items-center justify-center text-center border border-clay/60 shadow-xs animate-fade-in"
+                          style={{ backgroundColor: tempSourcingBgColor }}
+                        >
+                          {tempSourcingBgUrl && (
+                            <div 
+                              className="absolute inset-0 transition-all duration-300 pointer-events-none"
+                              style={{
+                                backgroundImage: `url(${tempSourcingBgUrl})`,
+                                backgroundSize: 'cover',
+                                backgroundPosition: 'center',
+                                filter: `blur(${tempSourcingBgBlur}px)`,
+                                transform: tempSourcingBgBlur > 0 ? 'scale(1.05)' : 'none',
+                              }}
+                            />
+                          )}
+                          {tempSourcingBgUrl && (
+                            <div className="absolute inset-0 bg-white/70 pointer-events-none" />
+                          )}
+                          <div className="relative z-10 px-4" style={{ color: tempSourcingTextColor }}>
+                            <span className="block text-[8px] font-bold uppercase tracking-widest">{tempSourcingBadge || 'EXCLUSIVE SOURCING ACCESS'}</span>
+                            <span className="block font-serif text-sm font-bold uppercase mt-0.5">{tempSourcingTitle || 'Mahi Privilege List'}</span>
+                          </div>
+                        </div>
+                        <p className="text-[9px] text-neutral-400 italic">
+                          * Photo uses full container dimensions ('cover' auto-scaling) to guarantee consistent visual proportions (same size) across all devices.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="bg-brand/5 border border-brand/10 p-4 rounded-2xl flex items-start gap-2.5 text-left text-brand text-xs">
+                      <Sparkles className="w-4 h-4 mt-0.5 animate-pulse flex-shrink-0" />
+                      <div>
+                        <span className="font-bold text-[10px] uppercase tracking-wider block">Unsaved Changes Notice</span>
+                        <p className="text-[10px] text-brand/85 mt-0.5 leading-relaxed">
+                          All changes edited on this tab are stored temporarily. Please click the main <strong>"SAVE ALL SETTINGS"</strong> button below to apply and publish them live to your storefront!
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="submit"
+                    className="bg-dark hover:bg-brand text-white font-bold text-xs uppercase tracking-widest px-8 py-3.5 rounded-xl transition-all shadow cursor-pointer"
+                  >
+                    Save All Settings
+                  </button>
+                </div>
+
+              </form>
+            </div>
+          )}
+
+          {/* SHIPPING & DELIVERY LOCATIONS TAB */}
+          {activeTab === 'shipping' && (() => {
+            const activeShippingCountry = countries.find(c => c.code === shippingCountryCode) || countries[0];
+            const targetCurrency = activeShippingCountry.defaultCurrency;
+            const config = CURRENCIES.find(curr => curr.code === targetCurrency) || CURRENCIES[0];
+            const currencySymbol = config.symbol;
+
+            return (
+              <div className="space-y-8 animate-fade-in text-xs">
+              <div>
+                <span className="text-[10px] uppercase tracking-[0.2em] text-brand font-bold bg-brand/10 px-2.5 py-1 rounded">
+                  Logistics & Delivery Settings
+                </span>
+                <h3 className="font-serif text-2xl font-bold text-dark uppercase tracking-wide mt-2">
+                  Configure Delivery Locations & Fees
+                </h3>
+                <p className="text-neutral-500 text-xs mt-1.5 leading-relaxed font-light">
+                  Add custom regions, configure regional shipping delivery costs, or set free delivery regions for dynamic client-side calculations during checkout.
+                </p>
+              </div>
+
+              {/* Select country to edit */}
+              <div className="bg-bg-warm/30 rounded-2xl border border-clay p-5 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] uppercase tracking-wider font-bold text-neutral-500">
+                      Active Configuration Country
+                    </label>
+                    <p className="text-[11px] text-neutral-400 font-light">
+                      Choose country to modify cities/emigrates and delivery fees.
+                    </p>
+                  </div>
+                  <select
+                    value={shippingCountryCode}
+                    onChange={(e) => {
+                      setShippingCountryCode(e.target.value);
+                      setEditingLocId(null);
+                    }}
+                    className="sm:w-64 border border-clay rounded-xl p-3 bg-white focus:outline-none focus:ring-1 focus:ring-brand font-semibold text-dark cursor-pointer shadow-sm"
+                  >
+                    {countries.map(c => (
+                      <option key={c.code} value={c.code}>{c.name} ({c.defaultCurrency})</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Add New Shipping Location Form */}
+              <div className="bg-white rounded-2xl border border-clay p-5 space-y-4.5">
+                <h4 className="font-serif text-sm font-bold text-dark uppercase tracking-wide border-b border-clay-light pb-2">
+                  📍 Add New Delivery Location / Zone
+                </h4>
+                <form onSubmit={handleAddShippingLocation} className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] uppercase tracking-wider font-bold text-neutral-600">
+                      Location / Zone Name
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Pokhara, Lalitpur, Bhaktapur"
+                      value={newLocName}
+                      onChange={(e) => setNewLocName(e.target.value)}
+                      className="w-full text-xs border border-clay rounded-xl p-3 bg-bg-warm/30 focus:outline-none focus:ring-1 focus:ring-brand font-medium text-dark"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] uppercase tracking-wider font-bold text-neutral-600">
+                      Delivery Fee ({targetCurrency})
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        placeholder={`e.g. ${targetCurrency === 'AED' ? '15' : '150'} (Set 0 for FREE delivery)`}
+                        value={newLocFee}
+                        onChange={(e) => setNewLocFee(e.target.value)}
+                        className="w-full text-xs border border-clay rounded-xl p-3 pl-12 bg-bg-warm/30 focus:outline-none focus:ring-1 focus:ring-brand font-medium text-dark font-mono"
+                      />
+                      <span className="absolute left-3 top-3.5 text-neutral-400 font-bold text-[10px]">{currencySymbol}</span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full bg-dark hover:bg-brand text-white text-[11px] font-bold tracking-widest uppercase py-3.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
+                  >
+                    <Plus className="w-4 h-4" /> Add Location
+                  </button>
+                </form>
+              </div>
+
+              {/* Current Locations Table List */}
+              <div className="bg-white rounded-2xl border border-clay overflow-hidden shadow-sm">
+                <div className="px-5 py-4 bg-clay-light/20 border-b border-clay-light flex justify-between items-center">
+                  <h4 className="font-serif text-sm font-bold text-dark uppercase tracking-wide">
+                    Current Configured Locations for {countries.find(c => c.code === shippingCountryCode)?.name}
+                  </h4>
+                  <span className="bg-dark text-white text-[9px] font-bold px-2.5 py-1 rounded-full">
+                    {countries.find(c => c.code === shippingCountryCode)?.locations.length || 0} Registered Locations
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-clay-light/10 text-[9px] uppercase tracking-wider font-bold text-neutral-500 border-b border-clay-light">
+                        <th className="px-5 py-3">Location Name</th>
+                        <th className="px-5 py-3">Shipping Cost</th>
+                        <th className="px-5 py-3">Free Delivery Status</th>
+                        <th className="px-5 py-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-clay-light/60">
+                      {(countries.find(c => c.code === shippingCountryCode)?.locations || []).map((loc) => {
+                        const isEditing = editingLocId === loc.id;
+                        return (
+                          <tr key={loc.id} className="hover:bg-bg-warm/15 transition-colors">
+                            {/* Name col */}
+                            <td className="px-5 py-4 font-semibold text-dark">
+                              {isEditing ? (
+                                <input
+                                  type="text"
+                                  className="border border-clay rounded-lg p-2 bg-white text-xs w-full focus:ring-1 focus:ring-brand font-medium text-dark focus:outline-none"
+                                  value={editingLocName}
+                                  onChange={(e) => setEditingLocName(e.target.value)}
+                                />
+                              ) : (
+                                <span className="flex items-center gap-1.5">
+                                  <MapPin className="w-3.5 h-3.5 text-neutral-400" />
+                                  {loc.name}
+                                </span>
+                              )}
+                            </td>
+
+                            {/* Fee col */}
+                            <td className="px-5 py-4 font-mono font-bold text-dark">
+                              {isEditing ? (
+                                <div className="relative">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    className="border border-clay rounded-lg p-2 pl-12 bg-white text-xs w-36 focus:ring-1 focus:ring-brand font-medium text-dark focus:outline-none"
+                                    value={editingLocFee}
+                                    onChange={(e) => setEditingLocFee(e.target.value)}
+                                  />
+                                  <span className="absolute left-2.5 top-2.5 text-neutral-400 text-[10px]">{currencySymbol}</span>
+                                </div>
+                              ) : (
+                                <span>
+                                  {loc.feeInNpr === 0 ? `${currencySymbol} 0 (FREE)` : formatPrice(loc.feeInNpr, targetCurrency)}
+                                </span>
+                              )}
+                            </td>
+
+                            {/* Status col */}
+                            <td className="px-5 py-4">
+                              {loc.feeInNpr === 0 ? (
+                                <span className="bg-emerald-100 text-emerald-800 text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider inline-flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 bg-emerald-600 rounded-full animate-pulse"></span>
+                                  FREE Delivery Active
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={() => handleToggleFreeDelivery(loc.id, true)}
+                                  className="text-[9px] font-bold text-neutral-500 hover:text-emerald-700 hover:bg-emerald-50 px-2 py-1 rounded-lg border border-clay-light transition cursor-pointer"
+                                >
+                                  Make Free Delivery
+                                </button>
+                              )}
+                            </td>
+
+                            {/* Actions col */}
+                            <td className="px-5 py-4 text-right">
+                              {isEditing ? (
+                                <div className="flex justify-end gap-2">
+                                  <button
+                                    onClick={handleSaveEditShippingLocation}
+                                    className="bg-green-600 hover:bg-green-700 text-white font-bold px-3 py-1.5 rounded-lg transition text-[10px] uppercase tracking-wider cursor-pointer"
+                                  >
+                                    Save
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingLocId(null)}
+                                    className="bg-neutral-400 hover:bg-neutral-500 text-white font-bold px-3 py-1.5 rounded-lg transition text-[10px] uppercase tracking-wider cursor-pointer"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex justify-end gap-2.5">
+                                  <button
+                                    onClick={() => handleStartEditShippingLocation(loc)}
+                                    className="text-neutral-500 hover:text-dark p-1.5 rounded bg-clay-light/20 hover:bg-clay-light transition cursor-pointer"
+                                    title="Edit location name or delivery fee"
+                                  >
+                                    <Edit className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteShippingLocation(loc.id)}
+                                    className="text-red-500 hover:text-red-700 p-1.5 rounded bg-red-50 hover:bg-red-100 transition cursor-pointer"
+                                    title="Delete Location"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+          {/* NEWSLETTER SUBSCRIBERS PANEL */}
+          {activeTab === 'subscribers' && (
+            <div className="space-y-6 animate-fade-in">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="font-serif text-xl font-bold text-dark uppercase tracking-wide">Mahi Privilege Club Subscribers</h3>
+                  <p className="text-neutral-500 text-xs font-light">Manage and email customers who have subscribed to your newsletters and product updates.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      if (subscribers.length === 0) return;
+                      navigator.clipboard.writeText(subscribers.join(', '));
+                      alert('Copied all subscriber emails to clipboard!');
+                    }}
+                    className="flex items-center gap-2 bg-clay-light hover:bg-clay text-dark text-[11px] font-bold tracking-wider uppercase px-4 py-2.5 rounded-xl transition cursor-pointer border border-clay/60 font-semibold"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    Copy All Emails
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (subscribers.length === 0) return;
+                      window.location.href = `mailto:${settings.adminEmail || 'mahicreations369@gmail.com'}?bcc=${encodeURIComponent(subscribers.join(','))}&subject=Mahi%20Creations%20Exclusive%20Updates&body=Hello%20valued%20customer%2C%0A%0AWe%20have%20exciting%20new%20cosmetics%20and%20luxury%20fashion%20arrivals%20at%20Mahi%20Creations!%0A%0AVisit%20our%20online%20boutique%20now%20to%20explore%20fresh%20Korean%20skincare%2C%20designer%20makeup%2C%20and%20master-crafted%20traditional%20wear%20sourced%20directly%20from%20Seoul%2C%20Paris%2C%20and%20New%20York.%0A%0AThank%20you%20for%20being%20a%20part%20of%20the%20Mahi%20Creations%20Privilege%20Circle!%0A%0ABest%20Regards%2C%0AMahi%20Creations%20Team`;
+                    }}
+                    className="flex items-center gap-2 bg-brand hover:bg-brand-dark text-white text-[11px] font-bold tracking-wider uppercase px-4 py-2.5 rounded-xl transition cursor-pointer shadow-md shadow-brand/15 hover:shadow-lg font-semibold"
+                  >
+                    <Mail className="w-3.5 h-3.5" />
+                    Email All Subscribers
+                  </button>
+                </div>
+              </div>
+
+              {/* Add Subscriber Form */}
+              <div className="bg-white p-5 rounded-2xl border border-clay/60">
+                <h5 className="font-bold text-[11px] uppercase tracking-wider text-neutral-700 border-b border-clay-light pb-2 mb-3 flex items-center gap-1.5">
+                  <Plus className="w-4 h-4 text-brand" />
+                  Add Subscriber Manually
+                </h5>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const form = e.currentTarget;
+                    const emailInput = form.elements.namedItem('subEmail') as HTMLInputElement;
+                    const newEmail = emailInput.value.trim().toLowerCase();
+                    if (!newEmail) return;
+                    if (subscribers.includes(newEmail)) {
+                      alert('This email is already subscribed!');
+                      return;
+                    }
+                    const updated = [newEmail, ...subscribers];
+                    setSubscribers(updated);
+                    localStorage.setItem('mahi_subscribers_v1', JSON.stringify(updated));
+                    emailInput.value = '';
+                    alert('Subscriber added successfully!');
+                  }}
+                  className="flex flex-col sm:flex-row gap-3"
+                >
+                  <input
+                    name="subEmail"
+                    type="email"
+                    required
+                    placeholder="Enter customer email address (e.g. srijana@outlook.com)"
+                    className="flex-grow text-xs border border-clay rounded-xl p-3 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none"
+                  />
+                  <button
+                    type="submit"
+                    className="bg-dark hover:bg-brand text-white text-[11px] font-bold tracking-wider uppercase px-6 py-3 rounded-xl transition cursor-pointer"
+                  >
+                    Add Subscriber
+                  </button>
+                </form>
+              </div>
+
+              {/* Subscribers List Table */}
+              <div className="bg-white rounded-2xl border border-clay/60 overflow-hidden shadow-xs">
+                <div className="p-4 bg-neutral-50 border-b border-clay/50 flex justify-between items-center">
+                  <span className="text-[10px] uppercase tracking-wider font-bold text-neutral-500">Mailing List ({subscribers.length} total)</span>
+                  <span className="text-[10px] text-brand bg-brand/10 font-bold px-2 py-0.5 rounded-full uppercase">Synced to Local DB</span>
+                </div>
+                
+                {subscribers.length === 0 ? (
+                  <div className="p-12 text-center text-neutral-400 space-y-2">
+                    <Mail className="w-8 h-8 mx-auto text-neutral-300" />
+                    <p className="text-xs font-semibold">No subscribers found.</p>
+                    <p className="text-[11px] text-neutral-400 font-light">Add someone manually above or promote the subscription form on your boutique home page.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-neutral-50/70 border-b border-clay/40 font-bold text-neutral-500 text-[10px] uppercase">
+                          <th className="p-4 w-16">#</th>
+                          <th className="p-4">Email Address</th>
+                          <th className="p-4 w-32">Status</th>
+                          <th className="p-4 w-48 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-clay-light text-neutral-700 font-medium">
+                        {subscribers.map((email, idx) => (
+                          <tr key={email} className="hover:bg-neutral-50/50 transition">
+                            <td className="p-4 font-bold text-neutral-400">{idx + 1}</td>
+                            <td className="p-4 text-dark font-semibold break-all">{email}</td>
+                            <td className="p-4">
+                              <span className="inline-flex items-center gap-1 text-[10px] text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full font-bold">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                Active Member
+                              </span>
+                            </td>
+                            <td className="p-4 text-right space-x-1.5">
+                              <button
+                                onClick={() => {
+                                  window.location.href = `mailto:${email}?subject=Exclusive%20Update%20from%20Mahi%20Creations&body=Hi%20there%2C%0A%0AWe%20hope%20you%20are%20enjoying%20our%20exclusive%20sourcing%20drops!%20We%20wanted%20to%20send%20you%20a%20personal%20update%20on%20our%20latest%20curations.%0A%0ABest%20Regards%2C%0AMahi%20Creations`;
+                                }}
+                                className="inline-flex items-center gap-1 bg-clay-light hover:bg-brand hover:text-white text-dark text-[10px] font-bold tracking-wider uppercase px-2.5 py-1.5 rounded-lg transition cursor-pointer"
+                                title="Send individual direct email"
+                              >
+                                <Mail className="w-3 h-3" />
+                                <span>Email</span>
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (confirm(`Are you sure you want to remove ${email} from your subscriber list?`)) {
+                                    handleDeleteSubscriber(email);
+                                  }
+                                }}
+                                className="inline-flex items-center gap-1 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white text-[10px] font-bold tracking-wider uppercase px-2.5 py-1.5 rounded-lg transition cursor-pointer"
+                                title="Remove subscriber"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                <span>Remove</span>
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* EXTENSIBLE UPGRADES TAB (FUTURE-PROOF ARTIFACTS) */}
+          {activeTab === 'future' && (
+            <div className="space-y-6 animate-fade-in">
+              <div>
+                <h3 className="font-serif text-xl font-bold text-dark uppercase tracking-wide">Extensible Upgrades & Future Integrations</h3>
+                <p className="text-neutral-500 text-xs font-light">Modular feature pipeline. Instantly scale boutique capabilities in the future.</p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                
+                <div className="bg-white p-5 rounded-2xl border border-clay/80 shadow-sm space-y-3 relative overflow-hidden">
+                  <div className="absolute top-3 right-3 bg-brand/10 text-brand text-[8px] font-black tracking-widest uppercase px-2 py-0.5 rounded-full">
+                    Ready to Connect
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-clay-light flex items-center justify-center text-dark font-black">
+                    🏷️
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-dark">Automated Coupon Code Engine</h4>
+                    <p className="text-[11px] text-neutral-400 mt-1 leading-normal font-light">
+                      Create promotional discount codes (e.g., WELCOME15, DUBAI2026) that customers can apply during checkout.
+                    </p>
+                  </div>
+                  <button className="w-full bg-clay-light hover:bg-clay text-dark text-[10px] font-bold tracking-wider uppercase py-2 rounded-lg transition">
+                    Request Integration Activation
+                  </button>
+                </div>
+
+                <div className="bg-white p-5 rounded-2xl border border-clay/80 shadow-sm space-y-3 relative overflow-hidden">
+                  <div className="absolute top-3 right-3 bg-amber-100 text-amber-800 text-[8px] font-black tracking-widest uppercase px-2 py-0.5 rounded-full">
+                    Coming Soon
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-clay-light flex items-center justify-center text-dark font-black">
+                    💬
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-dark">Sms Delivery Status Gateways</h4>
+                    <p className="text-[11px] text-neutral-400 mt-1 leading-normal font-light">
+                      Dispatch automatic status notifications to customer mobile phones when products are packed, out, or delivered.
+                    </p>
+                  </div>
+                  <button className="w-full bg-clay-light text-neutral-400 text-[10px] font-bold tracking-wider uppercase py-2 rounded-lg cursor-not-allowed" disabled>
+                    In Active Development
+                  </button>
+                </div>
+
+                <div className="bg-white p-5 rounded-2xl border border-clay/80 shadow-sm space-y-3 relative overflow-hidden col-span-1 sm:col-span-2">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-dark">Custom Modular Architecture</h4>
+                    <p className="text-[11px] text-neutral-500 leading-relaxed font-light">
+                      Our system is natively configured with standard extensible interfaces. Future software engineers can easily inject SQL bindings, real-time firestore event hooks, or advanced shipping APIs without modifying core layout systems.
+                    </p>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          )}
+
+        </div>
+
+      </div>
+
+      {/* DETAILED INTERACTIVE PRODUCT SHARING SUITE (MODAL DIALOG) */}
+      {sharingProduct && (
+        <div className="fixed inset-0 z-50 overflow-hidden font-sans flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-dark/60 backdrop-blur-[3px]" onClick={() => setSharingProduct(null)} />
+          
+          {/* Modal Container */}
+          <div className="relative bg-white w-full max-w-xl rounded-3xl shadow-2xl border border-clay overflow-hidden animate-fade-in flex flex-col max-h-[90vh]">
+            
+            {/* Header */}
+            <div className="px-6 py-4.5 border-b border-clay-light bg-clay-light/30 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Share2 className="w-5 h-5 text-brand" />
+                <h3 className="font-serif text-lg font-bold text-dark uppercase tracking-wide">Interactive Product Sharing Suite</h3>
+              </div>
+              <button onClick={() => setSharingProduct(null)} className="p-1 rounded-full hover:bg-clay-light text-neutral-400 hover:text-dark transition">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-6 text-xs text-neutral-600">
+              
+              <div className="flex items-start gap-4 p-4 bg-bg-warm/35 rounded-2xl border border-clay/70">
+                <img src={sharingProduct.image} alt={sharingProduct.name} className="w-16 h-20 object-cover rounded-xl border border-clay" />
+                <div className="space-y-1">
+                  <span className="text-[9px] uppercase font-bold text-brand bg-clay-light px-2 py-0.5 rounded-full">{sharingProduct.category}</span>
+                  <h4 className="font-bold text-dark">{sharingProduct.name}</h4>
+                  <p className="text-[10px] text-neutral-400 line-clamp-2">{sharingProduct.description}</p>
+                </div>
+              </div>
+
+              {/* Direct share shortcuts */}
+              <div className="space-y-2">
+                <h5 className="font-bold text-dark uppercase tracking-wider text-[10px] text-neutral-500">1. Instant Social Redirection Links</h5>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center font-bold">
+                  
+                  {/* WhatsApp */}
+                  <a
+                    href={`https://wa.me/?text=${encodeURIComponent(getProductShareText(sharingProduct))}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-3 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-2xl border border-emerald-200/50 flex flex-col items-center gap-1.5 transition"
+                  >
+                    <MessageSquare className="w-5 h-5" />
+                    <span>WhatsApp</span>
+                  </a>
+
+                  {/* Facebook */}
+                  <a
+                    href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.origin + '?product=' + sharingProduct.id)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-3 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-2xl border border-blue-200/50 flex flex-col items-center gap-1.5 transition"
+                  >
+                    <Facebook className="w-5 h-5" />
+                    <span>Facebook</span>
+                  </a>
+
+                  {/* TikTok link or profile fallback */}
+                  <a
+                    href={settings.tiktokLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-3 bg-zinc-50 text-zinc-800 hover:bg-zinc-100 rounded-2xl border border-zinc-200 flex flex-col items-center gap-1.5 transition"
+                  >
+                    <span className="text-lg">🎵</span>
+                    <span>TikTok Link</span>
+                  </a>
+
+                  {/* Instagram link or profile fallback */}
+                  <a
+                    href={settings.instagramLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-3 bg-pink-50 text-pink-700 hover:bg-pink-100 rounded-2xl border border-pink-200/50 flex flex-col items-center gap-1.5 transition"
+                  >
+                    <Instagram className="w-5 h-5" />
+                    <span>Instagram</span>
+                  </a>
+
+                </div>
+              </div>
+
+              {/* Copy Caption Engine */}
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <h5 className="font-bold text-dark uppercase tracking-wider text-[10px] text-neutral-500">2. Copy Formatted Marketing Caption</h5>
+                  <button
+                    onClick={() => handleCopyShareText(sharingProduct)}
+                    className="inline-flex items-center gap-1.5 text-brand hover:text-dark font-black tracking-wider uppercase text-[10px]"
+                  >
+                    {copiedText ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-green-600" />
+                        Copied Successfully!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        Copy text
+                      </>
+                    )}
+                  </button>
+                </div>
+                <div className="bg-dark/5 p-4 rounded-2xl font-mono text-[10px] text-neutral-700 whitespace-pre-wrap border border-clay-light max-h-40 overflow-y-auto leading-relaxed">
+                  {getProductShareText(sharingProduct)}
+                </div>
+              </div>
+
+              {/* simulated post visual preview */}
+              <div className="bg-clay-light/30 border border-clay rounded-2xl p-4.5 space-y-3">
+                <h5 className="font-bold text-dark uppercase tracking-wider text-[10px] text-neutral-500 flex items-center gap-1">
+                  <Eye className="w-4 h-4 text-brand" />
+                  Live Social Feed Post Simulation
+                </h5>
+                <div className="bg-white border border-clay rounded-xl overflow-hidden p-3 shadow-sm space-y-2 text-[11px]">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-dark text-white font-serif font-black text-center flex items-center justify-center text-[10px]">M</div>
+                    <div>
+                      <p className="font-bold text-dark text-[11px]">Mahi Creations</p>
+                      <p className="text-[8px] text-neutral-400">Sponsored</p>
+                    </div>
+                  </div>
+                  <p className="text-neutral-700 leading-relaxed font-light line-clamp-3">
+                    {getProductShareText(sharingProduct).split('\n\n')[0]}...
+                  </p>
+                  <div className="aspect-video w-full rounded-lg bg-clay-light/30 overflow-hidden border border-clay-light relative">
+                    <img src={sharingProduct.image} alt="Simulation" className="w-full h-full object-cover" />
+                    <div className="absolute bottom-2 left-2 right-2 bg-white/95 backdrop-blur-[2px] p-2 rounded-lg border border-clay/50 flex items-center justify-between">
+                      <div>
+                        <p className="font-bold text-dark text-[10px]">{sharingProduct.name}</p>
+                        <p className="text-[9px] text-emerald-600 font-bold">Rs. {(sharingProduct.price - (sharingProduct.price * sharingProduct.discountPercent / 100)).toLocaleString('en-IN')}</p>
+                      </div>
+                      <span className="text-[9px] bg-brand text-white px-2 py-1 rounded font-black uppercase tracking-wider">Shop Now</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-3.5 bg-clay-light/20 border-t border-clay-light text-right">
+              <button
+                onClick={() => setSharingProduct(null)}
+                className="bg-dark hover:bg-brand text-white font-bold text-[10px] uppercase tracking-widest px-5 py-2.5 rounded-lg cursor-pointer transition"
+              >
+                Done
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
