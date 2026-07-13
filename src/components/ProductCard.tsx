@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Product } from '../types';
 import { Star, ShoppingBag, Flame, Sparkles, Share2, ChevronLeft, ChevronRight, Heart, Eye, GitCompare } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { formatPrice, CurrencyCode } from '../utils/currency';
+import { formatPrice, CurrencyCode, getProductDisplayPrices } from '../utils/currency';
 import ShareModal from './ShareModal';
 
 interface ProductCardProps {
@@ -54,9 +54,12 @@ export default function ProductCard({
     setZoomPos({ x, y });
   };
 
-  // Compute discount price
-  const discountAmount = (product.price * product.discountPercent) / 100;
-  const salePrice = product.price - discountAmount;
+  // Compute display prices and currency
+  const {
+    displayCurrency,
+    formattedOriginal,
+    formattedSale
+  } = getProductDisplayPrices(product, currency);
 
   // Automatically detect out of stock if flag is false or stock count is 0
   const isOutOfStock = !product.inStock || product.stockCount === 0;
@@ -318,11 +321,11 @@ export default function ProductCard({
                 <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider">Price</p>
                 <div className="flex items-center gap-1.5">
                   <span className="font-sans text-sm sm:text-base font-bold text-dark">
-                    {formatPrice(salePrice, currency)}
+                    {formattedSale}
                   </span>
                   {product.discountPercent > 0 && (
                     <span className="text-xs text-neutral-400 line-through">
-                      {formatPrice(product.price, currency)}
+                      {formattedOriginal}
                     </span>
                   )}
                 </div>

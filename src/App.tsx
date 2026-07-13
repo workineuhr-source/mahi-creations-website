@@ -22,7 +22,6 @@ import { Sparkles, Filter, ArrowUpDown, CheckCircle2, Heart, ShieldAlert, Shoppi
 import { CurrencyCode, CountryConfig, getCustomCountries, saveCustomCountries } from './utils/currency';
 import { ESewaLogo, KhaltiLogo, VisaLogo, MasterCardLogo, CODLogo, BankTransferLogo, FacebookLogo, InstagramLogo, TikTokLogo, WhatsAppLogo } from './components/BrandLogos';
 import SmartRoutineQuiz from './components/SmartRoutineQuiz';
-import LivePurchaseTicker from './components/LivePurchaseTicker';
 
 const DEMO_ORDER: Order = {
   id: 'MC-55120',
@@ -56,7 +55,18 @@ const DEMO_ORDER: Order = {
   total: 6610,
   status: 'Packaging',
   createdAt: new Date(Date.now() - 3600000 * 5).toISOString(),
-  notes: 'Pack it beautifully with bubble wrap, please!'
+  notes: 'Pack it beautifully with bubble wrap, please!',
+  estimatedDelivery: 'July 14, 2026, by 6:00 PM',
+  courierName: 'Upaya CityCargo (Boutique Special)',
+  courierPhone: '9841002233',
+  courierTrackingCode: 'UC-MAHI-88129',
+  sellerNotes: 'Order received and reviewed. High-end custom lipstick and bubble wrap included! Have a glowing day!',
+  paymentStatus: 'Verified',
+  statusLogs: [
+    { status: 'Pending', note: 'Order placed by customer via Khalti wallet payment.', timestamp: new Date(Date.now() - 3600000 * 5).toISOString() },
+    { status: 'Confirmed', note: 'Mahi Boutique manager verified items and received Khalti payload.', timestamp: new Date(Date.now() - 3600000 * 4).toISOString() },
+    { status: 'Packaging', note: 'Double bubble-wrap layer added. Custom velvet jewelry/cosmetics pouch included.', timestamp: new Date(Date.now() - 3600000 * 2).toISOString() }
+  ]
 };
 
 const containerVariants = {
@@ -170,26 +180,7 @@ export default function App() {
   const [currency, setCurrency] = useState<CurrencyCode>(() => {
     const saved = localStorage.getItem('mahi_currency_v1');
     if (saved) return saved as CurrencyCode;
-    
-    // Auto-detect country based on timezone!
-    try {
-      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
-      if (tz.includes('Kathmandu') || tz.includes('Nepal')) {
-        return 'NPR';
-      }
-      if (tz.includes('Calcutta') || tz.includes('Kolkata') || tz.includes('India')) {
-        return 'INR';
-      }
-      if (tz.includes('Europe') || tz.includes('London') || tz.includes('Berlin') || tz.includes('Paris') || tz.includes('Rome')) {
-        return 'EUR';
-      }
-      if (tz.includes('America') || tz.includes('US') || tz.includes('New_York') || tz.includes('Chicago') || tz.includes('Los_Angeles')) {
-        return 'USD';
-      }
-    } catch (e) {
-      console.warn('Country auto-detection timezone error:', e);
-    }
-    return 'NPR'; // Default to Nepalese Rupee (NPR)
+    return 'AED'; // Default to UAE Dirham (AED)
   });
 
   const [selectedLocationId, setSelectedLocationId] = useState('np-ktm');
@@ -257,6 +248,7 @@ export default function App() {
           faviconUrl: '/src/assets/images/mahi_logo_new_1783763329444.jpg',
           headerPromo: 'Monsoon Glow Offer: Automatically save up to 25% + Free delivery inside Kathmandu Valley!',
           enabledPayments: ['eSewa', 'Khalti', 'COD', 'Bank Transfer', 'Card Payment'],
+          enabledCurrencies: ['AED'],
           whatsappNumber: '9779802058364',
           facebookLink: 'https://facebook.com/mahicreations',
           tiktokLink: 'https://tiktok.com/@mahicreations',
@@ -304,6 +296,7 @@ export default function App() {
       faviconUrl: '/src/assets/images/mahi_logo_new_1783763329444.jpg',
       headerPromo: 'Monsoon Glow Offer: Automatically save up to 25% + Free delivery inside Kathmandu Valley!',
       enabledPayments: ['eSewa', 'Khalti', 'COD', 'Bank Transfer', 'Card Payment'],
+      enabledCurrencies: ['AED'],
       whatsappNumber: '9779802058364',
       facebookLink: 'https://facebook.com/mahicreations',
       tiktokLink: 'https://tiktok.com/@mahicreations',
@@ -338,9 +331,21 @@ export default function App() {
     };
   });
 
+  const [isLoadedFromServer, setIsLoadedFromServer] = useState(false);
+  const saveToServer = (key: string, data: any) => {
+    fetch('/api/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, data })
+    }).catch(err => console.error(`Error syncing ${key} to backend:`, err));
+  };
+
   useEffect(() => {
     localStorage.setItem('mahi_settings_v1', JSON.stringify(settings));
-  }, [settings]);
+    if (isLoadedFromServer) {
+      saveToServer('settings', settings);
+    }
+  }, [settings, isLoadedFromServer]);
 
   // Dynamic Favicon Updater
   useEffect(() => {
@@ -359,6 +364,14 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('mahi_currency_v1', currency);
   }, [currency]);
+
+  // Ensure active currency is always in enabled list
+  useEffect(() => {
+    const allowed = settings?.enabledCurrencies || ['AED'];
+    if (allowed.length > 0 && !allowed.includes(currency)) {
+      setCurrency(allowed[0] || 'AED');
+    }
+  }, [settings?.enabledCurrencies, currency]);
 
   // Synchronize default shipping location when currency shifts
   useEffect(() => {
@@ -446,14 +459,70 @@ export default function App() {
     return INITIAL_REVIEWS;
   });
 
+  const [subscribers, setSubscribers] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('mahi_subscribers_v1');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return ['shristi.maharjan@gmail.com', 'anisha.karki@outlook.com', 'meera.shrestha@gmail.com', 'sujata.pokharel@yahoo.com'];
+  });
+
+  const [registeredUsers, setRegisteredUsers] = useState<any[]>(() => {
+    try {
+      const saved = localStorage.getItem('mahi_registered_users_v1');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return [];
+  });
+
+  // Synchronize state with backend on mount
+  useEffect(() => {
+    fetch('/api/state')
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to fetch master state from server');
+        return res.json();
+      })
+      .then((data) => {
+        if (data.products && Array.isArray(data.products) && data.products.length > 0) {
+          setProducts(data.products);
+        }
+        if (data.settings && typeof data.settings === 'object') {
+          setSettings(prev => ({ ...prev, ...data.settings }));
+        }
+        if (data.orders && Array.isArray(data.orders)) {
+          setOrders(data.orders);
+        }
+        if (data.reviews && Array.isArray(data.reviews)) {
+          setReviews(data.reviews);
+        }
+        if (data.subscribers && Array.isArray(data.subscribers) && data.subscribers.length > 0) {
+          setSubscribers(data.subscribers);
+        }
+        if (data.registeredUsers && Array.isArray(data.registeredUsers)) {
+          setRegisteredUsers(data.registeredUsers);
+        }
+        setIsLoadedFromServer(true);
+      })
+      .catch((err) => {
+        console.warn('Backend connection unavailable, using localStorage fallback:', err);
+        setIsLoadedFromServer(true);
+      });
+  }, []);
+
   // Persist storage whenever mutated
   useEffect(() => {
     localStorage.setItem('mahi_products_v1', JSON.stringify(products));
-  }, [products]);
+    if (isLoadedFromServer) {
+      saveToServer('products', products);
+    }
+  }, [products, isLoadedFromServer]);
 
   useEffect(() => {
     localStorage.setItem('mahi_orders_v1', JSON.stringify(orders));
-  }, [orders]);
+    if (isLoadedFromServer) {
+      saveToServer('orders', orders);
+    }
+  }, [orders, isLoadedFromServer]);
 
   useEffect(() => {
     localStorage.setItem('mahi_cart_v1', JSON.stringify(cart));
@@ -465,11 +534,28 @@ export default function App() {
 
   useEffect(() => {
     localStorage.setItem('mahi_reviews_v1', JSON.stringify(reviews));
-  }, [reviews]);
+    if (isLoadedFromServer) {
+      saveToServer('reviews', reviews);
+    }
+  }, [reviews, isLoadedFromServer]);
 
   useEffect(() => {
     localStorage.setItem('mahi_session_v1', JSON.stringify(userSession));
   }, [userSession]);
+
+  useEffect(() => {
+    localStorage.setItem('mahi_subscribers_v1', JSON.stringify(subscribers));
+    if (isLoadedFromServer) {
+      saveToServer('subscribers', subscribers);
+    }
+  }, [subscribers, isLoadedFromServer]);
+
+  useEffect(() => {
+    localStorage.setItem('mahi_registered_users_v1', JSON.stringify(registeredUsers));
+    if (isLoadedFromServer) {
+      saveToServer('registered_users', registeredUsers);
+    }
+  }, [registeredUsers, isLoadedFromServer]);
 
   // Dynamic Page Title & Meta tags for SEO & premium look
   useEffect(() => {
@@ -671,6 +757,40 @@ export default function App() {
   };
 
   const handleOrderCompleted = (newOrder: Order) => {
+    // Automatically format a deep-link to WhatsApp with order ID, total, and customer info
+    const formatWhatsAppLink = (order: Order): string => {
+      const rawNumber = settings.whatsappNumber || '9801122334';
+      // Normalize phone number (ensure international prefix for Nepal or keep digits only)
+      let cleanNumber = rawNumber.replace(/[^0-9]/g, '');
+      if (cleanNumber.length === 10 && cleanNumber.startsWith('9')) {
+        cleanNumber = '977' + cleanNumber;
+      } else if (cleanNumber.length === 9 && cleanNumber.startsWith('1')) {
+        cleanNumber = '977' + cleanNumber;
+      }
+      if (!cleanNumber) {
+        cleanNumber = '9779802058364';
+      }
+
+      const shopName = settings.shopName || 'Mahi Creations';
+      const orderId = order.id;
+      const totalAmount = order.total.toLocaleString('en-IN');
+      const currencyCode = order.currency || 'NPR';
+      const itemsList = order.items.map(it => `- ${it.productName} (x${it.quantity})`).join('\n');
+
+      const messageText = `Hello *${shopName}*!\n\nI have successfully placed a boutique order. Please find my pre-filled confirmation details below:\n\n🛍️ *Order ID:* ${orderId}\n💰 *Grand Total:* ${currencyCode} ${totalAmount}\n👤 *Customer Name:* ${order.customerName}\n📞 *Contact Phone:* ${order.customerPhone}\n📍 *Delivery Address:* ${order.customerAddress}\n📦 *Items Ordered:*\n${itemsList}\n\nPlease confirm my package verification. Thank you!`;
+
+      return `https://wa.me/${cleanNumber}?text=${encodeURIComponent(messageText)}`;
+    };
+
+    const whatsappDeepLink = formatWhatsAppLink(newOrder);
+
+    // Open the WhatsApp deep-link automatically in a new tab/window
+    try {
+      window.open(whatsappDeepLink, '_blank');
+    } catch (e) {
+      console.warn('Auto-opening WhatsApp blocked by browser pop-up blocker.', e);
+    }
+
     // Save to orders state
     setOrders(prev => [newOrder, ...prev]);
     // Clear cart
@@ -697,7 +817,63 @@ export default function App() {
   };
 
   const handleUpdateOrderStatus = (orderId: string, status: OrderStatus) => {
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
+    setOrders(prev => prev.map(o => {
+      if (o.id === orderId) {
+        const logs = o.statusLogs ? [...o.statusLogs] : [];
+        const statusNotes: Record<OrderStatus, string> = {
+          'Pending': 'Order returned to Pending review.',
+          'Confirmed': 'Order verified and confirmed by boutique managers.',
+          'Packaging': 'Parcel is packaged with luxury wrapping and bubble sheets.',
+          'Out for Delivery': 'Handed over to delivery agent. On the way.',
+          'Delivered': 'Saman successfully delivered! Thank you.',
+          'Cancelled': 'Order cancelled by boutique desk.'
+        };
+        logs.push({
+          status,
+          note: statusNotes[status] || `Order status updated to ${status}.`,
+          timestamp: new Date().toISOString()
+        });
+        return { ...o, status, statusLogs: logs };
+      }
+      return o;
+    }));
+  };
+
+  const handleUpdateOrderDetails = (orderId: string, updatedFields: Partial<Order>) => {
+    setOrders(prev => prev.map(o => {
+      if (o.id === orderId) {
+        // If the status is changing inside updatedFields and we didn't manually append a status log, auto-add one
+        let statusLogs = o.statusLogs ? [...o.statusLogs] : [];
+        if (updatedFields.statusLogs) {
+          statusLogs = updatedFields.statusLogs;
+        } else if (updatedFields.status && updatedFields.status !== o.status) {
+          const statusNotes: Record<OrderStatus, string> = {
+            'Pending': 'Order returned to Pending review.',
+            'Confirmed': 'Order verified and confirmed by boutique managers.',
+            'Packaging': 'Parcel is packaged with luxury wrapping and bubble sheets.',
+            'Out for Delivery': 'Handed over to delivery agent. On the way.',
+            'Delivered': 'Saman successfully delivered! Thank you.',
+            'Cancelled': 'Order cancelled by boutique desk.'
+          };
+          statusLogs.push({
+            status: updatedFields.status,
+            note: statusNotes[updatedFields.status] || `Order status updated to ${updatedFields.status}.`,
+            timestamp: new Date().toISOString()
+          });
+        }
+
+        const merged: Order = {
+          ...o,
+          ...updatedFields
+        };
+        if (updatedFields.status) {
+          merged.status = updatedFields.status;
+        }
+        merged.statusLogs = statusLogs;
+        return merged;
+      }
+      return o;
+    }));
   };
 
   // Filters & Sorting logic - include all active products in the catalog so that newly added ones are also visible on the homepage and dynamic category tabs
@@ -834,6 +1010,19 @@ export default function App() {
                   heroDescription={settings.heroDescription}
                   products={products}
                   onViewDetails={handleViewDetails}
+                  onCategorySelect={(cat) => {
+                    setSelectedCategory(cat);
+                    setActiveView('shop');
+                    if (cat === 'All') {
+                      setSearchQuery('');
+                    }
+                    setTimeout(() => {
+                      const catalog = document.getElementById('shop-catalog');
+                      if (catalog) {
+                        catalog.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }
+                    }, 150);
+                  }}
                 />
 
                 {/* PRODUCT CATALOG WRAPPER */}
@@ -1236,6 +1425,7 @@ export default function App() {
                 onUpdateProduct={handleUpdateProduct}
                 onDeleteProduct={handleDeleteProduct}
                 onUpdateOrderStatus={handleUpdateOrderStatus}
+                onUpdateOrderDetails={handleUpdateOrderDetails}
                 onBackToShop={() => setActiveView('shop')}
                 settings={settings}
                 onUpdateSettings={setSettings}
@@ -1247,6 +1437,8 @@ export default function App() {
                 onUpdateCountries={handleUpdateCountries}
                 onAddOrder={(newOrder) => setOrders(prev => [newOrder, ...prev])}
                 onAddReview={(newReview) => setReviews(prev => [newReview, ...prev])}
+                subscribers={subscribers}
+                onUpdateSubscribers={setSubscribers}
               />
             )}
 
@@ -1379,6 +1571,10 @@ export default function App() {
           setIsAdminLoggedIn(true);
           setAuthModalOpen(false);
           setActiveView('admin');
+        }}
+        registeredUsers={registeredUsers}
+        onRegisterUser={(newUser) => {
+          setRegisteredUsers(prev => [...prev, newUser]);
         }}
       />      {/* Multi-Policy & Information Center Modal */}
       {policyModalOpen && (
@@ -1840,19 +2036,10 @@ export default function App() {
                     e.preventDefault();
                     const trimmedEmail = newsletterEmail.trim().toLowerCase();
                     if (trimmedEmail) {
-                      try {
-                        const saved = localStorage.getItem('mahi_subscribers_v1');
-                        let currentList = saved ? JSON.parse(saved) : [];
-                        if (!Array.isArray(currentList)) {
-                          currentList = [];
-                        }
-                        if (!currentList.includes(trimmedEmail)) {
-                          currentList.unshift(trimmedEmail);
-                          localStorage.setItem('mahi_subscribers_v1', JSON.stringify(currentList));
-                        }
-                      } catch (err) {
-                        console.error('Error saving subscriber:', err);
-                      }
+                      setSubscribers(prev => {
+                        if (prev.includes(trimmedEmail)) return prev;
+                        return [trimmedEmail, ...prev];
+                      });
                       setNewsletterSubscribed(true);
                       
                       const targetMail = settings.adminEmail || 'mahicreations369@gmail.com';
@@ -2124,9 +2311,6 @@ export default function App() {
         </div>
       </footer>
       )}
-
-      {/* Verified Live Purchase Notification Ticker */}
-      <LivePurchaseTicker products={products} />
 
     </div>
   );

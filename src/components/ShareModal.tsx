@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Product } from '../types';
-import { formatPrice, CurrencyCode } from '../utils/currency';
+import { formatPrice, CurrencyCode, getProductDisplayPrices } from '../utils/currency';
 import { X, Copy, Check, Facebook, Instagram, Share2, Sparkles, MessageCircle, Heart } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -16,10 +16,10 @@ export default function ShareModal({ isOpen, onClose, product, currency }: Share
   const [copiedCaption, setCopiedCaption] = useState(false);
 
   // Compute pricing details in chosen currency
-  const discountAmount = (product.price * product.discountPercent) / 100;
-  const salePrice = product.price - discountAmount;
-  const formattedSalePrice = formatPrice(salePrice, currency);
-  const formattedOriginalPrice = formatPrice(product.price, currency);
+  const {
+    formattedOriginal: formattedOriginalPrice,
+    formattedSale: formattedSalePrice
+  } = getProductDisplayPrices(product, currency);
 
   // Construct direct link mockup
   const shareUrl = `${window.location.origin}/?product=${product.id}`;

@@ -8,6 +8,8 @@ interface AuthModalProps {
   settings: BoutiqueSettings;
   onCustomerLogin: (session: UserSession) => void;
   onAdminLogin: () => void;
+  registeredUsers?: any[];
+  onRegisterUser?: (newUser: any) => void;
 }
 
 export default function AuthModal({
@@ -15,7 +17,9 @@ export default function AuthModal({
   onClose,
   settings,
   onCustomerLogin,
-  onAdminLogin
+  onAdminLogin,
+  registeredUsers = [],
+  onRegisterUser
 }: AuthModalProps) {
   if (!isOpen) return null;
 
@@ -61,9 +65,8 @@ export default function AuthModal({
         return;
       }
 
-      // Load registered users from localStorage
-      const savedUsersRaw = localStorage.getItem('mahi_registered_users_v1');
-      const savedUsers = savedUsersRaw ? JSON.parse(savedUsersRaw) : [];
+      // Load registered users from props
+      const savedUsers = registeredUsers;
 
       const matchedUser = savedUsers.find((u: any) => 
         (u.phone?.trim() === username.trim() || u.fullName?.toLowerCase().trim() === username.toLowerCase().trim()) &&
@@ -111,8 +114,7 @@ export default function AuthModal({
       }
 
       // Check if phone already registered
-      const savedUsersRaw = localStorage.getItem('mahi_registered_users_v1');
-      const savedUsers = savedUsersRaw ? JSON.parse(savedUsersRaw) : [];
+      const savedUsers = registeredUsers;
       const userExists = savedUsers.some((u: any) => u.phone?.trim() === phone.trim());
 
       if (userExists) {
@@ -128,8 +130,9 @@ export default function AuthModal({
         password: password
       };
 
-      savedUsers.push(newUser);
-      localStorage.setItem('mahi_registered_users_v1', JSON.stringify(savedUsers));
+      if (onRegisterUser) {
+        onRegisterUser(newUser);
+      }
 
       onCustomerLogin({
         fullName: fullName.trim(),

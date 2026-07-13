@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, Sparkles, ChevronLeft, ChevronRight, MessageCircle, Eye, ShoppingBag } from 'lucide-react';
+import { ArrowRight, Sparkles, ChevronLeft, ChevronRight, MessageCircle, Eye, ShoppingBag, Clock, Flame, ShieldCheck, Truck, Percent, PhoneCall, QrCode } from 'lucide-react';
 import { PromoSlide, Product } from '../types';
 import { formatPrice, CurrencyCode } from '../utils/currency';
 
@@ -15,7 +15,18 @@ interface HeroProps {
   heroDescription?: string;
   products: Product[];
   onViewDetails?: (product: Product) => void;
+  onCategorySelect?: (category: string) => void;
 }
+
+const CATEGORY_IMAGES: Record<string, string> = {
+  Cosmetics: 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?auto=format&fit=crop&w=300&q=80',
+  Clothing: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=300&q=80',
+  Jewelry: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=300&q=80',
+  Kits: 'https://images.unsplash.com/photo-1601049541289-9b1b7bbbfe19?auto=format&fit=crop&w=300&q=80',
+  Accessories: 'https://images.unsplash.com/photo-1608248597279-f99d160bfcbc?auto=format&fit=crop&w=300&q=80',
+};
+
+const DEFAULT_CATEGORY_IMAGE = 'https://images.unsplash.com/photo-1512496015851-a90fb38ba796?auto=format&fit=crop&w=300&q=80';
 
 export default function Hero({ 
   onDiscoverClick, 
@@ -26,267 +37,490 @@ export default function Hero({
   heroBadge = 'Mahi Creations Boutique',
   heroTitle = 'Bridging Authenticity & Global Sourcing Luxury',
   heroImageCaption = 'Mahi Creations Lalitpur, Jhamsikhel',
-  heroDescription = "Welcome to Mahi Creations, Nepal's and UAE's premier digital gateway to high-end certified products. We specialize in curating premium global cosmetic formulations, traditional custom-crafted apparel, and bespoke fine jewelry directly from fashion capitals.",
+  heroDescription = "Welcome to Mahi Creations, Nepal's and UAE's premier digital gateway to high-end certified products.",
   products = [],
-  onViewDetails
+  onViewDetails,
+  onCategorySelect
 }: HeroProps) {
-  const [activeIndex, setActiveIndex] = useState(0);
+  // Campaign Slider State
+  const [activeSlideIndex, setActiveSlideIndex] = useState(0);
 
-  // Auto scroll products every 5 seconds
+  // Auto scroll campaign slides every 6 seconds
   useEffect(() => {
-    if (products.length <= 1) return;
+    if (promoSlides.length <= 1) return;
     const interval = setInterval(() => {
-      setActiveIndex((prev) => (prev + 1) % products.length);
-    }, 5000);
+      setActiveSlideIndex((prev) => (prev + 1) % promoSlides.length);
+    }, 6000);
     return () => clearInterval(interval);
-  }, [products]);
+  }, [promoSlides]);
 
-  const handleNext = () => {
-    if (products.length === 0) return;
-    setActiveIndex((prev) => (prev + 1) % products.length);
+  const handleNextSlide = () => {
+    if (promoSlides.length === 0) return;
+    setActiveSlideIndex((prev) => (prev + 1) % promoSlides.length);
   };
 
-  const handlePrev = () => {
-    if (products.length === 0) return;
-    setActiveIndex((prev) => (prev - 1 + products.length) % products.length);
+  const handlePrevSlide = () => {
+    if (promoSlides.length === 0) return;
+    setActiveSlideIndex((prev) => (prev - 1 + promoSlides.length) % promoSlides.length);
   };
 
-  if (products.length === 0) {
-    return (
-      <section className="relative overflow-hidden bg-gradient-to-b from-clay-light/80 via-white to-bg-warm py-12 lg:py-20 border-b border-clay/60">
-        <div className="absolute right-[5%] top-[10%] w-80 h-80 bg-[#eaded7] rounded-full blur-[70px] -z-10 opacity-70 animate-pulse"></div>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
-          <div className="inline-flex items-center gap-2 bg-white border border-clay text-neutral-600 rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-widest shadow-sm">
-            <Sparkles className="w-3.5 h-3.5 text-brand" />
-            {heroBadge}
-          </div>
-          <h1 className="font-serif text-4xl sm:text-6xl font-bold text-dark leading-tight tracking-tight uppercase whitespace-pre-line">
-            {heroTitle}
-          </h1>
-          <p className="max-w-md mx-auto text-neutral-500 text-xs sm:text-sm font-light leading-relaxed whitespace-pre-line">
-            {heroDescription}
-          </p>
-          <button
-            onClick={onDiscoverClick}
-            className="inline-flex items-center gap-2 bg-dark hover:bg-brand-hover text-white text-xs font-bold uppercase tracking-widest px-8 py-4 rounded-full shadow-xl transition cursor-pointer"
-          >
-            Explore Catalog
-            <ArrowRight className="w-4 h-4 text-brand" />
-          </button>
-        </div>
-      </section>
-    );
-  }
+  // Real-Time Countdown State for Flash Sale (counts down to end of day)
+  const [timeLeft, setTimeLeft] = useState({ hours: 12, minutes: 0, seconds: 0 });
 
-  const currentProduct = products[activeIndex] || products[0];
-  const discountAmount = (currentProduct.price * currentProduct.discountPercent) / 100;
-  const salePrice = currentProduct.price - discountAmount;
-  const isOutOfStock = !currentProduct.inStock || currentProduct.stockCount === 0;
+  useEffect(() => {
+    const calculateTimeLeft = () => {
+      const now = new Date();
+      const midnight = new Date();
+      midnight.setHours(24, 0, 0, 0); // Midnight local time
+      const diff = midnight.getTime() - now.getTime();
+
+      if (diff <= 0) {
+        return { hours: 23, minutes: 59, seconds: 59 };
+      }
+
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff / 1000 / 60) % 60);
+      const seconds = Math.floor((diff / 1000) % 60);
+
+      return { hours, minutes, seconds };
+    };
+
+    setTimeLeft(calculateTimeLeft());
+    const interval = setInterval(() => {
+      setTimeLeft(calculateTimeLeft());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Filter products that are "on offer" (have discount) or are "new/featured"
+  const flashSaleProducts = products.filter(p => p.discountPercent > 0).slice(0, 8);
+  
+  // Extract unique categories from products
+  const uniqueCategories = Array.from(new Set(products.map(p => p.category)));
+
+  // Current active promo slide details
+  const currentSlide = promoSlides[activeSlideIndex] || (promoSlides.length > 0 ? promoSlides[0] : null);
 
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-clay-light/85 via-white to-bg-warm py-10 sm:py-16 lg:py-20 border-b border-clay/60 transition-all duration-500">
-      {/* Ambient background blurs for luxurious texture */}
-      <div className="absolute right-[5%] top-[10%] w-96 h-96 bg-[#eaded7] rounded-full blur-[80px] -z-10 opacity-80 animate-pulse"></div>
-      <div className="absolute left-[5%] bottom-[10%] w-80 h-80 bg-[#f3efed] rounded-full blur-[70px] -z-10 opacity-70"></div>
-
-      <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-start">
+    <div id="daraj-hero-dashboard" className="w-full bg-[#f4f4f6] pb-8 space-y-6">
+      
+      {/* 1. TOP CAROUSEL & SIDE PANEL (Daraj Double-Column Layout) */}
+      <section className="max-w-[1360px] mx-auto px-4 pt-4">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           
-          {/* Left Column: Company Photo and Sourcing Details */}
-          <div className="space-y-6 sm:space-y-8 animate-fade-in text-left">
-            <div className="space-y-3">
-              <div className="inline-flex items-center gap-1.5 bg-brand/10 text-brand px-3.5 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest">
-                <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-                {heroBadge}
-              </div>
-              <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-black text-dark leading-tight tracking-tight uppercase whitespace-pre-line">
-                {heroTitle}
-              </h1>
-              <div className="h-1 w-16 bg-brand rounded-full"></div>
-            </div>
-
-            {/* Luxurious Company Showroom Photo Frame */}
-            <div className="relative overflow-hidden rounded-3xl border-4 border-white shadow-2xl aspect-[16/10] bg-white group">
-              <img 
-                src={aboutImageUrl} 
-                alt="Showroom Store Showcase" 
-                referrerPolicy="no-referrer"
-                className="w-full h-full object-cover transition-all duration-700 group-hover:scale-[1.03]"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-dark/75 via-transparent to-transparent flex items-end p-5">
-                <div className="text-white space-y-1">
-                  <span className="text-[8px] uppercase tracking-widest text-brand font-black bg-white px-2 py-0.5 rounded-md">
-                    Store Showcase
-                  </span>
-                  <p className="font-serif text-xs font-bold uppercase tracking-wider">{heroImageCaption}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Exquisite description of what we sell */}
-            <div className="space-y-4 font-sans text-neutral-600">
-              <p className="text-xs sm:text-sm font-light leading-relaxed whitespace-pre-line">
-                {heroDescription}
-              </p>
-            </div>
-
-            {/* Call to action to discover catalog */}
-            <div className="pt-2">
-              <button
-                onClick={onDiscoverClick}
-                className="inline-flex items-center gap-2.5 bg-dark hover:bg-brand text-white text-[11px] font-bold uppercase tracking-widest py-4 px-8 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.01] cursor-pointer"
-              >
-                <span>Discover Collections</span>
-                <ArrowRight className="w-4 h-4 text-brand" />
-              </button>
-            </div>
-          </div>
-
-          {/* Right Column: Premium Dynamic Product Slider */}
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase tracking-[0.2em] font-extrabold text-neutral-400">
-                Premium Showcase ({activeIndex + 1} of {products.length})
-              </span>
-              
-              {/* Slider Navigation Arrows */}
-              {products.length > 1 && (
-                <div className="flex gap-2">
-                  <button
-                    onClick={handlePrev}
-                    className="p-2 bg-white hover:bg-dark hover:text-white text-neutral-600 rounded-full border border-clay transition cursor-pointer shadow-xs active:scale-95"
-                    title="Previous Product"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={handleNext}
-                    className="p-2 bg-white hover:bg-dark hover:text-white text-neutral-600 rounded-full border border-clay transition cursor-pointer shadow-xs active:scale-95"
-                    title="Next Product"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Product Slider Card Group */}
-            <div className="relative group">
-              {/* Slide decorative back glow */}
-              <div className="absolute -inset-1.5 bg-gradient-to-r from-brand to-[#eaded7] rounded-3xl blur-xl opacity-35 -z-10 animate-pulse"></div>
-
-              {/* PRODUCT PHOTO: Image container matching requirements */}
-              <div 
-                onClick={() => onViewDetails?.(currentProduct)}
-                className="relative overflow-hidden rounded-3xl border-4 border-white shadow-2xl bg-[#faf8f7] aspect-[16/10] cursor-pointer"
-              >
+          {/* Main Campaign Slide Carousel (9 Cols on desktop) */}
+          <div className="col-span-1 lg:col-span-9 relative bg-neutral-900 rounded-2xl overflow-hidden aspect-[21/9] sm:aspect-[2.6/1] md:aspect-[3/1] lg:aspect-[3/1] shadow-md group">
+            {currentSlide ? (
+              <div className="absolute inset-0 w-full h-full">
+                {/* Promo Slide Image with elegant backdrop blending */}
                 <img 
-                  src={currentProduct.image} 
-                  alt={currentProduct.name} 
+                  src={currentSlide.image} 
+                  alt={currentSlide.title} 
                   referrerPolicy="no-referrer"
-                  className={`w-full h-full object-contain p-6 transition-all duration-700 ${isOutOfStock ? 'opacity-65 grayscale-[30%]' : 'group-hover:scale-[1.02]'}`}
-                  key={currentProduct.id}
+                  className="w-full h-full object-cover object-center opacity-85 transition-transform duration-700 hover:scale-105"
                 />
                 
-                {/* Spotlights Tags */}
-                <div className="absolute top-4 left-4 bg-brand/90 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl shadow-md border border-brand/20">
-                  ✨ Best Seller
-                </div>
-
-                {/* Stock Warning/Badge */}
-                {isOutOfStock ? (
-                  <div className="absolute top-4 right-4 bg-neutral-900 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl shadow-md">
-                    Sold Out
-                  </div>
-                ) : (
-                  currentProduct.discountPercent > 0 && (
-                    <div className="absolute top-4 right-4 bg-rose-600 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl shadow-md animate-pulse">
-                      {currentProduct.discountPercent}% OFF
+                {/* Gradient vignette overlay */}
+                <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/40 to-transparent flex items-center p-6 sm:p-10 md:p-12">
+                  <div className="max-w-[85%] sm:max-w-[65%] text-left space-y-1 sm:space-y-2 md:space-y-3">
+                    <span className="inline-block bg-orange-600 text-white text-[8px] sm:text-[10px] md:text-xs font-extrabold uppercase tracking-widest px-2.5 py-1 rounded-md shadow-lg animate-pulse">
+                      ⚡ {currentSlide.subtitle || 'Mega Deal'}
+                    </span>
+                    <h2 className="font-sans text-lg sm:text-2xl md:text-3xl lg:text-4xl font-black text-white leading-tight uppercase tracking-tight drop-shadow-md">
+                      {currentSlide.title}
+                    </h2>
+                    <p className="text-white/80 font-normal text-[10px] sm:text-xs md:text-sm leading-relaxed line-clamp-2 max-w-lg hidden sm:block">
+                      {currentSlide.description}
+                    </p>
+                    <div className="pt-1.5 sm:pt-3">
+                      <a 
+                        href={currentSlide.linkUrl || '#shop-catalog'}
+                        onClick={(e) => {
+                          if (currentSlide.linkUrl?.startsWith('#')) {
+                            e.preventDefault();
+                            onDiscoverClick();
+                          }
+                        }}
+                        className="inline-flex items-center gap-1.5 bg-orange-600 hover:bg-orange-500 text-white text-[9px] sm:text-[11px] md:text-xs font-bold uppercase tracking-widest px-4 sm:px-6 py-2.5 sm:py-3 rounded-full transition-all duration-300 transform hover:scale-[1.02] shadow-lg shadow-orange-950/20"
+                      >
+                        <span>{currentSlide.linkText || 'Shop Offer'}</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </a>
                     </div>
-                  )
-                )}
-              </div>
-
-              {/* PRODUCT DETAILS BELOW PHOTO: Brand, Name, and Price Container */}
-              <div className="mt-4 bg-white border border-clay-light p-5 sm:p-6 rounded-3xl shadow-xl space-y-4 text-left">
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] uppercase tracking-wider font-extrabold text-brand bg-brand/5 px-2.5 py-1 rounded-md inline-block">
-                      {currentProduct.brand || "Boutique Exclusive"}
-                    </span>
-                    <span className="text-[8px] font-bold text-neutral-400 bg-neutral-100 px-2 py-0.5 rounded uppercase">
-                      {currentProduct.category}
-                    </span>
                   </div>
-                  
-                  <h3 
-                    onClick={() => onViewDetails?.(currentProduct)}
-                    className="font-serif text-lg sm:text-xl font-black text-dark tracking-tight uppercase leading-snug hover:text-brand transition cursor-pointer"
-                  >
-                    {currentProduct.name}
-                  </h3>
-
-                  {/* PRICE DISPLAY */}
-                  <div className="flex items-center gap-3 pt-1">
-                    <span className="font-mono text-base sm:text-lg font-black text-brand">
-                      {formatPrice(salePrice, currency)}
-                    </span>
-                    {currentProduct.discountPercent > 0 && (
-                      <span className="font-mono text-xs text-neutral-400 line-through">
-                        {formatPrice(currentProduct.price, currency)}
-                      </span>
-                    )}
-                  </div>
-
-                  <p className="font-sans text-neutral-500 text-xs font-light leading-relaxed line-clamp-2 pt-1">
-                    {currentProduct.description}
-                  </p>
-                </div>
-
-                {/* Interactive Action Row */}
-                <div className="border-t border-dashed border-clay-light pt-4 flex items-center justify-between gap-3">
-                  <button
-                    onClick={() => onViewDetails?.(currentProduct)}
-                    className="bg-dark hover:bg-brand text-white text-[10px] font-black uppercase tracking-widest py-3 px-6 rounded-2xl shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 cursor-pointer flex items-center gap-1.5"
-                  >
-                    <Eye className="w-3.5 h-3.5" />
-                    <span>View Product Details</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      const text = encodeURIComponent(`Hi Mahi Creations, I would like to inquire about: "${currentProduct.name}" (${currentProduct.brand || 'Boutique'}). Is it available?`);
-                      window.open(`https://wa.me/${whatsappNumber.replace(/[^0-9]/g, '')}?text=${text}`, '_blank');
-                    }}
-                    className="bg-emerald-50 text-emerald-800 border border-emerald-100 hover:bg-emerald-100 text-[10px] font-black uppercase tracking-widest py-3 px-5 rounded-2xl transition cursor-pointer flex items-center gap-1.5"
-                    title="WhatsApp Inquiry"
-                  >
-                    <MessageCircle className="w-3.5 h-3.5" />
-                    <span>Order Now</span>
-                  </button>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="absolute inset-0 flex flex-col justify-center items-center text-white bg-gradient-to-r from-orange-600 to-amber-500">
+                <Sparkles className="w-12 h-12 mb-2 animate-spin text-white/50" />
+                <h3 className="font-serif text-xl font-bold uppercase">Mahi Creations Premium Boutique</h3>
+              </div>
+            )}
 
-            {/* Dot Progress Indicators */}
-            {products.length > 1 && (
-              <div className="flex justify-center gap-1.5 pt-2">
-                {products.slice(0, 10).map((_, idx) => (
+            {/* Slider Navigation Arrows */}
+            {promoSlides.length > 1 && (
+              <>
+                <button
+                  onClick={handlePrevSlide}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 p-2 bg-black/40 hover:bg-orange-600 text-white rounded-full transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 z-10"
+                  aria-label="Previous Slide"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={handleNextSlide}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-black/40 hover:bg-orange-600 text-white rounded-full transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 z-10"
+                  aria-label="Next Slide"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </>
+            )}
+
+            {/* Dot indicators at the bottom */}
+            {promoSlides.length > 1 && (
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+                {promoSlides.map((_, idx) => (
                   <button
                     key={idx}
-                    onClick={() => setActiveIndex(idx)}
-                    className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
-                      idx === activeIndex ? 'w-6 bg-brand' : 'w-2 bg-clay hover:bg-neutral-400'
+                    onClick={() => setActiveSlideIndex(idx)}
+                    className={`h-1.5 rounded-full transition-all ${
+                      idx === activeSlideIndex ? 'w-5 bg-orange-600' : 'w-1.5 bg-white/50 hover:bg-white'
                     }`}
-                    title={`Slide ${idx + 1}`}
+                    title={`Go to slide ${idx + 1}`}
                   />
                 ))}
               </div>
             )}
           </div>
 
+          {/* Right Campaign Highlights Panel (3 Cols on desktop - hidden on mobile/tablet) */}
+          <div className="col-span-1 lg:col-span-3 hidden lg:flex flex-col bg-white rounded-2xl p-5 border border-neutral-200/70 shadow-sm justify-between">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full bg-orange-500 animate-pulse" />
+                <span className="text-[11px] font-black uppercase tracking-wider text-neutral-800">Mahi Privilege Access</span>
+              </div>
+              
+              {/* Showroom Preview Mini-Frame */}
+              <div className="relative rounded-xl overflow-hidden aspect-[16/10] bg-neutral-100 border border-neutral-100">
+                <img 
+                  src={aboutImageUrl} 
+                  alt="Mahi Showroom" 
+                  referrerPolicy="no-referrer"
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-black/45 flex items-end p-2">
+                  <p className="text-[9px] font-bold text-white tracking-tight uppercase line-clamp-1">
+                    📍 {heroImageCaption || 'Jhamsikhel, Lalitpur'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Privilege Bullet points with elegant mini styling */}
+              <div className="space-y-3 pt-1">
+                <div className="flex items-start gap-2.5">
+                  <ShieldCheck className="w-4 h-4 text-orange-600 mt-0.5 shrink-0" />
+                  <div>
+                    <h4 className="text-[10px] font-black uppercase text-neutral-800 tracking-tight leading-none">100% Certified Authentic</h4>
+                    <p className="text-[9px] text-neutral-500 leading-tight">Sourced directly from certified brand global houses.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2.5">
+                  <Truck className="w-4 h-4 text-orange-600 mt-0.5 shrink-0" />
+                  <div>
+                    <h4 className="text-[10px] font-black uppercase text-neutral-800 tracking-tight leading-none">Valley Speed Delivery</h4>
+                    <p className="text-[9px] text-neutral-500 leading-tight">Same-day secure courier delivery inside Kathmandu.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2.5">
+                  <QrCode className="w-4 h-4 text-orange-600 mt-0.5 shrink-0" />
+                  <div>
+                    <h4 className="text-[10px] font-black uppercase text-neutral-800 tracking-tight leading-none">VIP WhatsApp Support</h4>
+                    <p className="text-[9px] text-neutral-500 leading-tight">Send any cosmetic image to source premium formulas.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Action Button */}
+            <div className="pt-3 border-t border-dashed border-neutral-100">
+              <button
+                onClick={() => {
+                  const text = encodeURIComponent("Hi Mahi Creations! I am browsing the boutique app and would like to inquire about premium sourcing options.");
+                  window.open(`https://wa.me/${whatsappNumber.replace(/[^0-9]/g, '')}?text=${text}`, '_blank');
+                }}
+                className="w-full flex items-center justify-center gap-1.5 bg-neutral-900 hover:bg-orange-600 text-white text-[10px] font-bold uppercase tracking-wider py-2.5 rounded-xl transition"
+              >
+                <PhoneCall className="w-3.5 h-3.5 text-orange-400" />
+                <span>Source Any Product</span>
+              </button>
+            </div>
+          </div>
+
         </div>
-      </div>
-    </section>
+      </section>
+
+      {/* 2. DARAJ-STYLE DYNAMIC PROMO TRUST MARQUEE STRIP */}
+      <section className="bg-gradient-to-r from-orange-600 via-amber-600 to-rose-600 py-2.5 shadow-md overflow-hidden relative">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(255,255,255,0.15),transparent)] pointer-events-none" />
+        <div className="max-w-[1360px] mx-auto px-4 flex items-center justify-between text-white gap-4 flex-wrap sm:flex-nowrap">
+          
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="bg-white/20 px-2 py-0.5 rounded text-[8px] sm:text-[10px] font-black tracking-widest uppercase">
+              ⚡ LIVE OFFERS
+            </span>
+            <p className="text-[9px] sm:text-[11px] font-extrabold tracking-wider uppercase text-amber-100">
+              MONSOON MEGASALE IS NOW ACTIVE
+            </p>
+          </div>
+
+          <div className="hidden md:flex items-center gap-8 text-[10px] font-bold uppercase tracking-widest text-neutral-100">
+            <span className="flex items-center gap-1">✨ FREE DELIVERY</span>
+            <span className="flex items-center gap-1">🔒 SECURE CHECKOUT</span>
+            <span className="flex items-center gap-1">✓ 100% ORIGINAL SOURCED</span>
+          </div>
+
+          <button 
+            onClick={onDiscoverClick}
+            className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-widest underline hover:text-amber-200"
+          >
+            Explore Catalog &rarr;
+          </button>
+        </div>
+      </section>
+
+      {/* 3. FLASH SALE & SPECIAL OFFERS SECTION (List Offer/New Saman Here) */}
+      <section className="max-w-[1360px] mx-auto px-4">
+        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-neutral-200/70 shadow-sm space-y-4">
+          
+          {/* Section Header: Title, Countdown Timer, Shop More Button */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-neutral-100">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5 text-orange-600">
+                <Flame className="w-5 h-5 fill-orange-600 text-orange-600 animate-bounce" />
+                <h3 className="text-sm sm:text-base font-black uppercase tracking-wider text-neutral-800">
+                  Flash Sale
+                </h3>
+              </div>
+              
+              {/* Daraj-style Countdown Boxes */}
+              <div className="flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5 text-neutral-400 mr-1" />
+                <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider mr-1">Ends in</span>
+                
+                <span className="bg-orange-600 text-white font-mono font-black text-[11px] px-1.5 py-0.5 rounded shadow-sm">
+                  {String(timeLeft.hours).padStart(2, '0')}
+                </span>
+                <span className="text-orange-600 font-bold font-mono text-xs">:</span>
+                
+                <span className="bg-orange-600 text-white font-mono font-black text-[11px] px-1.5 py-0.5 rounded shadow-sm">
+                  {String(timeLeft.minutes).padStart(2, '0')}
+                </span>
+                <span className="text-orange-600 font-bold font-mono text-xs">:</span>
+                
+                <span className="bg-orange-600 text-white font-mono font-black text-[11px] px-1.5 py-0.5 rounded shadow-sm animate-pulse">
+                  {String(timeLeft.seconds).padStart(2, '0')}
+                </span>
+              </div>
+            </div>
+
+            <button 
+              onClick={onDiscoverClick}
+              className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-orange-600 hover:text-orange-500 border border-orange-500/30 hover:border-orange-500 rounded-lg px-3 py-1.5 transition self-start sm:self-auto"
+            >
+              Shop All Products
+            </button>
+          </div>
+
+          {/* Flash Sale Horizontal Scrollable Catalog Grid */}
+          {flashSaleProducts.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3.5">
+              {flashSaleProducts.map((product) => {
+                const discountAmount = (product.price * product.discountPercent) / 100;
+                const salePrice = product.price - discountAmount;
+                const progressSimulated = Math.min(100, Math.max(15, 100 - (product.stockCount * 6))); // simulated stock claim percentage
+                const outOfStock = !product.inStock || product.stockCount === 0;
+
+                return (
+                  <div 
+                    key={product.id}
+                    className="group bg-white border border-neutral-100 hover:border-orange-500/40 rounded-xl overflow-hidden flex flex-col p-2.5 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 relative"
+                  >
+                    {/* Discount Pill Badge */}
+                    {product.discountPercent > 0 && (
+                      <span className="absolute top-2 left-2 z-10 bg-orange-600 text-white font-mono text-[9px] font-black px-1.5 py-0.5 rounded-md shadow">
+                        -{product.discountPercent}%
+                      </span>
+                    )}
+
+                    {/* Stock Alert Badge */}
+                    {outOfStock ? (
+                      <span className="absolute top-2 right-2 z-10 bg-neutral-900 text-white text-[8px] font-bold px-1.5 py-0.5 rounded">
+                        Sold Out
+                      </span>
+                    ) : product.stockCount <= 3 ? (
+                      <span className="absolute top-2 right-2 z-10 bg-rose-600 text-white text-[8px] font-bold px-1.5 py-0.5 rounded animate-pulse">
+                        Only {product.stockCount} Left!
+                      </span>
+                    ) : null}
+
+                    {/* Product Cover Photo inside exact box frame */}
+                    <div 
+                      onClick={() => onViewDetails?.(product)}
+                      className="aspect-square w-full rounded-lg bg-neutral-50/50 p-2 overflow-hidden flex items-center justify-center cursor-pointer group-hover:bg-neutral-50"
+                    >
+                      <img 
+                        src={product.image} 
+                        alt={product.name} 
+                        referrerPolicy="no-referrer"
+                        className="max-h-full max-w-full object-contain transition-transform duration-500 group-hover:scale-105"
+                      />
+                    </div>
+
+                    {/* Meta info & pricing */}
+                    <div className="mt-2.5 flex-grow flex flex-col justify-between text-left space-y-1.5">
+                      <div>
+                        <span className="text-[8px] font-extrabold uppercase text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded">
+                          {product.category}
+                        </span>
+                        <h4 
+                          onClick={() => onViewDetails?.(product)}
+                          className="text-[11px] font-bold text-neutral-800 line-clamp-2 hover:text-orange-500 transition cursor-pointer leading-tight pt-1 uppercase"
+                        >
+                          {product.name}
+                        </h4>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        {/* Price lines */}
+                        <div className="pt-1">
+                          <p className="font-mono text-xs sm:text-[13px] font-black text-orange-600 leading-none">
+                            {formatPrice(salePrice, currency)}
+                          </p>
+                          {product.discountPercent > 0 && (
+                            <p className="font-mono text-[10px] text-neutral-400 line-through leading-none pt-0.5">
+                              {formatPrice(product.price, currency)}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Stock claimed progress bar */}
+                        {!outOfStock && (
+                          <div className="space-y-1 pt-0.5">
+                            <div className="w-full h-1.5 bg-neutral-100 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-gradient-to-r from-orange-500 to-rose-500 rounded-full" 
+                                style={{ width: `${progressSimulated}%` }}
+                              />
+                            </div>
+                            <p className="text-[8px] text-neutral-400 font-bold uppercase tracking-tight">
+                              {progressSimulated > 85 ? '🔥 Selling Fast' : `${product.stockCount} items in stock`}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* View/Buy buttons (Overlay inside card) */}
+                    <div className="mt-3 pt-2.5 border-t border-dashed border-neutral-100 flex gap-1.5">
+                      <button
+                        onClick={() => onViewDetails?.(product)}
+                        className="flex-1 bg-neutral-900 hover:bg-orange-600 text-white text-[8px] font-extrabold uppercase py-2 rounded-lg transition"
+                        title="View Details"
+                      >
+                        Explore
+                      </button>
+                      <button
+                        onClick={() => {
+                          const text = encodeURIComponent(`Hi Mahi Creations, I would like to order: "${product.name}" on flash sale deal at ${formatPrice(salePrice, currency)}.`);
+                          window.open(`https://wa.me/${whatsappNumber.replace(/[^0-9]/g, '')}?text=${text}`, '_blank');
+                        }}
+                        className="p-1.5 bg-orange-50 border border-orange-200 hover:bg-orange-100 text-orange-700 rounded-lg transition"
+                        title="WhatsApp Order"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="py-12 text-center text-neutral-400 border border-dashed border-neutral-200 rounded-xl">
+              <Percent className="w-8 h-8 mx-auto mb-2 text-neutral-300 animate-pulse" />
+              <p className="text-xs">No active flash sale products right now. We replenish daily!</p>
+            </div>
+          )}
+
+        </div>
+      </section>
+
+      {/* 4. CATEGORIES LISTING SECTION (Daraj circular icons) */}
+      {uniqueCategories.length > 0 && (
+        <section className="max-w-[1360px] mx-auto px-4">
+          <div className="bg-white rounded-2xl p-4 sm:p-5 border border-neutral-200/70 shadow-sm space-y-4">
+            
+            <div className="flex items-center justify-between border-b border-neutral-100 pb-3">
+              <div className="flex items-center gap-1.5 text-neutral-800">
+                <ShoppingBag className="w-4 h-4 text-orange-600" />
+                <h3 className="text-sm font-black uppercase tracking-wider">
+                  Browse Categories
+                </h3>
+              </div>
+              <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">
+                Easy Sourcing
+              </span>
+            </div>
+
+            {/* Grid of round circles like Daraj screenshot */}
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4 justify-center">
+              {/* "All Products" shortcut */}
+              <div 
+                onClick={() => onCategorySelect?.('All')}
+                className="group flex flex-col items-center text-center space-y-2 cursor-pointer transition-all"
+              >
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-2 border-transparent group-hover:border-orange-500 bg-orange-50 flex items-center justify-center shadow-sm group-hover:shadow-md transition">
+                  <Sparkles className="w-8 h-8 text-orange-600 group-hover:scale-110 transition" />
+                </div>
+                <span className="text-[10px] sm:text-xs font-bold text-neutral-600 group-hover:text-orange-600 transition truncate max-w-full uppercase tracking-tight">
+                  All Boutique
+                </span>
+              </div>
+
+              {/* Unique database categories */}
+              {uniqueCategories.map((category) => {
+                const img = CATEGORY_IMAGES[category] || DEFAULT_CATEGORY_IMAGE;
+                return (
+                  <div 
+                    key={category}
+                    onClick={() => onCategorySelect?.(category)}
+                    className="group flex flex-col items-center text-center space-y-2 cursor-pointer transition-all"
+                  >
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-2 border-transparent group-hover:border-orange-500 bg-neutral-100 shadow-sm group-hover:shadow-md transition relative">
+                      <img 
+                        src={img} 
+                        alt={category} 
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover transition duration-300 group-hover:scale-105"
+                      />
+                    </div>
+                    <span className="text-[10px] sm:text-xs font-bold text-neutral-600 group-hover:text-orange-600 transition truncate max-w-full uppercase tracking-tight">
+                      {category}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+          </div>
+        </section>
+      )}
+
+    </div>
   );
 }

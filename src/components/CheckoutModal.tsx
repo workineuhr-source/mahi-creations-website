@@ -171,7 +171,20 @@ export default function CheckoutModal({
       createdAt: new Date().toISOString(),
       notes: notes || undefined,
       currency: currency,
-      countryCode: selectedCountryCode
+      countryCode: selectedCountryCode,
+      estimatedDelivery: 'Within 24 to 48 Hours',
+      courierName: 'Mahi Creations Express Rider',
+      courierPhone: 'Pending review',
+      courierTrackingCode: 'Pending allocation',
+      sellerNotes: 'Order placed successfully. We are preparing your boutique package with extra love.',
+      paymentStatus: paymentMethod === 'COD' ? 'Pending' : 'Verified',
+      statusLogs: [
+        {
+          status: 'Pending',
+          note: `Order placed successfully by customer using ${paymentMethod}. Waiting for luxury review.`,
+          timestamp: new Date().toISOString()
+        }
+      ]
     };
 
     setNewOrderResult(finalOrder);

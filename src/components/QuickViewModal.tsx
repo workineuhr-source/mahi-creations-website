@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Product } from '../types';
 import { Star, X, ShoppingBag, Eye, ShieldCheck, HelpCircle } from 'lucide-react';
-import { formatPrice, CurrencyCode } from '../utils/currency';
+import { formatPrice, CurrencyCode, getProductDisplayPrices } from '../utils/currency';
 
 interface QuickViewModalProps {
   product: Product | null;
@@ -32,9 +32,11 @@ export default function QuickViewModal({
     setZoomPos({ x, y });
   };
 
-  // Compute pricing
-  const discountAmount = (product.price * product.discountPercent) / 100;
-  const salePrice = product.price - discountAmount;
+  // Compute display pricing
+  const {
+    formattedOriginal,
+    formattedSale
+  } = getProductDisplayPrices(product, currency);
   const image = product.image;
 
   const handleAddToBag = (e: React.MouseEvent) => {
@@ -158,11 +160,11 @@ export default function QuickViewModal({
               <p className="text-[8px] text-neutral-400 font-bold uppercase tracking-wider mb-0.5">Price</p>
               <div className="flex items-baseline gap-2">
                 <span className="text-xl font-black text-dark">
-                  {formatPrice(salePrice, currency)}
+                  {formattedSale}
                 </span>
                 {product.discountPercent > 0 && (
                   <span className="text-xs text-neutral-400 line-through">
-                    {formatPrice(product.price, currency)}
+                    {formattedOriginal}
                   </span>
                 )}
               </div>

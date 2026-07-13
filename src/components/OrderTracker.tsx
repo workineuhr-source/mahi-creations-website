@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Order, OrderStatus, BoutiqueSettings } from '../types';
-import { Search, MapPin, Calendar, Clock, CreditCard, Sparkles, MessageSquare, AlertCircle, ShoppingBag, Truck, Check, Printer, Copy, Download } from 'lucide-react';
+import { Search, MapPin, Calendar, Clock, CreditCard, Sparkles, MessageSquare, AlertCircle, ShoppingBag, Truck, Check, Printer, Copy, Download, User, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface OrderTrackerProps {
@@ -344,6 +344,61 @@ export default function OrderTracker({ orders, onBackToShop, initialSearchId = '
       'Cancelled': -1
     };
     return indices[status] ?? 0;
+  };
+
+  const getDisplayLogs = (order: Order) => {
+    if (order.statusLogs && order.statusLogs.length > 0) {
+      return order.statusLogs;
+    }
+    const logs = [];
+    const createdTime = new Date(order.createdAt);
+    
+    logs.push({
+      status: 'Pending' as OrderStatus,
+      note: `Order ${order.id} has been logged in our luxury boutique system.`,
+      timestamp: order.createdAt
+    });
+
+    const currentIndex = getStatusIndex(order.status);
+
+    if (order.status === 'Cancelled') {
+      logs.push({
+        status: 'Cancelled' as OrderStatus,
+        note: 'This order has been cancelled by the boutique desk.',
+        timestamp: new Date(createdTime.getTime() + 1800000).toISOString()
+      });
+    } else {
+      if (currentIndex >= 1) {
+        logs.push({
+          status: 'Confirmed' as OrderStatus,
+          note: 'Mahi Creations verified inventory stock levels and confirmed the booking details.',
+          timestamp: new Date(createdTime.getTime() + 1800000).toISOString()
+        });
+      }
+      if (currentIndex >= 2) {
+        logs.push({
+          status: 'Packaging' as OrderStatus,
+          note: 'Your package is compiled with protective double-layered bubble wrap and boutique gift paper.',
+          timestamp: new Date(createdTime.getTime() + 3600000).toISOString()
+        });
+      }
+      if (currentIndex >= 3) {
+        logs.push({
+          status: 'Out for Delivery' as OrderStatus,
+          note: `Handed over to our delivery partner. Custom tracking code: ${order.courierTrackingCode || 'MC-EXP-992'}.`,
+          timestamp: new Date(createdTime.getTime() + 5400000).toISOString()
+        });
+      }
+      if (currentIndex >= 4) {
+        logs.push({
+          status: 'Delivered' as OrderStatus,
+          note: 'Successfully delivered to the destination address. Thank you for shopping with us!',
+          timestamp: new Date(createdTime.getTime() + 7200000).toISOString()
+        });
+      }
+    }
+
+    return [...logs].reverse();
   };
 
   const getWhatsAppChatLink = (order: Order) => {
@@ -702,79 +757,185 @@ export default function OrderTracker({ orders, onBackToShop, initialSearchId = '
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               
               {/* Courier, Address Details */}
-              <div className="bg-white p-6 rounded-3xl border border-clay shadow-sm space-y-4">
-                <h4 className="font-serif text-base font-bold text-dark border-b border-clay pb-2 flex items-center gap-2 uppercase tracking-wide">
-                  <MapPin className="w-4.5 h-4.5 text-brand" />
-                  Shipping & Contact Info
-                </h4>
+              <div className="space-y-6">
+                <div className="bg-white p-6 rounded-3xl border border-clay shadow-sm space-y-4">
+                  <h4 className="font-serif text-base font-bold text-dark border-b border-clay pb-2 flex items-center gap-2 uppercase tracking-wide">
+                    <MapPin className="w-4.5 h-4.5 text-brand" />
+                    Shipping & Contact Info
+                  </h4>
 
-                <div className="space-y-3.5 text-xs">
-                  <div>
-                    <p className="text-neutral-400 font-bold uppercase tracking-wider text-[9px]">Recipient Name:</p>
-                    <p className="font-semibold text-dark mt-0.5">{searchedOrder.customerName}</p>
-                  </div>
-                  <div>
-                    <p className="text-neutral-400 font-bold uppercase tracking-wider text-[9px]">Recipient Mobile Number:</p>
-                    <p className="font-semibold text-dark mt-0.5">{searchedOrder.customerPhone}</p>
-                  </div>
-                  <div>
-                    <p className="text-neutral-400 font-bold uppercase tracking-wider text-[9px]">Exact Shipping Destination:</p>
-                    <p className="font-semibold text-dark mt-0.5">{searchedOrder.customerAddress}</p>
-                  </div>
-                  <div>
-                    <p className="text-neutral-400 font-bold uppercase tracking-wider text-[9px]">Delivery Location Group:</p>
-                    <p className="font-semibold text-dark mt-0.5">{searchedOrder.deliveryLocationName}</p>
-                  </div>
-                  {searchedOrder.notes && (
+                  <div className="space-y-3.5 text-xs">
                     <div>
-                      <p className="text-neutral-400 font-bold uppercase tracking-wider text-[9px]">Remarks:</p>
-                      <p className="text-brand italic font-semibold mt-0.5">"{searchedOrder.notes}"</p>
+                      <p className="text-neutral-400 font-bold uppercase tracking-wider text-[9px]">Recipient Name:</p>
+                      <p className="font-semibold text-dark mt-0.5">{searchedOrder.customerName}</p>
                     </div>
-                  )}
+                    <div>
+                      <p className="text-neutral-400 font-bold uppercase tracking-wider text-[9px]">Recipient Mobile Number:</p>
+                      <p className="font-semibold text-dark mt-0.5">{searchedOrder.customerPhone}</p>
+                    </div>
+                    <div>
+                      <p className="text-neutral-400 font-bold uppercase tracking-wider text-[9px]">Exact Shipping Destination:</p>
+                      <p className="font-semibold text-dark mt-0.5">{searchedOrder.customerAddress}</p>
+                    </div>
+                    <div>
+                      <p className="text-neutral-400 font-bold uppercase tracking-wider text-[9px]">Delivery Location Group:</p>
+                      <p className="font-semibold text-dark mt-0.5">{searchedOrder.deliveryLocationName}</p>
+                    </div>
+                    {searchedOrder.notes && (
+                      <div>
+                        <p className="text-neutral-400 font-bold uppercase tracking-wider text-[9px]">Customer Note / Remarks:</p>
+                        <p className="text-dark bg-bg-warm p-2.5 rounded-xl border border-clay-light italic mt-0.5">"{searchedOrder.notes}"</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* COURIER & RIDER DISPATCH INFO */}
+                <div className="bg-white p-6 rounded-3xl border border-clay shadow-sm space-y-4">
+                  <h4 className="font-serif text-base font-bold text-dark border-b border-clay pb-2 flex items-center gap-2 uppercase tracking-wide">
+                    <Truck className="w-4.5 h-4.5 text-brand" />
+                    Courier Dispatch & Rider Info
+                  </h4>
+
+                  <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div>
+                      <p className="text-neutral-400 font-bold uppercase tracking-wider text-[9px]">Courier Service:</p>
+                      <p className="font-bold text-dark mt-0.5">{searchedOrder.courierName || 'Mahi Creations Express'}</p>
+                    </div>
+                    <div>
+                      <p className="text-neutral-400 font-bold uppercase tracking-wider text-[9px]">Rider Phone:</p>
+                      {searchedOrder.courierPhone && searchedOrder.courierPhone !== 'Pending review' ? (
+                        <a href={`tel:${searchedOrder.courierPhone}`} className="text-brand hover:underline font-bold block mt-0.5">
+                          {searchedOrder.courierPhone}
+                        </a>
+                      ) : (
+                        <p className="text-neutral-400 italic mt-0.5">Assigning soon</p>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-neutral-400 font-bold uppercase tracking-wider text-[9px]">Courier tracking code:</p>
+                      <p className="font-mono font-bold text-dark bg-clay-light/40 px-2 py-0.5 rounded border border-clay/60 inline-block mt-0.5">
+                        {searchedOrder.courierTrackingCode || 'MC-EXP-PENDING'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-neutral-400 font-bold uppercase tracking-wider text-[9px]">Estimated Delivery:</p>
+                      <p className="font-bold text-emerald-700 flex items-center gap-1 mt-0.5">
+                        <Clock className="w-3.5 h-3.5 animate-pulse" />
+                        {searchedOrder.estimatedDelivery || 'Within 24 to 48 Hours'}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
               {/* Financial Invoice Breakdown */}
-              <div className="bg-white p-6 rounded-3xl border border-clay shadow-sm flex flex-col justify-between space-y-4">
-                <div>
-                  <h4 className="font-serif text-base font-bold text-dark border-b border-clay pb-2 flex items-center gap-2 uppercase tracking-wide">
-                    <ShoppingBag className="w-4.5 h-4.5 text-brand" />
-                    Order Items Breakdown
-                  </h4>
+              <div className="space-y-6">
+                <div className="bg-white p-6 rounded-3xl border border-clay shadow-sm flex flex-col justify-between space-y-4">
+                  <div>
+                    <div className="flex justify-between items-center border-b border-clay pb-2">
+                      <h4 className="font-serif text-base font-bold text-dark flex items-center gap-2 uppercase tracking-wide">
+                        <ShoppingBag className="w-4.5 h-4.5 text-brand" />
+                        Order Items Breakdown
+                      </h4>
+                      {/* Payment Verification Badge */}
+                      <span className={`text-[9px] font-extrabold uppercase tracking-widest px-2.5 py-1 rounded-full ${
+                        (searchedOrder.paymentStatus || (searchedOrder.paymentMethod === 'COD' ? 'Pending' : 'Verified')) === 'Verified'
+                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-350'
+                          : (searchedOrder.paymentStatus || (searchedOrder.paymentMethod === 'COD' ? 'Pending' : 'Verified')) === 'Refunded'
+                          ? 'bg-blue-100 text-blue-800 border border-blue-350'
+                          : 'bg-amber-100 text-amber-800 border border-amber-350 animate-pulse'
+                      }`}>
+                        {searchedOrder.paymentMethod === 'COD' ? 'COD' : searchedOrder.paymentMethod}: {searchedOrder.paymentStatus || (searchedOrder.paymentMethod === 'COD' ? 'Pending Verification' : 'Verified')}
+                      </span>
+                    </div>
 
-                  <div className="space-y-3 max-h-40 overflow-y-auto mt-3 pr-2">
-                    {searchedOrder.items.map((it, idx) => (
-                      <div key={idx} className="flex gap-3 items-center text-xs">
-                        <div className="w-10 h-12 rounded bg-clay-light/40 border border-clay overflow-hidden flex-shrink-0">
-                          <img src={it.image} alt="" className="w-full h-full object-cover" />
+                    <div className="space-y-3 max-h-48 overflow-y-auto mt-3 pr-2">
+                      {searchedOrder.items.map((it, idx) => (
+                        <div key={idx} className="flex gap-3 items-center text-xs">
+                          <div className="w-10 h-12 rounded bg-clay-light/40 border border-clay overflow-hidden flex-shrink-0">
+                            <img src={it.image} alt="" className="w-full h-full object-cover" />
+                          </div>
+                          <div className="flex-grow min-w-0">
+                            <p className="font-semibold text-dark truncate">{it.productName}</p>
+                            <p className="text-[10px] text-neutral-400 font-bold">Qty: {it.quantity} @ Rs. {it.price.toLocaleString('en-IN')}</p>
+                          </div>
+                          <span className="font-bold text-dark">Rs. {(it.price * it.quantity).toLocaleString('en-IN')}</span>
                         </div>
-                        <div className="flex-grow min-w-0">
-                          <p className="font-semibold text-dark truncate">{it.productName}</p>
-                          <p className="text-[10px] text-neutral-400 font-bold">Qty: {it.quantity} @ Rs. {it.price.toLocaleString('en-IN')}</p>
-                        </div>
-                        <span className="font-bold text-dark">Rs. {(it.price * it.quantity).toLocaleString('en-IN')}</span>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="border-t border-clay-light pt-3.5 text-xs space-y-2">
+                    <div className="flex justify-between text-neutral-500">
+                      <span>Discount Subtotal Saved:</span>
+                      <span className="text-brand font-bold">- Rs. {searchedOrder.discountAmount.toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="flex justify-between text-neutral-500">
+                      <span>Shipping Fee:</span>
+                      <span className="text-dark font-bold">{searchedOrder.deliveryFee === 0 ? 'FREE' : `Rs. ${searchedOrder.deliveryFee}`}</span>
+                    </div>
+                    <div className="flex justify-between text-xs font-bold text-dark pt-1.5 border-t border-dashed border-clay">
+                      <span>Paid via {searchedOrder.paymentMethod}:</span>
+                      <span className="text-sm font-extrabold text-brand">Rs. {searchedOrder.total.toLocaleString('en-IN')}</span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="border-t border-clay-light pt-3.5 text-xs space-y-2">
-                  <div className="flex justify-between text-neutral-500">
-                    <span>Discount Subtotal Saved:</span>
-                    <span className="text-brand font-bold">- Rs. {searchedOrder.discountAmount.toLocaleString('en-IN')}</span>
+                {/* BOUTIQUE NOTES FROM SELLER */}
+                {searchedOrder.sellerNotes && (
+                  <div className="bg-gradient-to-tr from-brand/5 to-white p-6 rounded-3xl border border-clay shadow-sm space-y-2">
+                    <h5 className="text-[10px] uppercase font-bold tracking-widest text-brand flex items-center gap-1">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Message from Boutique Manager
+                    </h5>
+                    <p className="text-xs font-serif italic text-dark leading-relaxed font-semibold">
+                      "{searchedOrder.sellerNotes}"
+                    </p>
                   </div>
-                  <div className="flex justify-between text-neutral-500">
-                    <span>Shipping Fee:</span>
-                    <span className="text-dark font-bold">{searchedOrder.deliveryFee === 0 ? 'FREE' : `Rs. ${searchedOrder.deliveryFee}`}</span>
-                  </div>
-                  <div className="flex justify-between text-xs font-bold text-dark pt-1.5 border-t border-dashed border-clay">
-                    <span>Paid via {searchedOrder.paymentMethod}:</span>
-                    <span className="text-sm font-extrabold text-brand">Rs. {searchedOrder.total.toLocaleString('en-IN')}</span>
-                  </div>
-                </div>
-
+                )}
               </div>
 
+            </div>
+
+            {/* CHRONOLOGICAL SHIPMENT ACTIVITY UPDATES LOGS */}
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-clay shadow-sm space-y-6">
+              <div className="flex items-center gap-2 border-b border-clay pb-3">
+                <div className="w-2.5 h-2.5 rounded-full bg-brand animate-ping" />
+                <h4 className="font-serif text-base font-bold text-dark uppercase tracking-wide">
+                  Boutique Chronological Shipment Updates
+                </h4>
+              </div>
+
+              <div className="relative pl-6 space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-[1px] before:bg-clay">
+                {getDisplayLogs(searchedOrder).map((log, index) => (
+                  <div key={index} className="relative group text-xs">
+                    {/* Circle tracker node */}
+                    <div className="absolute -left-[22px] top-1 w-3.5 h-3.5 rounded-full bg-white border-2 border-brand group-hover:bg-brand transition duration-300 flex items-center justify-center">
+                      <div className="w-1.5 h-1.5 rounded-full bg-brand group-hover:bg-white" />
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mb-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-extrabold text-dark uppercase bg-clay-light px-2 py-0.5 rounded text-[9px] tracking-wider">
+                          {log.status}
+                        </span>
+                        <span className="text-[10px] text-neutral-400 font-bold">
+                          {new Date(log.timestamp).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-neutral-600 font-light leading-relaxed">
+                      {log.note}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Call to Chat help */}

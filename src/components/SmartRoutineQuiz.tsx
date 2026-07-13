@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Product } from '../types';
 import { Sparkles, Check, RefreshCw, ShoppingBag, ArrowRight, Eye, Gift, Heart, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { formatPrice, CurrencyCode } from '../utils/currency';
+import { formatPrice, CurrencyCode, getProductDisplayPrices } from '../utils/currency';
 
 interface SmartRoutineQuizProps {
   products: Product[];
@@ -310,7 +310,10 @@ export default function SmartRoutineQuiz({
                     {/* Recommendations Grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                       {matched.map((prod) => {
-                        const finalPrice = prod.price - (prod.price * prod.discountPercent / 100);
+                        const {
+                          formattedOriginal,
+                          formattedSale
+                        } = getProductDisplayPrices(prod, currency);
                         return (
                           <div
                             key={prod.id}
@@ -348,15 +351,15 @@ export default function SmartRoutineQuiz({
                                   {prod.discountPercent > 0 ? (
                                     <>
                                       <span className="text-xs font-black text-brand leading-none">
-                                        {formatPrice(finalPrice, currency)}
+                                        {formattedSale}
                                       </span>
                                       <span className="text-[9px] text-neutral-400 line-through leading-none mt-0.5">
-                                        {formatPrice(prod.price, currency)}
+                                        {formattedOriginal}
                                       </span>
                                     </>
                                   ) : (
                                     <span className="text-xs font-black text-neutral-800">
-                                      {formatPrice(prod.price, currency)}
+                                      {formattedSale}
                                     </span>
                                   )}
                                 </div>

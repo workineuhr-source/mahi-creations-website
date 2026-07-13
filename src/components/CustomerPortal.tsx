@@ -4,7 +4,7 @@ import {
   User, Phone, MapPin, Search, Star, MessageSquare, LogOut, CheckCircle2, 
   ShoppingBag, Truck, Calendar, Clock, CreditCard, ChevronRight, Sparkles, Printer, AlertCircle, Check, Download, Camera, X, Heart, Trash2
 } from 'lucide-react';
-import { formatPrice, CurrencyCode } from '../utils/currency';
+import { formatPrice, CurrencyCode, getProductDisplayPrices } from '../utils/currency';
 import { generateOrderReceiptPDF } from '../utils/pdfGenerator';
 
 interface CustomerPortalProps {
@@ -754,8 +754,10 @@ export default function CustomerPortal({
                   ) : (
                     <div className="divide-y divide-clay-light">
                       {wishlistProducts.map((prod) => {
-                        const discountAmount = (prod.price * (prod.discountPercent || 0)) / 100;
-                        const salePrice = prod.price - discountAmount;
+                        const {
+                          formattedOriginal,
+                          formattedSale
+                        } = getProductDisplayPrices(prod, currency);
                         
                         return (
                           <div key={prod.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 py-4 first:pt-0 last:pb-0 text-xs">
@@ -767,10 +769,10 @@ export default function CustomerPortal({
                                 <span className="text-[8px] uppercase tracking-wider font-extrabold text-neutral-400">{prod.category}</span>
                                 <h5 className="font-bold text-dark text-sm leading-tight">{prod.name}</h5>
                                 <div className="flex items-center gap-2 font-bold">
-                                  <span className="text-brand">{formatPrice(salePrice, currency)}</span>
+                                  <span className="text-brand">{formattedSale}</span>
                                   {prod.discountPercent > 0 && (
                                     <span className="text-[10px] text-neutral-400 line-through font-normal">
-                                      {formatPrice(prod.price, currency)}
+                                      {formattedOriginal}
                                     </span>
                                   )}
                                 </div>

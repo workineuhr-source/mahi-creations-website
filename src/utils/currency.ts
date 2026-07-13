@@ -11,7 +11,8 @@ export const CURRENCIES: CurrencyConfig[] = [
   { code: 'NPR', symbol: 'Rs.', name: 'Nepalese Rupee', rate: 1.0 }, // Base
   { code: 'USD', symbol: '$', name: 'US Dollar', rate: 0.0075 },   // 1 NPR = 0.0075 USD
   { code: 'EUR', symbol: '€', name: 'Euro', rate: 0.0069 },        // 1 NPR = 0.0069 EUR
-  { code: 'INR', symbol: '₹', name: 'Indian Rupee', rate: 0.625 }  // 1 NPR = 0.625 INR
+  { code: 'INR', symbol: '₹', name: 'Indian Rupee', rate: 0.625 },  // 1 NPR = 0.625 INR
+  { code: 'AED', symbol: 'AED', name: 'UAE Dirham', rate: 0.0275 }  // 1 NPR = 0.0275 AED
 ];
 
 export interface ShippingLocation {
@@ -131,6 +132,55 @@ export function getCustomCountries(): CountryConfig[] {
 export function saveCustomCountries(countries: CountryConfig[]): void {
   if (typeof window !== 'undefined') {
     localStorage.setItem('mahi_countries_v2', JSON.stringify(countries));
+  }
+}
+
+/**
+ * Resolves the display currency, display prices, and beautifully formatted strings for a given product.
+ * If the product has its own custom enteredCurrency, it respects and shows that currency directly.
+ */
+export function getProductDisplayPrices(
+  product: { price: number; discountPercent: number; enteredPrice?: number; enteredCurrency?: string },
+  globalCurrency: CurrencyCode
+) {
+  // If product has a specific currency assigned, use it. Otherwise fallback to global currency.
+  const displayCurrency = (product.enteredCurrency as CurrencyCode) || globalCurrency;
+
+  let originalPrice = product.price; // fallback in NPR
+  let salePrice = product.price * (1 - (product.discountPercent || 0) / 100);
+
+  const formatDirect = (amount: number, curr: CurrencyCode): string => {
+    if (curr === 'USD') return `$${amount.toFixed(2)}`;
+    if (curr === 'EUR') return `€${amount.toFixed(2)}`;
+    if (curr === 'AED') return `AED ${amount.toLocaleString('en-US')}`;
+    if (curr === 'INR') return `₹${amount.toLocaleString('en-IN')}`;
+    return `Rs. ${amount.toLocaleString('en-NP')}`;
+  };
+
+  // If we are showing the product's entered currency, and we have the enteredPrice, use that directly!
+  if (product.enteredCurrency && product.enteredPrice !== undefined && product.enteredPrice !== null) {
+    originalPrice = product.enteredPrice;
+    salePrice = product.enteredPrice * (1 - (product.discountPercent || 0) / 100);
+    
+    return {
+      displayCurrency,
+      originalPrice,
+      salePrice,
+      formattedOriginal: formatDirect(originalPrice, displayCurrency),
+      formattedSale: formatDirect(salePrice, displayCurrency)
+    };
+  } else {
+    // Convert base NPR price to the displayCurrency
+    const convertedOrig = convertPrice(product.price, displayCurrency);
+    const convertedSale = convertPrice(product.price * (1 - (product.discountPercent || 0) / 100), displayCurrency);
+    
+    return {
+      displayCurrency,
+      originalPrice: convertedOrig,
+      salePrice: convertedSale,
+      formattedOriginal: formatDirect(convertedOrig, displayCurrency),
+      formattedSale: formatDirect(convertedSale, displayCurrency)
+    };
   }
 }
 

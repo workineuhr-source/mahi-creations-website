@@ -1,7 +1,7 @@
 import React from 'react';
 import { Product } from '../types';
 import { X, Star, ShoppingBag, Eye } from 'lucide-react';
-import { formatPrice, CurrencyCode } from '../utils/currency';
+import { formatPrice, CurrencyCode, getProductDisplayPrices } from '../utils/currency';
 
 interface CompareModalProps {
   isOpen: boolean;
@@ -61,8 +61,10 @@ export default function CompareModal({
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start divide-y md:divide-y-0 md:divide-x divide-clay-light">
               {products.map((product) => {
-                const discountAmount = (product.price * product.discountPercent) / 100;
-                const salePrice = product.price - discountAmount;
+                const {
+                  formattedOriginal,
+                  formattedSale
+                } = getProductDisplayPrices(product, currency);
                 const images = product.images && product.images.length > 0 ? product.images : [product.image];
 
                 return (
@@ -107,10 +109,10 @@ export default function CompareModal({
                       <div className="grid grid-cols-3 gap-2">
                         <span className="text-neutral-400 uppercase tracking-wider text-[9px] font-bold col-span-1">Price</span>
                         <span className="col-span-2 font-semibold text-dark">
-                          {formatPrice(salePrice, currency)}
+                          {formattedSale}
                           {product.discountPercent > 0 && (
                             <span className="text-[10px] text-neutral-400 line-through ml-1.5">
-                              {formatPrice(product.price, currency)}
+                              {formattedOriginal}
                             </span>
                           )}
                         </span>

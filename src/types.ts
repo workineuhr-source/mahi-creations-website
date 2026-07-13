@@ -1,3 +1,5 @@
+import { CurrencyCode } from './utils/currency';
+
 export interface Product {
   id: string;
   name: string;
@@ -25,6 +27,12 @@ export interface CartItem {
 
 export type OrderStatus = 'Pending' | 'Confirmed' | 'Packaging' | 'Out for Delivery' | 'Delivered' | 'Cancelled';
 
+export interface OrderLog {
+  status: OrderStatus;
+  note: string;
+  timestamp: string;
+}
+
 export interface Order {
   id: string;
   customerName: string;
@@ -50,6 +58,13 @@ export interface Order {
   notes?: string;
   currency?: string; // e.g. 'AED', 'USD'
   countryCode?: string; // e.g. 'AE', 'NP'
+  estimatedDelivery?: string;
+  courierName?: string;
+  courierPhone?: string;
+  courierTrackingCode?: string;
+  sellerNotes?: string;
+  paymentStatus?: 'Pending' | 'Verified' | 'Failed' | 'Refunded';
+  statusLogs?: OrderLog[];
 }
 
 export interface LocationConfig {
@@ -89,6 +104,7 @@ export interface BoutiqueSettings {
   faviconUrl?: string;
   headerPromo?: string;
   enabledPayments?: string[];
+  enabledCurrencies?: CurrencyCode[];
   promoSlides?: PromoSlide[];
   aboutImageUrl?: string;
   heroBadge?: string;

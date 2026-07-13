@@ -4,9 +4,10 @@ import {
   Settings, Lock, LayoutDashboard, Plus, Edit, Trash2, Check, RefreshCw, X, 
   TrendingUp, DollarSign, Package, ShoppingCart, Percent, Share2, Facebook, 
   Instagram, Linkedin, MessageSquare, Copy, CheckCircle2, Eye, EyeOff, User, Phone, 
-  Sparkles, ExternalLink, Globe, Key, ChevronRight, HelpCircle, ShieldCheck, Zap, Star, MapPin, Search, Home, Mail, Users
+  Sparkles, ExternalLink, Globe, Key, ChevronRight, HelpCircle, ShieldCheck, Zap, Star, MapPin, Search, Home, Mail, Users, Truck, Printer
 } from 'lucide-react';
 import { formatPrice, CurrencyCode, CURRENCIES, CountryConfig, ShippingLocation } from '../utils/currency';
+import { uploadImageToServer } from '../utils/upload';
 
 interface AdminPanelProps {
   products: Product[];
@@ -27,6 +28,9 @@ interface AdminPanelProps {
   onUpdateCountries: (countries: CountryConfig[]) => void;
   onAddOrder?: (order: Order) => void;
   onAddReview?: (review: ProductReview) => void;
+  onUpdateOrderDetails?: (orderId: string, updatedFields: Partial<Order>) => void;
+  subscribers?: string[];
+  onUpdateSubscribers?: (subscribers: string[]) => void;
 }
 
 export default function AdminPanel({
@@ -47,7 +51,10 @@ export default function AdminPanel({
   countries,
   onUpdateCountries,
   onAddOrder,
-  onAddReview
+  onAddReview,
+  onUpdateOrderDetails,
+  subscribers = [],
+  onUpdateSubscribers
 }: AdminPanelProps) {
 
   // Authentication states
@@ -55,6 +62,68 @@ export default function AdminPanel({
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(isAdminLoggedIn);
   const [authError, setAuthError] = useState('');
+
+  // Order Tracking Details Modal state
+  const [trackingOrder, setTrackingOrder] = useState<Order | null>(null);
+  const [estDelivery, setEstDelivery] = useState('');
+  const [courName, setCourName] = useState('');
+  const [courPhone, setCourPhone] = useState('');
+  const [courTrackCode, setCourTrackCode] = useState('');
+  const [selNotes, setSelNotes] = useState('');
+  const [payStatus, setPayStatus] = useState<'Pending' | 'Verified' | 'Failed' | 'Refunded'>('Pending');
+  const [newLogStatus, setNewLogStatus] = useState<OrderStatus>('Pending');
+  const [newLogNote, setNewLogNote] = useState('');
+
+  // Open tracking manager for an order
+  const openTrackingManagement = (order: Order) => {
+    setTrackingOrder(order);
+    setEstDelivery(order.estimatedDelivery || 'Within 24 to 48 Hours');
+    setCourName(order.courierName || 'Mahi Creations Express Rider');
+    setCourPhone(order.courierPhone && order.courierPhone !== 'Pending review' ? order.courierPhone : '');
+    setCourTrackCode(order.courierTrackingCode && order.courierTrackingCode !== 'Pending allocation' ? order.courierTrackingCode : order.id.replace('MC-', 'EXP-'));
+    setSelNotes(order.sellerNotes || 'Your luxury boutique order is being prepared with extra care.');
+    setPayStatus((order.paymentStatus as any) || (order.paymentMethod === 'COD' ? 'Pending' : 'Verified'));
+    setNewLogStatus(order.status);
+    setNewLogNote('');
+  };
+
+  // Save tracking details
+  const handleSaveTrackingDetails = () => {
+    if (!trackingOrder) return;
+
+    // Build the payload
+    const updatedFields: Partial<Order> = {
+      estimatedDelivery: estDelivery,
+      courierName: courName,
+      courierPhone: courPhone || 'Pending review',
+      courierTrackingCode: courTrackCode || 'Pending allocation',
+      sellerNotes: selNotes,
+      paymentStatus: payStatus,
+    };
+
+    // If they specified a new log note, append to status logs!
+    if (newLogNote.trim()) {
+      const logs = trackingOrder.statusLogs ? [...trackingOrder.statusLogs] : [];
+      logs.push({
+        status: newLogStatus,
+        note: newLogNote.trim(),
+        timestamp: new Date().toISOString()
+      });
+      updatedFields.statusLogs = logs;
+    }
+
+    // Call callback or fallback
+    if (onUpdateOrderDetails) {
+      onUpdateOrderDetails(trackingOrder.id, updatedFields);
+    } else {
+      // Fallback
+      onUpdateOrderStatus(trackingOrder.id, trackingOrder.status);
+    }
+
+    // Close modal & reset
+    setTrackingOrder(null);
+    setNewLogNote('');
+  };
 
   // Keep state in sync with global state
   React.useEffect(() => {
@@ -84,6 +153,7 @@ export default function AdminPanel({
 
   // Settings update temporary state
   const [tempUser, setTempUser] = useState(settings.adminUser);
+  const [tempEnabledCurrencies, setTempEnabledCurrencies] = useState<CurrencyCode[]>(settings.enabledCurrencies || ['AED']);
   const [tempPassword, setTempPassword] = useState(settings.adminPassword);
   const [tempWhatsapp, setTempWhatsapp] = useState(settings.whatsappNumber);
   const [tempFb, setTempFb] = useState(settings.facebookLink);
@@ -135,23 +205,12 @@ export default function AdminPanel({
 
   const [settingsSuccess, setSettingsSuccess] = useState('');
 
-  // Subscribers state from localStorage
-  const [subscribers, setSubscribers] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem('mahi_subscribers_v1');
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (e) {}
-    return ['shristi.maharjan@gmail.com', 'anisha.karki@outlook.com', 'meera.shrestha@gmail.com', 'sujata.pokharel@yahoo.com'];
-  });
-
+  // Subscribers state from props
   const handleDeleteSubscriber = (emailToDelete: string) => {
     const updated = subscribers.filter(email => email !== emailToDelete);
-    setSubscribers(updated);
-    try {
-      localStorage.setItem('mahi_subscribers_v1', JSON.stringify(updated));
-    } catch (e) {}
+    if (onUpdateSubscribers) {
+      onUpdateSubscribers(updated);
+    }
   };
 
   // Add / Edit Product form states
@@ -190,6 +249,7 @@ export default function AdminPanel({
   const [orderStatusFilter, setOrderStatusFilter] = useState<'All' | OrderStatus>('All');
   const [orderPaymentFilter, setOrderPaymentFilter] = useState<string>('All');
   const [simulationToast, setSimulationToast] = useState('');
+  const [printingOrder, setPrintingOrder] = useState<Order | null>(null);
 
   // Dashboard Metrics Time Filter State
   const [dashboardTimeFilter, setDashboardTimeFilter] = useState<'all' | 'daily' | 'monthly' | 'yearly'>('all');
@@ -243,6 +303,38 @@ export default function AdminPanel({
       ]
     }
   ]);
+
+  // Get sales trend for past 7 days
+  const getLast7DaysSales = () => {
+    const data = [];
+    const daysName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const dayName = daysName[d.getDay()];
+      
+      // Sum orders for this date (excluding Cancelled)
+      const dailyOrders = orders.filter(o => {
+        if (!o || o.status === 'Cancelled') return false;
+        if (!o.createdAt || typeof o.createdAt !== 'string') return false;
+        const oDate = o.createdAt.split('T')[0];
+        return oDate === dateStr;
+      });
+      
+      const totalSales = dailyOrders.reduce((sum, o) => sum + o.total, 0);
+      data.push({
+        date: dateStr,
+        label,
+        dayName,
+        sales: totalSales,
+        orderCount: dailyOrders.length
+      });
+    }
+    return data;
+  };
 
   // Demo shortcut login
   const handleDemoLogin = () => {
@@ -308,6 +400,7 @@ export default function AdminPanel({
       sourcingTitle: tempSourcingTitle.trim(),
       sourcingDescription: tempSourcingDescription.trim(),
       sourcingBadge: tempSourcingBadge.trim(),
+      enabledCurrencies: tempEnabledCurrencies,
     });
     setSettingsSuccess('Boutique Settings updated successfully!');
     setTimeout(() => setSettingsSuccess(''), 4000);
@@ -1269,6 +1362,352 @@ export default function AdminPanel({
                 </div>
               </div>
 
+              {/* SMART ADVANCED CONTROL CENTER: 7-DAY sales AREA CHART & SMART BOUTIQUE COMMAND CONSOLE */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                {/* 1. 7-Day Cumulative Sales Area Chart (8 cols) */}
+                <div className="lg:col-span-8 bg-white p-6 rounded-3xl border border-clay shadow-sm flex flex-col justify-between">
+                  <div>
+                    <div className="flex justify-between items-center border-b border-clay-light pb-4 mb-4">
+                      <div>
+                        <h4 className="font-serif text-base font-bold text-dark uppercase tracking-wide flex items-center gap-2">
+                          <TrendingUp className="w-5 h-5 text-brand" />
+                          7-Day Boutique Sales Curve (७-दिने बिक्री रेखाचित्र)
+                        </h4>
+                        <p className="text-neutral-400 text-[10px] font-light">Real-time cumulative earnings mapped dynamically over the last seven calendar days.</p>
+                      </div>
+                      <span className="text-[9px] bg-brand/10 text-brand px-2.5 py-1 rounded-md font-bold uppercase tracking-wider font-mono">
+                        NPR Valuation
+                      </span>
+                    </div>
+
+                    {/* Chart Generator */}
+                    {(() => {
+                      const chartData = getLast7DaysSales();
+                      const maxVal = Math.max(...chartData.map(d => d.sales), 10000);
+                      
+                      // Chart Dimensions
+                      const w = 600;
+                      const h = 200;
+                      const padLeft = 60;
+                      const padRight = 20;
+                      const padTop = 20;
+                      const padBottom = 30;
+                      
+                      const effW = w - padLeft - padRight;
+                      const effH = h - padTop - padBottom;
+                      
+                      // Map points
+                      const points = chartData.map((d, i) => {
+                        const x = padLeft + (i * (effW / 6));
+                        const y = padTop + effH - ((d.sales / maxVal) * effH);
+                        return { x, y, data: d };
+                      });
+                      
+                      const linePath = points.length > 0 
+                        ? points.map((p, i) => (i === 0 ? 'M' : 'L') + ` ${p.x} ${p.y}`).join(' ')
+                        : '';
+                        
+                      const areaPath = points.length > 0
+                        ? `${linePath} L ${points[points.length - 1].x} ${padTop + effH} L ${points[0].x} ${padTop + effH} Z`
+                        : '';
+                        
+                      return (
+                        <div className="relative pt-2">
+                          <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-auto overflow-visible select-none">
+                            <defs>
+                              <linearGradient id="chartAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#c5a880" stopOpacity="0.32" />
+                                <stop offset="100%" stopColor="#c5a880" stopOpacity="0.00" />
+                              </linearGradient>
+                            </defs>
+                            
+                            {/* Horizontal grid lines & Y labels */}
+                            {[0, 0.25, 0.5, 0.75, 1].map((ratio, index) => {
+                              const y = padTop + effH - (ratio * effH);
+                              const labelVal = Math.round(ratio * maxVal);
+                              return (
+                                <g key={index}>
+                                  <line 
+                                    x1={padLeft} 
+                                    y1={y} 
+                                    x2={w - padRight} 
+                                    y2={y} 
+                                    className="stroke-neutral-100" 
+                                    strokeWidth="1" 
+                                    strokeDasharray="4,4" 
+                                  />
+                                  <text 
+                                    x={padLeft - 8} 
+                                    y={y + 4} 
+                                    textAnchor="end" 
+                                    className="fill-neutral-400 font-mono text-[9px] font-bold"
+                                  >
+                                    Rs. {labelVal >= 1000 ? (labelVal / 1000) + 'k' : labelVal}
+                                  </text>
+                                </g>
+                              );
+                            })}
+                            
+                            {/* Area fill */}
+                            {areaPath && (
+                              <path d={areaPath} fill="url(#chartAreaGrad)" />
+                            )}
+                            
+                            {/* Line stroke */}
+                            {linePath && (
+                              <path d={linePath} fill="none" className="stroke-brand" strokeWidth="2.5" strokeLinecap="round" />
+                            )}
+                            
+                            {/* Interactive Data Nodes & Text Overlays */}
+                            {points.map((p, i) => (
+                              <g key={i} className="group/node">
+                                <circle 
+                                  cx={p.x} 
+                                  cy={p.y} 
+                                  r="4.5" 
+                                  className="fill-white stroke-brand stroke-2 hover:r-6 cursor-pointer transition-all duration-200" 
+                                />
+                                {/* Value bubble on top of nodes */}
+                                <g className="opacity-0 group-hover/node:opacity-100 transition-opacity duration-200">
+                                  <rect 
+                                    x={p.x - 45} 
+                                    y={p.y - 28} 
+                                    width="90" 
+                                    height="18" 
+                                    rx="5" 
+                                    className="fill-dark text-white" 
+                                  />
+                                  <text 
+                                    x={p.x} 
+                                    y={p.y - 16} 
+                                    textAnchor="middle" 
+                                    className="fill-white font-mono font-bold text-[9px]"
+                                  >
+                                    Rs. {p.data.sales.toLocaleString('en-IN')}
+                                  </text>
+                                </g>
+                                
+                                {/* X-axis Labels */}
+                                <text 
+                                  x={p.x} 
+                                  y={padTop + effH + 16} 
+                                  textAnchor="middle" 
+                                  className="fill-neutral-500 font-serif font-bold text-[9px] uppercase tracking-wide"
+                                >
+                                  {p.data.dayName}
+                                </text>
+                                <text 
+                                  x={p.x} 
+                                  y={padTop + effH + 26} 
+                                  textAnchor="middle" 
+                                  className="fill-neutral-400 font-mono text-[8px]"
+                                >
+                                  {p.data.label}
+                                </text>
+                              </g>
+                            ))}
+                          </svg>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  <div className="border-t border-clay-light pt-4 mt-4 flex items-center justify-between text-[10px] text-neutral-400 font-medium">
+                    <span>💡 Hover over circles to inspect daily boutique revenue breakdowns</span>
+                    <span className="font-bold text-emerald-600">Calculated automatically</span>
+                  </div>
+                </div>
+
+                {/* 2. Smart Boutique Command Center (4 cols) */}
+                <div className="lg:col-span-4 bg-dark text-white p-6 rounded-3xl border border-neutral-800 shadow-xl flex flex-col justify-between">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 border-b border-neutral-800 pb-3">
+                      <Zap className="w-5 h-5 text-brand animate-pulse" />
+                      <div>
+                        <h4 className="font-serif text-sm font-bold text-white uppercase tracking-wider">Smart Boutique Control</h4>
+                        <p className="text-[10px] text-neutral-400 font-light mt-0.5">Execute administrative macros instantly</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      {/* Macro 1: Bulk Restock Low-Stock Items */}
+                      <button
+                        onClick={() => {
+                          let count = 0;
+                          products.forEach(p => {
+                            if (p.stockCount !== undefined && p.stockCount < 5) {
+                              onUpdateProduct({
+                                ...p,
+                                stockCount: (p.stockCount || 0) + 15,
+                                inStock: true
+                              });
+                              count++;
+                            }
+                          });
+                          setSimulationToast(`⚡ Restocked +15 units for ${count} low-stock products!`);
+                          setTimeout(() => setSimulationToast(''), 3000);
+                        }}
+                        className="w-full bg-neutral-800 hover:bg-neutral-700 text-left text-[11px] font-bold p-3 rounded-2xl transition border border-white/5 flex items-center justify-between group cursor-pointer"
+                        title="Search cosmetics with low quantities and top up to standard levels"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Package className="w-4 h-4 text-brand" />
+                          <div>
+                            <p className="text-white">Replenish All Stock</p>
+                            <p className="text-[9px] text-neutral-400 font-light">Set all low-stock counts to +15</p>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:translate-x-1 transition-transform" />
+                      </button>
+
+                      {/* Macro 2: Auto-Approve Pending Orders */}
+                      <button
+                        onClick={() => {
+                          let count = 0;
+                          orders.forEach(o => {
+                            if (o.status === 'Pending') {
+                              onUpdateOrderStatus(o.id, 'Confirmed');
+                              count++;
+                            }
+                          });
+                          setSimulationToast(`✅ Instantly approved & confirmed ${count} pending boutique orders!`);
+                          setTimeout(() => setSimulationToast(''), 3000);
+                        }}
+                        className="w-full bg-neutral-800 hover:bg-neutral-700 text-left text-[11px] font-bold p-3 rounded-2xl transition border border-white/5 flex items-center justify-between group cursor-pointer"
+                        title="Instantly shift all incoming orders to Confirmed status to prepare for luxury wrapping"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                          <div>
+                            <p className="text-white">Auto-Verify Orders</p>
+                            <p className="text-[9px] text-neutral-400 font-light">Approve all 'Pending Review' checkouts</p>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:translate-x-1 transition-transform" />
+                      </button>
+
+                      {/* Macro 3: Simulate Premium Golden VIP Order */}
+                      <button
+                        onClick={() => {
+                          if (products.length === 0) return;
+                          const randId = `MC-VIP-${Math.floor(1000 + Math.random() * 9000)}`;
+                          const firstProd = products[0];
+                          const secondProd = products[1] || products[0];
+                          
+                          const vipOrder: Order = {
+                            id: randId,
+                            customerName: 'Aishwarya Shah (VIP Privilege Client)',
+                            customerPhone: '9801122334',
+                            customerAddress: 'Jhamsikhel Lane 4, Lalitpur (Boutique Hub)',
+                            deliveryLocationId: 'loc-ktm',
+                            deliveryLocationName: 'Kathmandu Valley Ringroad',
+                            deliveryFee: 100,
+                            paymentMethod: 'Bank Transfer',
+                            items: [
+                              {
+                                productId: firstProd.id,
+                                productName: firstProd.name,
+                                price: firstProd.price,
+                                discountPercent: firstProd.discountPercent || 15,
+                                quantity: 2,
+                                image: firstProd.image
+                              },
+                              {
+                                productId: secondProd.id,
+                                productName: secondProd.name,
+                                price: secondProd.price,
+                                discountPercent: secondProd.discountPercent || 20,
+                                quantity: 3,
+                                image: secondProd.image
+                              }
+                            ],
+                            subtotal: 0,
+                            discountAmount: 0,
+                            total: 0,
+                            status: 'Pending',
+                            createdAt: new Date().toISOString(),
+                            notes: 'Simulated high-net-worth client acquisition. Package with luxury silk ribbons and standard authenticity guarantee cards.',
+                            paymentStatus: 'Verified',
+                            statusLogs: [
+                              {
+                                status: 'Pending',
+                                note: 'Simulated VIP order generated on boutique admin console.',
+                                timestamp: new Date().toISOString()
+                              }
+                            ]
+                          };
+
+                          // Compute financial parameters
+                          let sub = 0;
+                          let disc = 0;
+                          vipOrder.items.forEach(it => {
+                            const itemSub = it.price * it.quantity;
+                            const itemDisc = Math.round(itemSub * (it.discountPercent / 100));
+                            sub += itemSub;
+                            disc += itemDisc;
+                          });
+                          vipOrder.subtotal = sub;
+                          vipOrder.discountAmount = disc;
+                          vipOrder.total = sub - disc + vipOrder.deliveryFee;
+
+                          if (onAddOrder) {
+                            onAddOrder(vipOrder);
+                          } else {
+                            orders.push(vipOrder);
+                          }
+                          setSimulationToast(`👑 Generated Simulated VIP Order: Rs. ${vipOrder.total.toLocaleString('en-IN')}!`);
+                          setTimeout(() => setSimulationToast(''), 3000);
+                        }}
+                        className="w-full bg-neutral-800 hover:bg-neutral-700 text-left text-[11px] font-bold p-3 rounded-2xl transition border border-white/5 flex items-center justify-between group cursor-pointer"
+                        title="Generate a high-value simulated custom order to populate charts and ledgers"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <ShoppingCart className="w-4 h-4 text-brand" />
+                          <div>
+                            <p className="text-white">Simulate VIP Purchase</p>
+                            <p className="text-[9px] text-neutral-400 font-light">Generate sample order worth &gt; Rs. 15,000</p>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:translate-x-1 transition-transform" />
+                      </button>
+
+                      {/* Macro 4: Dynamic Campaign Toggler (-25% Discount) */}
+                      <button
+                        onClick={() => {
+                          products.forEach(p => {
+                            onUpdateProduct({
+                              ...p,
+                              discountPercent: 25
+                            });
+                          });
+                          setSimulationToast('🎈 Campaign Launch: Automatically set all catalog discounts to 25%!');
+                          setTimeout(() => setSimulationToast(''), 3000);
+                        }}
+                        className="w-full bg-neutral-800 hover:bg-neutral-700 text-left text-[11px] font-bold p-3 rounded-2xl transition border border-white/5 flex items-center justify-between group cursor-pointer"
+                        title="Instantly set 25% off across all active cosmetics products to simulate high-conversion sales"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Percent className="w-4 h-4 text-amber-400" />
+                          <div>
+                            <p className="text-white">Launch Monsoon Sale</p>
+                            <p className="text-[9px] text-neutral-400 font-light">Set 25% discount across all products</p>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:translate-x-1 transition-transform" />
+                      </button>
+
+                    </div>
+                  </div>
+
+                  <div className="border-t border-neutral-800 pt-3 mt-4 flex items-center justify-between text-[9px] text-neutral-500 font-mono">
+                    <span>Engine Status: Active</span>
+                    <span className="text-brand font-bold">Admin Console Connected</span>
+                  </div>
+                </div>
+
+              </div>
+
               {/* Advanced Middle Section: Target Goal Progress and Category Performance split */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 
@@ -1865,21 +2304,20 @@ export default function AdminPanel({
                             type="file"
                             multiple
                             accept="image/*"
-                            onChange={(e) => {
+                            onChange={async (e) => {
                               if (e.target.files) {
-                                const filesArray = Array.from(e.target.files);
-                                filesArray.forEach((file) => {
-                                  const reader = new FileReader();
-                                  reader.onloadend = () => {
-                                    if (typeof reader.result === 'string') {
-                                      setFormImages(prev => {
-                                        if (prev.includes(reader.result as string)) return prev;
-                                        return [...prev, reader.result as string];
-                                      });
-                                    }
-                                  };
-                                  reader.readAsDataURL(file as Blob);
-                                });
+                                const filesArray = Array.from(e.target.files) as File[];
+                                for (const file of filesArray) {
+                                  try {
+                                    const uploadedUrl = await uploadImageToServer(file);
+                                    setFormImages(prev => {
+                                      if (prev.includes(uploadedUrl)) return prev;
+                                      return [...prev, uploadedUrl];
+                                    });
+                                  } catch (error) {
+                                    alert('Failed to upload image: ' + (error instanceof Error ? error.message : 'Unknown error'));
+                                  }
+                                }
                               }
                             }}
                             className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
@@ -2486,19 +2924,39 @@ export default function AdminPanel({
                           </td>
 
                           {/* Status progression triggers */}
-                          <td className="p-4 text-right">
-                            <select
-                              value={o.status}
-                              onChange={(e) => onUpdateOrderStatus(o.id, e.target.value as OrderStatus)}
-                              className="text-[10px] font-bold bg-white border border-clay rounded p-1.5 focus:outline-none focus:border-brand cursor-pointer text-dark"
-                            >
-                              <option value="Pending">Pending Review</option>
-                              <option value="Confirmed">Confirm Order</option>
-                              <option value="Packaging">Pack order</option>
-                              <option value="Out for Delivery">Out for Delivery</option>
-                              <option value="Delivered">Deliver Saman</option>
-                              <option value="Cancelled">Cancel order</option>
-                            </select>
+                          <td className="p-4 text-right whitespace-nowrap">
+                            <div className="inline-flex items-center gap-2">
+                              <select
+                                value={o.status}
+                                onChange={(e) => onUpdateOrderStatus(o.id, e.target.value as OrderStatus)}
+                                className="text-[10px] font-bold bg-white border border-clay rounded p-1.5 focus:outline-none focus:border-brand cursor-pointer text-dark font-sans"
+                              >
+                                <option value="Pending">Pending Review</option>
+                                <option value="Confirmed">Confirm Order</option>
+                                <option value="Packaging">Pack order</option>
+                                <option value="Out for Delivery">Out for Delivery</option>
+                                <option value="Delivered">Deliver Saman</option>
+                                <option value="Cancelled">Cancel order</option>
+                              </select>
+
+                              <button
+                                onClick={() => openTrackingManagement(o)}
+                                title="Manage Detailed Tracking Logs & Courier"
+                                className="inline-flex items-center gap-1 bg-brand hover:bg-dark text-white text-[10px] font-extrabold uppercase tracking-widest px-3 py-1.5 rounded-lg shadow-sm transition cursor-pointer font-sans"
+                              >
+                                <Settings className="w-3.5 h-3.5" />
+                                Track
+                              </button>
+
+                              <button
+                                onClick={() => setPrintingOrder(o)}
+                                title="Print Luxury Boutique Invoice"
+                                className="inline-flex items-center gap-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-[10px] font-extrabold uppercase tracking-widest px-3 py-1.5 rounded-lg border border-clay transition cursor-pointer font-sans"
+                              >
+                                <Printer className="w-3.5 h-3.5 text-neutral-500" />
+                                Invoice
+                              </button>
+                            </div>
                           </td>
 
                         </tr>
@@ -2775,6 +3233,48 @@ export default function AdminPanel({
                         />
                       </div>
                     </div>
+
+                    {/* Enabled Currencies Config Section */}
+                    <div className="border-t border-clay/60 pt-5 mt-4 space-y-3">
+                      <h5 className="font-serif text-xs font-bold text-dark uppercase tracking-wider flex items-center gap-1.5">
+                        <Globe className="w-4 h-4 text-brand" />
+                        Enabled Boutique Currencies (सक्षम गरिएका मुद्राहरू)
+                      </h5>
+                      <p className="text-[10px] text-neutral-400 font-light leading-relaxed">
+                        Select which currencies are active in your boutique. By default only <strong>AED</strong> is active. You can enable multiple currencies; customers can select their preferred currency from the navbar dropdown.
+                      </p>
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {(['AED', 'USD', 'EUR', 'NPR', 'INR'] as CurrencyCode[]).map((code) => {
+                          const isChecked = tempEnabledCurrencies.includes(code);
+                          return (
+                            <button
+                              key={code}
+                              type="button"
+                              onClick={() => {
+                                let updated: CurrencyCode[];
+                                if (isChecked) {
+                                  if (tempEnabledCurrencies.length <= 1) return; // Maintain at least 1 currency
+                                  updated = tempEnabledCurrencies.filter(c => c !== code);
+                                } else {
+                                  updated = [...tempEnabledCurrencies, code];
+                                }
+                                setTempEnabledCurrencies(updated);
+                              }}
+                              className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider border transition-all duration-300 cursor-pointer ${
+                                isChecked
+                                  ? 'bg-dark text-brand border-dark shadow-md scale-105'
+                                  : 'bg-white text-neutral-400 border-clay/70 hover:text-neutral-700 hover:border-neutral-400'
+                              }`}
+                            >
+                              <span className="text-sm">
+                                {code === 'NPR' ? '🇳🇵' : code === 'AED' ? '🇦🇪' : code === 'USD' ? '🇺🇸' : code === 'EUR' ? '🇪🇺' : '🇮🇳'}
+                              </span>
+                              <span>{code}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -2891,16 +3391,15 @@ export default function AdminPanel({
                           <input
                             type="file"
                             accept="image/*"
-                            onChange={(e) => {
+                            onChange={async (e) => {
                               if (e.target.files && e.target.files[0]) {
                                 const file = e.target.files[0];
-                                const reader = new FileReader();
-                                reader.onloadend = () => {
-                                  if (typeof reader.result === 'string') {
-                                    setTempAboutImageUrl(reader.result);
-                                  }
-                                };
-                                reader.readAsDataURL(file);
+                                try {
+                                  const uploadedUrl = await uploadImageToServer(file);
+                                  setTempAboutImageUrl(uploadedUrl);
+                                } catch (error) {
+                                  alert('Failed to upload image: ' + (error instanceof Error ? error.message : 'Unknown error'));
+                                }
                               }
                             }}
                             className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
@@ -3562,16 +4061,15 @@ export default function AdminPanel({
                             <input
                               type="file"
                               accept="image/*"
-                              onChange={(e) => {
+                              onChange={async (e) => {
                                 if (e.target.files && e.target.files[0]) {
                                   const file = e.target.files[0];
-                                  const reader = new FileReader();
-                                  reader.onloadend = () => {
-                                    if (typeof reader.result === 'string') {
-                                      setTempAboutImageUrl(reader.result);
-                                    }
-                                  };
-                                  reader.readAsDataURL(file);
+                                  try {
+                                    const uploadedUrl = await uploadImageToServer(file);
+                                    setTempAboutImageUrl(uploadedUrl);
+                                  } catch (error) {
+                                    alert('Failed to upload image: ' + (error instanceof Error ? error.message : 'Unknown error'));
+                                  }
                                 }
                               }}
                               className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
@@ -4265,8 +4763,9 @@ export default function AdminPanel({
                       return;
                     }
                     const updated = [newEmail, ...subscribers];
-                    setSubscribers(updated);
-                    localStorage.setItem('mahi_subscribers_v1', JSON.stringify(updated));
+                    if (onUpdateSubscribers) {
+                      onUpdateSubscribers(updated);
+                    }
                     emailInput.value = '';
                     alert('Subscriber added successfully!');
                   }}
@@ -4572,6 +5071,486 @@ export default function AdminPanel({
                 className="bg-dark hover:bg-brand text-white font-bold text-[10px] uppercase tracking-widest px-5 py-2.5 rounded-lg cursor-pointer transition"
               >
                 Done
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* DETAILED ORDER TRACKING CONTROL MODAL */}
+      {trackingOrder && (
+        <div className="fixed inset-0 bg-dark/70 backdrop-blur-sm z-[999] flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white border border-clay w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl flex flex-col my-8 max-h-[90vh]">
+            
+            {/* Modal Header */}
+            <div className="bg-dark text-white px-6 py-4.5 flex justify-between items-center flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <Truck className="w-5 h-5 text-brand" />
+                <div>
+                  <h4 className="font-serif text-sm font-bold uppercase tracking-wider">Shipment Dispatch Control</h4>
+                  <p className="text-[10px] text-neutral-400 font-mono font-bold mt-0.5">Order ID: {trackingOrder.id} • Customer: {trackingOrder.customerName}</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setTrackingOrder(null)}
+                className="text-white/70 hover:text-white p-1 hover:bg-white/10 rounded-full transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Scrollable Form Body */}
+            <div className="p-6 space-y-6 overflow-y-auto max-h-[70vh] text-xs font-sans">
+              
+              {/* Courier & Logistics Details */}
+              <div className="bg-clay-light/20 p-4.5 rounded-2xl border border-clay/60 space-y-4">
+                <h5 className="font-serif font-extrabold text-dark uppercase tracking-wider text-[10px] flex items-center gap-1.5 border-b border-clay/80 pb-2">
+                  <Package className="w-4 h-4 text-brand" />
+                  Courier & Delivery Partners Assignment
+                </h5>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] uppercase font-bold text-neutral-500 tracking-wider mb-1">Courier Service Name</label>
+                    <input 
+                      type="text"
+                      value={courName}
+                      onChange={(e) => setCourName(e.target.value)}
+                      placeholder="e.g. Pathao, Upaya, Mahi Express Rider"
+                      className="w-full bg-white border border-clay rounded-xl px-3 py-2 text-dark font-medium focus:outline-none focus:border-brand"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] uppercase font-bold text-neutral-500 tracking-wider mb-1">Rider Phone Number</label>
+                    <input 
+                      type="text"
+                      value={courPhone}
+                      onChange={(e) => setCourPhone(e.target.value)}
+                      placeholder="e.g. 9841XXXXXX"
+                      className="w-full bg-white border border-clay rounded-xl px-3 py-2 text-dark font-mono font-medium focus:outline-none focus:border-brand"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] uppercase font-bold text-neutral-500 tracking-wider mb-1">Courier Tracking Code</label>
+                    <input 
+                      type="text"
+                      value={courTrackCode}
+                      onChange={(e) => setCourTrackCode(e.target.value)}
+                      placeholder="e.g. EXP-10025A"
+                      className="w-full bg-white border border-clay rounded-xl px-3 py-2 text-dark font-mono font-medium focus:outline-none focus:border-brand"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] uppercase font-bold text-neutral-500 tracking-wider mb-1">Estimated Delivery timeframe</label>
+                    <input 
+                      type="text"
+                      value={estDelivery}
+                      onChange={(e) => setEstDelivery(e.target.value)}
+                      placeholder="e.g. Within 24 Hours, Today 6 PM"
+                      className="w-full bg-white border border-clay rounded-xl px-3 py-2 text-dark font-medium focus:outline-none focus:border-brand"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment & Remarks */}
+              <div className="bg-clay-light/20 p-4.5 rounded-2xl border border-clay/60 space-y-4">
+                <h5 className="font-serif font-extrabold text-dark uppercase tracking-wider text-[10px] flex items-center gap-1.5 border-b border-clay/80 pb-2">
+                  <ShieldCheck className="w-4 h-4 text-brand" />
+                  Payment Verification & Boutique Remarks
+                </h5>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
+                  <div className="sm:col-span-1">
+                    <label className="block text-[10px] uppercase font-bold text-neutral-500 tracking-wider mb-1">Payment Status</label>
+                    <select
+                      value={payStatus}
+                      onChange={(e) => setPayStatus(e.target.value as any)}
+                      className="w-full bg-white border border-clay rounded-xl px-3 py-2 text-dark font-bold focus:outline-none focus:border-brand cursor-pointer"
+                    >
+                      <option value="Pending">Pending Verification</option>
+                      <option value="Verified">Verified / Received</option>
+                      <option value="Failed">Payment Failed</option>
+                      <option value="Refunded">Refunded</option>
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-[10px] uppercase font-bold text-neutral-500 tracking-wider mb-1">Message from Boutique Manager (Seller Notes)</label>
+                    <textarea 
+                      rows={2}
+                      value={selNotes}
+                      onChange={(e) => setSelNotes(e.target.value)}
+                      placeholder="e.g. Your premium packing is verified. Handed over to pathao hub."
+                      className="w-full bg-white border border-clay rounded-xl px-3 py-2 text-dark font-serif italic focus:outline-none focus:border-brand"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Append Custom Status Timeline Log */}
+              <div className="bg-brand/5 p-4.5 rounded-2xl border border-brand/20 space-y-4">
+                <div className="flex justify-between items-center border-b border-brand/20 pb-2">
+                  <h5 className="font-serif font-extrabold text-brand uppercase tracking-wider text-[10px] flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4" />
+                    Publish Real-Time Activity Log Update
+                  </h5>
+                  <span className="text-[9px] text-brand/80 font-bold italic">Appears immediately on Customer tracking page</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-start">
+                  <div className="sm:col-span-1">
+                    <label className="block text-[10px] uppercase font-bold text-neutral-500 tracking-wider mb-1">For Order status</label>
+                    <select
+                      value={newLogStatus}
+                      onChange={(e) => setNewLogStatus(e.target.value as OrderStatus)}
+                      className="w-full bg-white border border-clay rounded-xl px-2.5 py-2 text-dark font-bold focus:outline-none focus:border-brand cursor-pointer"
+                    >
+                      <option value="Pending">Pending Review</option>
+                      <option value="Confirmed">Boutique Confirmed</option>
+                      <option value="Packaging">Premium Packaging</option>
+                      <option value="Out for Delivery">Out for Delivery</option>
+                      <option value="Delivered">Delivered Successfully</option>
+                      <option value="Cancelled">Cancelled</option>
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-3">
+                    <label className="block text-[10px] uppercase font-bold text-neutral-500 tracking-wider mb-1">Log Note Description (English / Nepali)</label>
+                    <input 
+                      type="text"
+                      value={newLogNote}
+                      onChange={(e) => setNewLogNote(e.target.value)}
+                      placeholder="e.g. Saman is packed with extra gift ribbons and is waiting for dispatcher."
+                      className="w-full bg-white border border-clay rounded-xl px-3 py-2 text-dark font-medium focus:outline-none focus:border-brand"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Log preview timeline */}
+              <div className="space-y-3.5">
+                <h5 className="font-serif font-bold text-dark uppercase tracking-wider text-[10px] border-b border-clay pb-2">
+                  Active Tracking Timeline Updates History
+                </h5>
+                
+                {trackingOrder.statusLogs && trackingOrder.statusLogs.length > 0 ? (
+                  <div className="space-y-3 pl-4 border-l-2 border-clay/60">
+                    {trackingOrder.statusLogs.map((log, lidx) => (
+                      <div key={lidx} className="relative group text-[11px]">
+                        <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-brand" />
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="font-bold text-dark uppercase bg-clay-light px-1.5 py-0.5 rounded text-[8px] tracking-wider">
+                            {log.status}
+                          </span>
+                          <span className="text-[9px] text-neutral-400 font-mono">
+                            {log.timestamp ? new Date(log.timestamp).toLocaleString('en-US') : 'N/A'}
+                          </span>
+                        </div>
+                        <p className="text-neutral-500 font-light italic">"{log.note}"</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-neutral-400 text-xs italic">
+                    No custom chronological timeline logs logged yet. A dynamic template timeline corresponding to '{trackingOrder.status}' is currently active for this customer.
+                  </p>
+                )}
+              </div>
+
+            </div>
+
+            {/* Modal Footer Controls */}
+            <div className="px-6 py-4 bg-clay-light/20 border-t border-clay-light flex justify-end gap-3 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => setTrackingOrder(null)}
+                className="bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold text-[10px] uppercase tracking-widest px-5 py-2.5 rounded-lg cursor-pointer transition"
+              >
+                Discard
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveTrackingDetails}
+                className="bg-brand hover:bg-dark text-white font-black text-[10px] uppercase tracking-widest px-6 py-2.5 rounded-lg cursor-pointer transition shadow"
+              >
+                Save Dispatch Details
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* LUXURY BOUTIQUE INVOICE PRINT MODAL */}
+      {printingOrder && (
+        <div className="fixed inset-0 bg-dark/70 backdrop-blur-sm z-[999] flex items-center justify-center p-4 overflow-y-auto print:bg-white print:p-0">
+          <div className="bg-white border border-clay w-full max-w-3xl rounded-3xl overflow-hidden shadow-2xl flex flex-col my-8 max-h-[90vh] print:max-h-full print:border-none print:shadow-none print:rounded-none print:my-0">
+            
+            {/* Modal Header Controls (Hidden in print) */}
+            <div className="bg-dark text-white px-6 py-4 flex justify-between items-center flex-shrink-0 print:hidden">
+              <div className="flex items-center gap-2">
+                <Printer className="w-5 h-5 text-brand" />
+                <div>
+                  <h4 className="font-serif text-sm font-bold uppercase tracking-wider">Luxury Boutique Invoice</h4>
+                  <p className="text-[10px] text-neutral-400 font-mono font-bold mt-0.5">Order ID: {printingOrder.id}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <button
+                  onClick={() => window.print()}
+                  className="bg-brand hover:bg-white hover:text-dark text-white text-[10px] font-extrabold uppercase tracking-widest px-4 py-2 rounded-lg transition cursor-pointer flex items-center gap-1"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  Print Invoice
+                </button>
+                <button 
+                  onClick={() => setPrintingOrder(null)}
+                  className="text-white/70 hover:text-white p-1 hover:bg-white/10 rounded-full transition cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Scrollable Printable Invoice Content */}
+            <div id="printable-invoice-content" className="p-8 space-y-8 overflow-y-auto max-h-[75vh] print:max-h-full print:overflow-visible print:p-0 text-dark font-sans text-xs">
+              
+              {/* PRINT STYLE OVERRIDES */}
+              <style dangerouslySetInnerHTML={{__html: `
+                @media print {
+                  body * {
+                    visibility: hidden;
+                  }
+                  #printable-invoice-content, #printable-invoice-content * {
+                    visibility: visible;
+                  }
+                  #printable-invoice-content {
+                    position: absolute;
+                    left: 0;
+                    top: 0;
+                    width: 100%;
+                    padding: 0;
+                    margin: 0;
+                  }
+                }
+              `}} />
+
+              {/* Invoice Brand Header */}
+              <div className="flex flex-col sm:flex-row justify-between items-start gap-4 border-b border-clay pb-6">
+                <div>
+                  <h2 className="font-serif text-2xl font-black text-dark uppercase tracking-wide">{settings.shopName || 'Mahi Creations'}</h2>
+                  <p className="text-[10px] text-neutral-500 uppercase tracking-widest font-serif font-bold mt-0.5">Luxury Certified Sourcing & Skincare</p>
+                  <p className="text-[10px] text-neutral-400 mt-1.5 font-mono">{settings.shopAddress || 'Lalitpur, Jhamsikhel, Nepal'}</p>
+                  <p className="text-[10px] text-neutral-400 font-mono">Email: {settings.adminEmail || 'mahicreations369@gmail.com'}</p>
+                  <p className="text-[10px] text-neutral-400 font-mono">WhatsApp: +977 {settings.whatsappNumber || '9801122334'}</p>
+                </div>
+                <div className="text-right sm:text-right">
+                  <span className="inline-block bg-brand/10 text-brand px-3 py-1 rounded-full font-serif font-extrabold tracking-widest text-[10px] uppercase mb-3">
+                    Boutique Invoice
+                  </span>
+                  <p className="text-[10px] text-neutral-400 uppercase font-bold tracking-wider">Invoice / Bill No</p>
+                  <p className="text-base font-mono font-black text-dark">{printingOrder.id}</p>
+                  <p className="text-[10px] text-neutral-400 uppercase font-bold tracking-wider mt-2">Date of Issue</p>
+                  <p className="text-xs font-mono font-medium text-neutral-600">
+                    {printingOrder.createdAt ? new Date(printingOrder.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                  </p>
+                </div>
+              </div>
+
+              {/* Bill To & Dispatch Partners info */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 border-b border-clay pb-6">
+                <div>
+                  <h5 className="font-serif font-extrabold text-neutral-500 uppercase tracking-widest text-[9px] mb-2.5">BILL TO (गाहकको विवरण):</h5>
+                  <p className="text-sm font-black text-dark">{printingOrder.customerName}</p>
+                  <p className="text-neutral-600 mt-1 font-medium">{printingOrder.customerAddress}</p>
+                  <p className="text-neutral-500 mt-0.5 font-mono">Phone: {printingOrder.customerPhone}</p>
+                  <p className="text-neutral-400 text-[10px] mt-2 font-mono">Location ID: {printingOrder.deliveryLocationId} • Location: {printingOrder.deliveryLocationName}</p>
+                </div>
+                <div className="bg-clay-light/20 p-4 rounded-2xl border border-clay/60">
+                  <h5 className="font-serif font-extrabold text-brand uppercase tracking-widest text-[9px] mb-2.5">DISPATCH & LOGISTICS (ढुवानी विवरण):</h5>
+                  <div className="space-y-1 text-neutral-600 font-medium">
+                    <p>
+                      <span className="text-neutral-400 font-bold uppercase text-[9px] tracking-wider block">Courier Service:</span>
+                      {printingOrder.courierName || 'Pending Courier Dispatch Assignment'}
+                    </p>
+                    {printingOrder.courierPhone && (
+                      <p>
+                        <span className="text-neutral-400 font-bold uppercase text-[9px] tracking-wider block mt-1">Rider Phone:</span>
+                        <span className="font-mono">{printingOrder.courierPhone}</span>
+                      </p>
+                    )}
+                    {printingOrder.courierTrackingCode && (
+                      <p>
+                        <span className="text-neutral-400 font-bold uppercase text-[9px] tracking-wider block mt-1">Tracking Code:</span>
+                        <span className="font-mono bg-white px-1.5 py-0.5 border border-clay/50 rounded">{printingOrder.courierTrackingCode}</span>
+                      </p>
+                    )}
+                    <p>
+                      <span className="text-neutral-400 font-bold uppercase text-[9px] tracking-wider block mt-1">Delivery Timeframe:</span>
+                      {printingOrder.estimatedDelivery || 'Standard 24-48 Hours'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Items Table */}
+              <div className="space-y-2">
+                <h5 className="font-serif font-extrabold text-neutral-500 uppercase tracking-widest text-[9px]">PURCHASED BOUTIQUE ITEMS (खरिद गरिएका सामानहरू):</h5>
+                <div className="border border-clay rounded-2xl overflow-hidden bg-white">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-clay-light/30 border-b border-clay text-[9px] font-serif font-extrabold uppercase tracking-widest text-neutral-600">
+                        <th className="py-3 px-4 w-12 text-center">S.N.</th>
+                        <th className="py-3 px-4">Particular (Item Name)</th>
+                        <th className="py-3 px-4 text-right">Unit Price</th>
+                        <th className="py-3 px-4 text-center w-16">Qty</th>
+                        <th className="py-3 px-4 text-right w-24">Discount</th>
+                        <th className="py-3 px-4 text-right w-28">Total Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-clay/50">
+                      {printingOrder.items.map((item, idx) => {
+                        const itemSub = item.price * item.quantity;
+                        const itemDiscount = Math.round(itemSub * ((item.discountPercent || 0) / 100));
+                        const itemTotal = itemSub - itemDiscount;
+                        return (
+                          <tr key={idx} className="hover:bg-neutral-50/50 text-neutral-700 font-medium">
+                            <td className="py-3.5 px-4 text-center font-mono text-neutral-400">{idx + 1}</td>
+                            <td className="py-3.5 px-4">
+                              <p className="font-serif text-dark font-bold text-xs">{item.productName}</p>
+                              {item.discountPercent > 0 && (
+                                <span className="inline-block bg-brand/10 text-brand text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded mt-0.5">
+                                  {item.discountPercent}% Off Promo Applied
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-mono">
+                              {formatPrice(item.price, 'NPR')}
+                            </td>
+                            <td className="py-3.5 px-4 text-center font-mono">{item.quantity}</td>
+                            <td className="py-3.5 px-4 text-right text-amber-700 font-mono">
+                              {itemDiscount > 0 ? `-${formatPrice(itemDiscount, 'NPR')}` : 'Rs. 0'}
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-serif font-bold text-dark font-mono">
+                              {formatPrice(itemTotal, 'NPR')}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Financial calculations summary */}
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-6 pt-4">
+                <div className="sm:col-span-7 space-y-4">
+                  <div>
+                    <h6 className="font-serif font-extrabold text-neutral-500 uppercase tracking-widest text-[9px] mb-1.5">PAYMENT METHOD & STATUS (भुक्तानी विधि):</h6>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs font-bold uppercase bg-neutral-100 border border-clay px-2.5 py-1 rounded-lg">
+                        {printingOrder.paymentMethod}
+                      </span>
+                      <span className={`text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-lg border ${
+                        printingOrder.paymentStatus === 'Verified' 
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                          : printingOrder.paymentStatus === 'Pending'
+                          ? 'bg-amber-50 text-amber-700 border-amber-200'
+                          : 'bg-red-50 text-red-700 border-red-200'
+                      }`}>
+                        {printingOrder.paymentStatus || 'Pending Verification'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {printingOrder.notes && (
+                    <div>
+                      <h6 className="font-serif font-extrabold text-neutral-500 uppercase tracking-widest text-[9px] mb-1">CUSTOMER SPECIAL INSTRUCTIONS:</h6>
+                      <p className="italic text-neutral-500 font-serif leading-relaxed">"{printingOrder.notes}"</p>
+                    </div>
+                  )}
+
+                  {printingOrder.sellerNotes && (
+                    <div className="bg-brand/5 border border-brand/20 p-3 rounded-xl">
+                      <h6 className="font-serif font-extrabold text-brand uppercase tracking-widest text-[9px] mb-1">BOUTIQUE MANAGER MEMO / SELLER REMARKS:</h6>
+                      <p className="italic text-brand font-serif leading-relaxed font-bold">"{printingOrder.sellerNotes}"</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="sm:col-span-5 space-y-2.5 text-xs font-medium">
+                  <div className="flex justify-between items-center border-b border-neutral-100 pb-2">
+                    <span className="text-neutral-500">Subtotal (कुल रकम):</span>
+                    <span className="font-mono font-bold text-neutral-800">
+                      {formatPrice(printingOrder.subtotal, 'NPR')}
+                    </span>
+                  </div>
+                  {printingOrder.discountAmount > 0 && (
+                    <div className="flex justify-between items-center border-b border-neutral-100 pb-2">
+                      <span className="text-neutral-500">Discount Saved (बचत रकम):</span>
+                      <span className="font-mono font-bold text-amber-700">
+                        -{formatPrice(printingOrder.discountAmount, 'NPR')}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center border-b border-neutral-100 pb-2">
+                    <span className="text-neutral-500">Delivery Charge (ढुवानी शुल्क):</span>
+                    <span className="font-mono font-bold text-neutral-800">
+                      {printingOrder.deliveryFee === 0 ? 'FREE (नि:शुल्क)' : formatPrice(printingOrder.deliveryFee, 'NPR')}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center bg-dark text-white p-3 rounded-xl">
+                    <span className="font-serif font-bold uppercase tracking-wider text-[10px]">Grand Total (जम्मा तिर्नुपर्ने):</span>
+                    <span className="font-mono text-sm font-black text-brand">
+                      {formatPrice(printingOrder.total, 'NPR')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Thank you note & Sign-off seal */}
+              <div className="pt-8 border-t border-clay flex flex-col sm:flex-row justify-between items-center gap-6 text-center sm:text-left">
+                <div className="space-y-1.5">
+                  <p className="font-serif font-extrabold text-[10px] text-dark uppercase tracking-widest">AUTHENTICITY GUARANTEE & CARE</p>
+                  <p className="text-neutral-400 text-[10px] max-w-md leading-relaxed">
+                    This document certifies that the items listed above have been verified by the Certified Luxury Desk at {settings.shopName || 'Mahi Creations'}. Thank you for choosing standard cosmetics and premium care.
+                  </p>
+                </div>
+                
+                <div className="flex flex-col items-center">
+                  <div className="w-24 h-24 border border-brand/30 rounded-full flex flex-col items-center justify-center p-2 text-center border-dashed mb-1 select-none">
+                    <span className="font-serif font-extrabold text-[8px] text-brand uppercase tracking-widest">MAHI CREATIONS</span>
+                    <div className="w-10 h-0.5 bg-brand my-1" />
+                    <span className="text-[7px] text-neutral-400 uppercase font-bold tracking-widest">BOUTIQUE SEAL</span>
+                    <span className="text-[8px] font-mono text-emerald-600 font-bold uppercase tracking-wider mt-1">VERIFIED</span>
+                  </div>
+                  <p className="text-[9px] text-neutral-400 font-mono uppercase tracking-wider">Authorized Signature</p>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Modal Footer (Hidden in print) */}
+            <div className="px-6 py-4 bg-clay-light/20 border-t border-clay-light flex justify-end gap-3 flex-shrink-0 print:hidden">
+              <button
+                type="button"
+                onClick={() => setPrintingOrder(null)}
+                className="bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold text-[10px] uppercase tracking-widest px-5 py-2.5 rounded-lg cursor-pointer transition"
+              >
+                Close Window
+              </button>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="bg-brand hover:bg-dark text-white font-black text-[10px] uppercase tracking-widest px-6 py-2.5 rounded-lg cursor-pointer transition shadow flex items-center gap-1"
+              >
+                <Printer className="w-4 h-4" />
+                Print/Download Invoice
               </button>
             </div>
 

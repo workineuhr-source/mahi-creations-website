@@ -84,11 +84,14 @@ export default function Navbar({
                 className="bg-bg-warm/75 hover:bg-clay-light px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-xl border border-clay text-[10px] sm:text-xs font-bold text-dark focus:outline-none cursor-pointer tracking-wider transition-all"
                 title="Select Shipping Country & Active Currency"
               >
-                <option value="NPR">🇳🇵 Nepal (NPR)</option>
-                <option value="AED">🇦🇪 UAE (AED)</option>
-                <option value="INR">🇮🇳 India (INR)</option>
-                <option value="USD">🇺🇸 United States (USD)</option>
-                <option value="EUR">🇪🇺 Europe (EUR)</option>
+                {(settings?.enabledCurrencies && settings.enabledCurrencies.length > 0 ? settings.enabledCurrencies : ['AED']).map(code => {
+                  if (code === 'NPR') return <option key={code} value="NPR">🇳🇵 Nepal (NPR)</option>;
+                  if (code === 'AED') return <option key={code} value="AED">🇦🇪 UAE (AED)</option>;
+                  if (code === 'INR') return <option key={code} value="INR">🇮🇳 India (INR)</option>;
+                  if (code === 'USD') return <option key={code} value="USD">🇺🇸 United States (USD)</option>;
+                  if (code === 'EUR') return <option key={code} value="EUR">🇪🇺 Europe (EUR)</option>;
+                  return null;
+                })}
               </select>
             </div>
 
