@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { CartItem, Order, OrderStatus } from '../types';
-import { X, MapPin, Phone, User, CreditCard, Sparkles, Check, ArrowLeft, Send, ShieldCheck, ShoppingBag, Landmark, Copy } from 'lucide-react';
+import { CartItem, Order, OrderStatus, Product, Coupon } from '../types';
+import { X, MapPin, Phone, User, CreditCard, Sparkles, Check, ArrowLeft, Send, ShieldCheck, ShoppingBag, Landmark, Copy, Ticket } from 'lucide-react';
 import { CURRENCIES, convertPrice, formatPrice, CurrencyCode, CountryConfig, ShippingLocation } from '../utils/currency';
-import { ESewaLogo, KhaltiLogo, VisaLogo, MasterCardLogo, CODLogo, BankTransferLogo } from './BrandLogos';
+import { ESewaLogo, KhaltiLogo, VisaLogo, MasterCardLogo, CODLogo, BankTransferLogo, PayPalLogo } from './BrandLogos';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -14,6 +14,8 @@ interface CheckoutModalProps {
   whatsappNumber?: string;
   countries: CountryConfig[];
   settings?: any;
+  products: Product[];
+  orders?: Order[];
 }
 
 export default function CheckoutModal({
@@ -25,7 +27,9 @@ export default function CheckoutModal({
   onOrderCompleted,
   whatsappNumber = '9779802058364',
   countries,
-  settings
+  settings,
+  products,
+  orders = []
 }: CheckoutModalProps) {
   if (!isOpen) return null;
 
@@ -41,7 +45,7 @@ export default function CheckoutModal({
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'eSewa' | 'Khalti' | 'COD' | 'Bank Transfer' | 'Card Payment'>('Card Payment');
+  const [paymentMethod, setPaymentMethod] = useState<'eSewa' | 'Khalti' | 'COD' | 'Bank Transfer' | 'Card Payment' | 'PayPal'>('Card Payment');
   const [notes, setNotes] = useState('');
   const [addGiftWrap, setAddGiftWrap] = useState(false);
 
@@ -68,6 +72,70 @@ export default function CheckoutModal({
     });
   };
 
+  // Coupon engine states
+  const [couponCodeInput, setCouponCodeInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+  const [couponError, setCouponError] = useState('');
+  const [couponSuccess, setCouponSuccess] = useState('');
+
+  const handleApplyCoupon = (e: React.FormEvent) => {
+    e.preventDefault();
+    setCouponError('');
+    setCouponSuccess('');
+
+    const inputCode = couponCodeInput.trim().toUpperCase();
+    if (!inputCode) {
+      setCouponError('Please enter a coupon code.');
+      return;
+    }
+
+    const couponsList: Coupon[] = settings?.coupons || [
+      { id: 'c1', code: 'WELCOME10', discountPercent: 10, applicableProductId: 'all', isActive: true, usedByPhones: [] },
+      { id: 'c2', code: 'LIPSTICK25', discountPercent: 25, applicableProductId: 'p1', isActive: true, usedByPhones: [] },
+      { id: 'c3', code: 'GLOW20', discountPercent: 20, applicableProductId: 'p2', isActive: true, usedByPhones: [] }
+    ];
+
+    const coupon = couponsList.find(c => c.code === inputCode);
+
+    if (!coupon) {
+      setCouponError('Invalid coupon code. Try WELCOME10, LIPSTICK25, or GLOW20!');
+      setAppliedCoupon(null);
+      return;
+    }
+
+    if (!coupon.isActive) {
+      setCouponError('This coupon code is currently inactive.');
+      setAppliedCoupon(null);
+      return;
+    }
+
+    // Verify "yauta coupon ek choti matrai use garna milos par account" (per phone number)
+    const cleanCustomerPhone = customerPhone.replace(/[^0-9]/g, '');
+    if (cleanCustomerPhone) {
+      const alreadyRedeemed = (coupon.usedByPhones || []).some(ph => ph.replace(/[^0-9]/g, '') === cleanCustomerPhone) ||
+                              (orders || []).some(o => o.customerPhone.replace(/[^0-9]/g, '') === cleanCustomerPhone && o.couponCode === inputCode);
+      if (alreadyRedeemed) {
+        setCouponError('You have already used this coupon. Limit is 1 use per customer/account!');
+        setAppliedCoupon(null);
+        return;
+      }
+    }
+
+    // Product specificity check
+    if (coupon.applicableProductId !== 'all') {
+      const hasProduct = cart.some(item => item.product.id === coupon.applicableProductId);
+      if (!hasProduct) {
+        const prod = products.find(p => p.id === coupon.applicableProductId);
+        setCouponError(`This coupon is only valid for: "${prod?.name || 'specific product'}".`);
+        setAppliedCoupon(null);
+        return;
+      }
+    }
+
+    setAppliedCoupon(coupon);
+    setCouponSuccess(`Success! Coupon "${coupon.code}" applied. You get ${coupon.discountPercent}% discount!`);
+  };
+
   // Sync state when country changes
   useEffect(() => {
     if (activeCountry) {
@@ -76,8 +144,8 @@ export default function CheckoutModal({
       onCurrencyChange(activeCountry.defaultCurrency);
       
       // Select appropriate payment methods
-      let defaultMethod: 'eSewa' | 'Khalti' | 'COD' | 'Bank Transfer' | 'Card Payment' = activeCountry.code === 'NP' ? 'eSewa' : 'Card Payment';
-      const available = settings?.enabledPayments || ['eSewa', 'Khalti', 'COD', 'Bank Transfer', 'Card Payment'];
+      let defaultMethod: 'eSewa' | 'Khalti' | 'COD' | 'Bank Transfer' | 'Card Payment' | 'PayPal' = activeCountry.code === 'NP' ? 'eSewa' : 'Card Payment';
+      const available = settings?.enabledPayments || ['eSewa', 'Khalti', 'COD', 'Bank Transfer', 'Card Payment', 'PayPal'];
       if (!available.includes(defaultMethod)) {
         defaultMethod = available[0] || 'COD';
       }
@@ -85,19 +153,44 @@ export default function CheckoutModal({
     }
   }, [selectedCountryCode]);
 
-  // Calculations (NPR base)
-  const rawSubtotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  // SECURE ANTI-CHEAT CALCULATIONS (Calculates strictly from database state)
+  const rawSubtotal = cart.reduce((sum, item) => {
+    const masterProduct = products.find(p => p.id === item.product.id) || item.product;
+    return sum + masterProduct.price * item.quantity;
+  }, 0);
+
   const discountAmount = cart.reduce((sum, item) => {
-    const itemDiscount = (item.product.price * item.product.discountPercent) / 100;
+    const masterProduct = products.find(p => p.id === item.product.id) || item.product;
+    const itemDiscount = (masterProduct.price * masterProduct.discountPercent) / 100;
     return sum + itemDiscount * item.quantity;
   }, 0);
+
   const subtotalAfterDiscount = rawSubtotal - discountAmount;
-  
+
+  // Coupon calculations
+  let couponDiscountValue = 0;
+  if (appliedCoupon) {
+    if (appliedCoupon.applicableProductId === 'all') {
+      couponDiscountValue = Math.round((subtotalAfterDiscount * appliedCoupon.discountPercent) / 100);
+    } else {
+      // Apply only to the matching product
+      couponDiscountValue = cart.reduce((sum, item) => {
+        if (item.product.id === appliedCoupon.applicableProductId) {
+          const masterProduct = products.find(p => p.id === item.product.id) || item.product;
+          const finalPriceAfterStandardDiscount = masterProduct.price - (masterProduct.price * masterProduct.discountPercent / 100);
+          const itemCouponDiscount = Math.round((finalPriceAfterStandardDiscount * appliedCoupon.discountPercent) / 100);
+          return sum + (itemCouponDiscount * item.quantity);
+        }
+        return sum;
+      }, 0);
+    }
+  }
+
   // Active shipping fee config
   const activeLocation = activeCountry.locations.find(loc => loc.id === selectedLocationId) || activeCountry.locations[0];
   const deliveryFeeInNpr = activeLocation ? activeLocation.feeInNpr : 0;
   const giftWrapFeeInNpr = addGiftWrap ? 50 : 0;
-  const grandTotalInNpr = subtotalAfterDiscount + deliveryFeeInNpr + giftWrapFeeInNpr;
+  const grandTotalInNpr = Math.max(0, subtotalAfterDiscount - couponDiscountValue + deliveryFeeInNpr + giftWrapFeeInNpr);
 
   // Pre-fill Gateway Phone if matches customer
   const handleOpenGateway = () => {
@@ -146,15 +239,20 @@ export default function CheckoutModal({
       deliveryLocationName: activeLocation?.name || 'Local Shipping',
       deliveryFee: deliveryFeeInNpr,
       paymentMethod: paymentMethod,
+      couponCode: appliedCoupon ? appliedCoupon.code : undefined,
+      couponDiscount: appliedCoupon ? couponDiscountValue : undefined,
       items: [
-        ...cart.map(item => ({
-          productId: item.product.id,
-          productName: item.product.name,
-          price: item.product.price - (item.product.price * item.product.discountPercent / 100),
-          discountPercent: item.product.discountPercent,
-          quantity: item.quantity,
-          image: item.product.image
-        })),
+        ...cart.map(item => {
+          const masterProduct = products.find(p => p.id === item.product.id) || item.product;
+          return {
+            productId: masterProduct.id,
+            productName: masterProduct.name,
+            price: masterProduct.price - (masterProduct.price * masterProduct.discountPercent / 100),
+            discountPercent: masterProduct.discountPercent,
+            quantity: item.quantity,
+            image: masterProduct.image
+          };
+        }),
         ...(addGiftWrap ? [{
           productId: 'GIFT-WRAP',
           productName: 'Premium Gift Wrapping',
@@ -176,12 +274,14 @@ export default function CheckoutModal({
       courierName: 'Mahi Creations Express Rider',
       courierPhone: 'Pending review',
       courierTrackingCode: 'Pending allocation',
-      sellerNotes: 'Order placed successfully. We are preparing your boutique package with extra love.',
+      sellerNotes: appliedCoupon 
+        ? `Order placed successfully using promo code [${appliedCoupon.code}] with ${appliedCoupon.discountPercent}% off.`
+        : 'Order placed successfully. We are preparing your boutique package with extra love.',
       paymentStatus: paymentMethod === 'COD' ? 'Pending' : 'Verified',
       statusLogs: [
         {
           status: 'Pending',
-          note: `Order placed successfully by customer using ${paymentMethod}. Waiting for luxury review.`,
+          note: `Order placed successfully by customer using ${paymentMethod}. ${appliedCoupon ? `Promo code ${appliedCoupon.code} was validated.` : ''} Waiting for luxury review.`,
           timestamp: new Date().toISOString()
         }
       ]
@@ -593,7 +693,7 @@ export default function CheckoutModal({
           </div>
         ) : (
           /* Details Form */
-          <form onSubmit={paymentMethod === 'COD' || paymentMethod === 'Bank Transfer' ? handleDirectCODOrderSubmit : (e) => { e.preventDefault(); handleOpenGateway(); }} className="p-6 sm:p-8 space-y-6 max-h-[75vh] overflow-y-auto">
+          <form onSubmit={paymentMethod === 'COD' || paymentMethod === 'Bank Transfer' || paymentMethod === 'PayPal' ? handleDirectCODOrderSubmit : (e) => { e.preventDefault(); handleOpenGateway(); }} className="p-6 sm:p-8 space-y-6 max-h-[75vh] overflow-y-auto">
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               
@@ -773,7 +873,7 @@ export default function CheckoutModal({
                   )}
 
                   {/* Cash on Delivery */}
-                  {(settings?.enabledPayments ?? ['eSewa', 'Khalti', 'COD', 'Bank Transfer', 'Card Payment']).includes('COD') && (
+                  {(settings?.enabledPayments ?? ['eSewa', 'Khalti', 'COD', 'Bank Transfer', 'Card Payment', 'PayPal']).includes('COD') && (
                     <label
                       className={`p-3.5 rounded-xl border flex flex-col justify-between h-24 transition-all cursor-pointer ${
                         paymentMethod === 'COD'
@@ -796,7 +896,7 @@ export default function CheckoutModal({
                   )}
 
                   {/* Bank Transfer */}
-                  {(settings?.enabledPayments ?? ['eSewa', 'Khalti', 'COD', 'Bank Transfer', 'Card Payment']).includes('Bank Transfer') && (
+                  {(settings?.enabledPayments ?? ['eSewa', 'Khalti', 'COD', 'Bank Transfer', 'Card Payment', 'PayPal']).includes('Bank Transfer') && (
                     <label
                       className={`p-3.5 rounded-xl border flex flex-col justify-between h-24 transition-all cursor-pointer ${
                         paymentMethod === 'Bank Transfer'
@@ -818,7 +918,160 @@ export default function CheckoutModal({
                     </label>
                   )}
 
+                  {/* PayPal */}
+                  {(settings?.enabledPayments ?? ['eSewa', 'Khalti', 'COD', 'Bank Transfer', 'Card Payment', 'PayPal']).includes('PayPal') && (
+                    <label
+                      className={`p-3.5 rounded-xl border flex flex-col justify-between h-24 transition-all cursor-pointer ${
+                        paymentMethod === 'PayPal'
+                          ? 'border-blue-600 bg-blue-50/40 text-blue-950 shadow-sm ring-1 ring-blue-600'
+                          : 'border-clay bg-white text-neutral-600 hover:bg-clay-light'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="payment"
+                        checked={paymentMethod === 'PayPal'}
+                        onChange={() => setPaymentMethod('PayPal')}
+                        className="sr-only"
+                      />
+                      <span className="flex items-center gap-1">
+                        <PayPalLogo className="h-5 w-auto" />
+                      </span>
+                      <span className="text-[10px] text-neutral-400 leading-tight font-medium">Pay securely via PayPal</span>
+                    </label>
+                  )}
+
                 </div>
+
+                {/* DYNAMIC PAYMENT INSTRUCTIONS BOX */}
+                {(() => {
+                  if (paymentMethod === 'eSewa') {
+                    return (
+                      <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl space-y-2 text-left animate-fade-in mt-3">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                          <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800">eSewa Wallet Settlement Details</span>
+                        </div>
+                        <div className="text-xs space-y-1 text-emerald-950 font-medium">
+                          <p>Please send the total amount to our verified eSewa account:</p>
+                          <div className="bg-white p-3 rounded-xl border border-emerald-100 space-y-1 mt-1 shadow-xs">
+                            <div className="flex justify-between">
+                              <span className="text-neutral-400 text-[10px] uppercase">eSewa ID / Phone:</span>
+                              <span className="font-bold select-all">{settings?.esewaAccountPhone || '9802058364'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-neutral-400 text-[10px] uppercase">Account Name:</span>
+                              <span className="font-bold">{settings?.esewaAccountName || 'Mahi Creations'}</span>
+                            </div>
+                          </div>
+                          <p className="text-[9px] text-neutral-400 mt-1 italic">
+                            * Post-submission, please take a screenshot and share it with us via WhatsApp to complete instant activation.
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+                  if (paymentMethod === 'Khalti') {
+                    return (
+                      <div className="p-4 bg-purple-50/50 border border-purple-100 rounded-2xl space-y-2 text-left animate-fade-in mt-3">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-purple-500" />
+                          <span className="text-[10px] font-black uppercase tracking-wider text-purple-800">Khalti Wallet Settlement Details</span>
+                        </div>
+                        <div className="text-xs space-y-1 text-purple-950 font-medium">
+                          <p>Please send the total amount to our verified Khalti account:</p>
+                          <div className="bg-white p-3 rounded-xl border border-purple-100 space-y-1 mt-1 shadow-xs">
+                            <div className="flex justify-between">
+                              <span className="text-neutral-400 text-[10px] uppercase">Khalti ID / Phone:</span>
+                              <span className="font-bold select-all">{settings?.khaltiAccountPhone || '9802058364'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-neutral-400 text-[10px] uppercase">Account Name:</span>
+                              <span className="font-bold">{settings?.khaltiAccountName || 'Mahi Creations'}</span>
+                            </div>
+                          </div>
+                          <p className="text-[9px] text-neutral-400 mt-1 italic">
+                            * Post-submission, please take a screenshot and share it with us via WhatsApp to complete instant activation.
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+                  if (paymentMethod === 'Bank Transfer') {
+                    return (
+                      <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-2xl space-y-2 text-left animate-fade-in mt-3">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-blue-500" />
+                          <span className="text-[10px] font-black uppercase tracking-wider text-blue-800">Direct Bank Settlement Details</span>
+                        </div>
+                        <div className="text-xs space-y-1.5 text-blue-950 font-medium">
+                          <p>Please make a bank transfer or mobile banking deposit to our official account:</p>
+                          <div className="bg-white p-3 rounded-xl border border-blue-100 space-y-1 mt-1 shadow-xs font-sans">
+                            <div className="flex justify-between">
+                              <span className="text-neutral-400 text-[10px] uppercase">Bank Name:</span>
+                              <span className="font-bold">{settings?.bankName || 'Nabil Bank Limited'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-neutral-400 text-[10px] uppercase">Account Number:</span>
+                              <span className="font-mono font-bold select-all">{settings?.bankAccountNumber || '0110017500369'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-neutral-400 text-[10px] uppercase">Account Holder:</span>
+                              <span className="font-bold">{settings?.bankAccountName || 'Mahi Creations Pvt. Ltd.'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-neutral-400 text-[10px] uppercase">Branch Location:</span>
+                              <span className="font-bold text-[11px]">{settings?.bankBranch || 'Jhamsikhel Branch'}</span>
+                            </div>
+                          </div>
+                          <p className="text-[9px] text-neutral-400 mt-1 italic">
+                            * Please upload or message us your deposit receipt with your order name to process warehouse dispatch immediately.
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+                  if (paymentMethod === 'PayPal') {
+                    return (
+                      <div className="p-4 bg-blue-50/40 border border-blue-100 rounded-2xl space-y-2 text-left animate-fade-in mt-3">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-[#003087]" />
+                          <span className="text-[10px] font-black uppercase tracking-wider text-blue-900">PayPal International Settlement</span>
+                        </div>
+                        <div className="text-xs space-y-1 text-blue-950 font-medium">
+                          <p>Please send payment via PayPal to our registered merchant email:</p>
+                          <div className="bg-white p-3 rounded-xl border border-blue-100 space-y-1 mt-1 shadow-xs">
+                            <div className="flex justify-between">
+                              <span className="text-neutral-400 text-[10px] uppercase">PayPal Email:</span>
+                              <span className="font-bold select-all">{settings?.paypalEmail || 'mahicreations369@gmail.com'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-neutral-400 text-[10px] uppercase">Registered Name:</span>
+                              <span className="font-bold">{settings?.paypalAccountName || 'Mahi Creations Luxury'}</span>
+                            </div>
+                          </div>
+                          <p className="text-[9px] text-neutral-400 mt-1 italic">
+                            * Note: Make sure to transfer in USD equivalent or your regional currency. Send payment receipt for rapid dispatch.
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+                  if (paymentMethod === 'COD') {
+                    return (
+                      <div className="p-4 bg-neutral-50 border border-neutral-200 rounded-2xl space-y-2 text-left animate-fade-in mt-3">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-neutral-800" />
+                          <span className="text-[10px] font-black uppercase tracking-wider text-neutral-800">Cash on Delivery Policy</span>
+                        </div>
+                        <p className="text-xs text-neutral-600 leading-relaxed font-light">
+                          {settings?.codInstructions || 'Pay cash or scan dynamic Fonepay QR upon home delivery by courier.'}
+                        </p>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
 
                 {/* Custom remarks */}
                 <div className="space-y-1 mt-3">
@@ -853,12 +1106,71 @@ export default function CheckoutModal({
                   </div>
                 </div>
 
+                {/* AUTOMATED COUPON ENGINE FORM */}
+                <div className="mt-4 p-4 bg-gradient-to-br from-brand/5 to-bg-warm/30 border border-clay rounded-2xl space-y-3 shadow-inner">
+                  <span className="text-[10px] font-extrabold tracking-widest text-brand uppercase flex items-center gap-1.5">
+                    <Ticket className="w-4 h-4 text-brand" />
+                    Automated Coupon Code Engine
+                  </span>
+                  
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Enter Promo Code (e.g. WELCOME10)"
+                      value={couponCodeInput}
+                      onChange={(e) => setCouponCodeInput(e.target.value)}
+                      className="flex-1 text-xs border border-clay rounded-lg p-2.5 focus:ring-1 focus:ring-brand focus:outline-none bg-white font-mono uppercase"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleApplyCoupon}
+                      className="px-4 py-2 bg-dark hover:bg-brand text-white font-bold text-[10px] tracking-wider uppercase rounded-lg transition duration-200 cursor-pointer"
+                    >
+                      Apply
+                    </button>
+                  </div>
+
+                  {couponError && (
+                    <p className="text-[10px] font-bold text-rose-600 animate-shake">
+                      ⚠️ {couponError}
+                    </p>
+                  )}
+
+                  {couponSuccess && (
+                    <p className="text-[10px] font-bold text-emerald-700">
+                      ✨ {couponSuccess}
+                    </p>
+                  )}
+
+                  {/* Available hints */}
+                  {!appliedCoupon && (
+                    <p className="text-[9px] text-neutral-400 font-normal leading-normal">
+                      💡 Try codes: <strong>WELCOME10</strong> (10% all products), <strong>LIPSTICK25</strong> (25% off lipstick), or <strong>GLOW20</strong> (20% off foundation). 1 use per customer/phone.
+                    </p>
+                  )}
+                </div>
+
                 {/* Subtotal slate info */}
                 <div className="bg-clay-light/15 rounded-xl p-3 border border-clay space-y-2 text-xs mt-3">
                   <div className="flex justify-between text-neutral-500">
                     <span>Cosmetics Subtotal:</span>
                     <span>{formatPrice(subtotalAfterDiscount, currency)}</span>
                   </div>
+                  
+                  {appliedCoupon && (
+                    <div className="flex justify-between text-emerald-700 font-medium bg-emerald-50 p-2 rounded-lg border border-emerald-100 animate-fade-in flex-col gap-1">
+                      <div className="flex justify-between items-center">
+                        <span>Coupon Discount ({appliedCoupon.code}):</span>
+                        <span className="font-bold">-{formatPrice(couponDiscountValue, currency)}</span>
+                      </div>
+                      <p className="text-[9px] text-emerald-600">
+                        {appliedCoupon.applicableProductId === 'all' 
+                          ? 'Applied to total order value' 
+                          : `Applied ${appliedCoupon.discountPercent}% off strictly on product: "${products.find(p => p.id === appliedCoupon.applicableProductId)?.name || 'product'}"`}
+                      </p>
+                    </div>
+                  )}
+
                   {addGiftWrap && (
                     <div className="flex justify-between text-neutral-500 animate-fade-in">
                       <span>Premium Gift Wrap:</span>
@@ -895,7 +1207,7 @@ export default function CheckoutModal({
                     Processing...
                   </span>
                 ) : (
-                  paymentMethod === 'COD' || paymentMethod === 'Bank Transfer' ? 'Place Boutique Order' : 'Proceed to Payment Gateway'
+                  paymentMethod === 'COD' || paymentMethod === 'Bank Transfer' || paymentMethod === 'PayPal' ? 'Place Boutique Order' : 'Proceed to Payment Gateway'
                 )}
               </button>
             </div>

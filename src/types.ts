@@ -41,7 +41,7 @@ export interface Order {
   deliveryLocationId: string;
   deliveryLocationName: string;
   deliveryFee: number;
-  paymentMethod: 'eSewa' | 'Khalti' | 'COD' | 'Bank Transfer' | 'Card Payment';
+  paymentMethod: 'eSewa' | 'Khalti' | 'COD' | 'Bank Transfer' | 'Card Payment' | 'PayPal';
   items: {
     productId: string;
     productName: string;
@@ -65,6 +65,8 @@ export interface Order {
   sellerNotes?: string;
   paymentStatus?: 'Pending' | 'Verified' | 'Failed' | 'Refunded';
   statusLogs?: OrderLog[];
+  couponCode?: string;
+  couponDiscount?: number;
 }
 
 export interface LocationConfig {
@@ -82,6 +84,7 @@ export interface PromoSlide {
   description: string;
   linkText?: string;
   linkUrl?: string;
+  imageFit?: 'cover' | 'contain';
 }
 
 export interface BoutiqueSettings {
@@ -105,6 +108,17 @@ export interface BoutiqueSettings {
   headerPromo?: string;
   enabledPayments?: string[];
   enabledCurrencies?: CurrencyCode[];
+  esewaAccountPhone?: string;
+  esewaAccountName?: string;
+  khaltiAccountPhone?: string;
+  khaltiAccountName?: string;
+  bankName?: string;
+  bankAccountNumber?: string;
+  bankAccountName?: string;
+  bankBranch?: string;
+  paypalEmail?: string;
+  paypalAccountName?: string;
+  codInstructions?: string;
   promoSlides?: PromoSlide[];
   aboutImageUrl?: string;
   heroBadge?: string;
@@ -126,6 +140,16 @@ export interface BoutiqueSettings {
   sourcingTitle?: string;
   sourcingDescription?: string;
   sourcingBadge?: string;
+  coupons?: Coupon[];
+}
+
+export interface Coupon {
+  id: string;
+  code: string; // Uppercase coupon code, e.g., WELCOME15
+  discountPercent: number; // Percentage off, e.g., 15 for 15%
+  applicableProductId: string; // "all" or a specific product ID (e.g. "p1")
+  isActive: boolean;
+  usedByPhones?: string[]; // Phone numbers of customers who already redeemed it, ensuring 1 use per customer/phone
 }
 
 export interface ProductReview {

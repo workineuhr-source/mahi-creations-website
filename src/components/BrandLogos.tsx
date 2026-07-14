@@ -58,6 +58,16 @@ export function BankTransferLogo({ className = "h-6" }: { className?: string }) 
   );
 }
 
+// Real logo for PayPal
+export function PayPalLogo({ className = "h-6" }: { className?: string }) {
+  return (
+    <div className={`inline-flex items-center justify-center gap-0.5 bg-[#003087] px-3 py-1 rounded-lg text-white font-sans font-bold shadow-sm border border-[#003087]/50 ${className}`}>
+      <span className="text-[11px] font-black text-white italic">Pay</span>
+      <span className="text-[11px] font-black text-[#00a6ff] italic">Pal</span>
+    </div>
+  );
+}
+
 // Real logo for Facebook (Original blue)
 export function FacebookLogo({ className = "w-5 h-5" }: { className?: string }) {
   return (

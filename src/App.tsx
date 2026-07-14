@@ -20,7 +20,7 @@ import ToastContainer, { ToastItem } from './components/Toast';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, Filter, ArrowUpDown, CheckCircle2, Heart, ShieldAlert, ShoppingBag, Eye, HelpCircle, Globe, Mail, ShieldCheck, Send, CreditCard, Check, Facebook, Instagram, Linkedin, RefreshCw, FileText, X, Truck, Info, Lock, ChevronDown, MapPin, Phone, Clock, ChevronLeft, ChevronRight, ArrowUp } from 'lucide-react';
 import { CurrencyCode, CountryConfig, getCustomCountries, saveCustomCountries } from './utils/currency';
-import { ESewaLogo, KhaltiLogo, VisaLogo, MasterCardLogo, CODLogo, BankTransferLogo, FacebookLogo, InstagramLogo, TikTokLogo, WhatsAppLogo } from './components/BrandLogos';
+import { ESewaLogo, KhaltiLogo, VisaLogo, MasterCardLogo, CODLogo, BankTransferLogo, PayPalLogo, FacebookLogo, InstagramLogo, TikTokLogo, WhatsAppLogo } from './components/BrandLogos';
 import SmartRoutineQuiz from './components/SmartRoutineQuiz';
 
 const DEMO_ORDER: Order = {
@@ -237,6 +237,13 @@ export default function App() {
         if (!parsed.promoSlides || !Array.isArray(parsed.promoSlides) || parsed.promoSlides.length === 0) {
           parsed.promoSlides = DEFAULT_PROMO_SLIDES;
         }
+        if (!parsed.coupons || !Array.isArray(parsed.coupons) || parsed.coupons.length === 0) {
+          parsed.coupons = [
+            { id: 'c1', code: 'WELCOME10', discountPercent: 10, applicableProductId: 'all', isActive: true, usedByPhones: [] },
+            { id: 'c2', code: 'LIPSTICK25', discountPercent: 25, applicableProductId: 'p1', isActive: true, usedByPhones: [] },
+            { id: 'c3', code: 'GLOW20', discountPercent: 20, applicableProductId: 'p2', isActive: true, usedByPhones: [] }
+          ];
+        }
         // Ensure new settings fields exist on load
         return {
           adminUser: 'Mahi123@',
@@ -247,8 +254,19 @@ export default function App() {
           logoUrl: '/src/assets/images/mahi_logo_new_1783763329444.jpg',
           faviconUrl: '/src/assets/images/mahi_logo_new_1783763329444.jpg',
           headerPromo: 'Monsoon Glow Offer: Automatically save up to 25% + Free delivery inside Kathmandu Valley!',
-          enabledPayments: ['eSewa', 'Khalti', 'COD', 'Bank Transfer', 'Card Payment'],
+          enabledPayments: ['eSewa', 'Khalti', 'COD', 'Bank Transfer', 'Card Payment', 'PayPal'],
           enabledCurrencies: ['AED'],
+          esewaAccountPhone: '9802058364',
+          esewaAccountName: 'Mahi Creations',
+          khaltiAccountPhone: '9802058364',
+          khaltiAccountName: 'Mahi Creations',
+          bankName: 'Nabil Bank Limited',
+          bankAccountNumber: '0110017500369',
+          bankAccountName: 'Mahi Creations Pvt. Ltd.',
+          bankBranch: 'Jhamsikhel Branch',
+          paypalEmail: 'mahicreations369@gmail.com',
+          paypalAccountName: 'Mahi Creations Luxury',
+          codInstructions: 'Pay cash or scan dynamic Fonepay QR upon home delivery by courier.',
           whatsappNumber: '9779802058364',
           facebookLink: 'https://facebook.com/mahicreations',
           tiktokLink: 'https://tiktok.com/@mahicreations',
@@ -274,7 +292,7 @@ export default function App() {
           aboutPara2: 'Every cosmetic bottle we carry represents genuine global standards of safety, hydration, and glow. Our traditional apparel lines are hand-stitched by boutique master artisans, preserving timeless cultural heritages while adapting them for the contemporary modern aesthetic.',
           aboutPara3: 'Whether you are searching for premium Korean skincare regimes, custom makeup, or bespoke boutique jewelry, Mahi Creations ensures standard compliance, real-time stock levels, and expedited courier delivery across Nepal.',
           sourcingBgUrl: '',
-          sourcingBgColor: '#fcfaf9',
+          sourcingBgColor: '#fff0f1',
           sourcingBgBlur: 0,
           sourcingTextColor: '#1a1a1a',
           sourcingTitle: 'Mahi Privilege List',
@@ -295,8 +313,19 @@ export default function App() {
       logoUrl: '/src/assets/images/mahi_logo_new_1783763329444.jpg',
       faviconUrl: '/src/assets/images/mahi_logo_new_1783763329444.jpg',
       headerPromo: 'Monsoon Glow Offer: Automatically save up to 25% + Free delivery inside Kathmandu Valley!',
-      enabledPayments: ['eSewa', 'Khalti', 'COD', 'Bank Transfer', 'Card Payment'],
+      enabledPayments: ['eSewa', 'Khalti', 'COD', 'Bank Transfer', 'Card Payment', 'PayPal'],
       enabledCurrencies: ['AED'],
+      esewaAccountPhone: '9802058364',
+      esewaAccountName: 'Mahi Creations',
+      khaltiAccountPhone: '9802058364',
+      khaltiAccountName: 'Mahi Creations',
+      bankName: 'Nabil Bank Limited',
+      bankAccountNumber: '0110017500369',
+      bankAccountName: 'Mahi Creations Pvt. Ltd.',
+      bankBranch: 'Jhamsikhel Branch',
+      paypalEmail: 'mahicreations369@gmail.com',
+      paypalAccountName: 'Mahi Creations Luxury',
+      codInstructions: 'Pay cash or scan dynamic Fonepay QR upon home delivery by courier.',
       whatsappNumber: '9779802058364',
       facebookLink: 'https://facebook.com/mahicreations',
       tiktokLink: 'https://tiktok.com/@mahicreations',
@@ -322,12 +351,17 @@ export default function App() {
       aboutPara2: 'Every cosmetic bottle we carry represents genuine global standards of safety, hydration, and glow. Our traditional apparel lines are hand-stitched by boutique master artisans, preserving timeless cultural heritages while adapting them for the contemporary modern aesthetic.',
       aboutPara3: 'Whether you are searching for premium Korean skincare regimes, custom makeup, or bespoke boutique jewelry, Mahi Creations ensures standard compliance, real-time stock levels, and expedited courier delivery across Nepal.',
       sourcingBgUrl: '',
-      sourcingBgColor: '#fcfaf9',
+      sourcingBgColor: '#fff0f1',
       sourcingBgBlur: 0,
       sourcingTextColor: '#1a1a1a',
       sourcingTitle: 'Mahi Privilege List',
       sourcingDescription: 'Subscribe for private invitations to global cosmetics drops, traditional apparel pre-orders, and exclusive beauty coupons directly from our certified international houses.',
-      sourcingBadge: 'Exclusive Sourcing Access'
+      sourcingBadge: 'Exclusive Sourcing Access',
+      coupons: [
+        { id: 'c1', code: 'WELCOME10', discountPercent: 10, applicableProductId: 'all', isActive: true, usedByPhones: [] },
+        { id: 'c2', code: 'LIPSTICK25', discountPercent: 25, applicableProductId: 'p1', isActive: true, usedByPhones: [] },
+        { id: 'c3', code: 'GLOW20', discountPercent: 20, applicableProductId: 'p2', isActive: true, usedByPhones: [] }
+      ]
     };
   });
 
@@ -793,6 +827,30 @@ export default function App() {
 
     // Save to orders state
     setOrders(prev => [newOrder, ...prev]);
+
+    // Handle coupon code redemption tracking
+    if (newOrder.couponCode) {
+      setSettings(prev => {
+        const updatedCoupons = (prev.coupons || []).map(coupon => {
+          if (coupon.code === newOrder.couponCode) {
+            const cleanPhone = newOrder.customerPhone.replace(/[^0-9]/g, '');
+            const usedList = coupon.usedByPhones || [];
+            if (!usedList.includes(cleanPhone)) {
+              return {
+                ...coupon,
+                usedByPhones: [...usedList, cleanPhone]
+              };
+            }
+          }
+          return coupon;
+        });
+        return {
+          ...prev,
+          coupons: updatedCoupons
+        };
+      });
+    }
+
     // Clear cart
     setCart([]);
     // Redirect view to tracker automatically
@@ -968,6 +1026,10 @@ export default function App() {
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
         onPortalClick={() => setActiveView('portal')}
+        onContactClick={() => {
+          setActivePolicyTab('contact');
+          setPolicyModalOpen(true);
+        }}
         cartCount={cart.reduce((sum, item) => sum + item.quantity, 0)}
         currency={currency}
         onCurrencyChange={setCurrency}
@@ -1488,6 +1550,8 @@ export default function App() {
         whatsappNumber={settings.whatsappNumber}
         countries={countries}
         settings={settings}
+        products={products}
+        orders={orders}
       />
 
       <ProductDetailModal
@@ -1964,8 +2028,8 @@ export default function App() {
       {/* VIP Newsletter Section (Mahi Privilege List) - Exclusive Sourcing Access */}
       {activeView !== 'admin' && (
         <section 
-          className="w-full border-t border-b border-clay/50 py-20 sm:py-28 md:py-36 animate-fade-in relative z-10 overflow-hidden"
-          style={{ backgroundColor: settings.sourcingBgColor || '#fcfaf9' }}
+          className="w-full border-t border-b border-clay/50 py-10 sm:py-12 md:py-14 animate-fade-in relative z-10 overflow-hidden"
+          style={{ backgroundColor: settings.sourcingBgColor || '#fff0f1' }}
         >
           {/* Dynamic Customized Sourcing Background Photo */}
           {settings.sourcingBgUrl && (
@@ -2249,20 +2313,23 @@ export default function App() {
               
               {/* Payment Gateways structured into an elegant responsive grid layout */}
               <div className="grid grid-cols-3 gap-2.5 pt-1">
-                <div className="bg-white p-2 rounded-xl border border-clay hover:border-brand/50 hover:shadow-sm transition-all duration-300 flex items-center justify-center h-10">
+                <div className="bg-white p-2 rounded-xl border border-clay hover:border-brand/50 hover:shadow-sm transition-all duration-300 flex items-center justify-center h-10" title="eSewa">
                   <ESewaLogo className="h-4.5 object-contain" />
                 </div>
-                <div className="bg-white p-2 rounded-xl border border-clay hover:border-brand/50 hover:shadow-sm transition-all duration-300 flex items-center justify-center h-10">
+                <div className="bg-white p-2 rounded-xl border border-clay hover:border-brand/50 hover:shadow-sm transition-all duration-300 flex items-center justify-center h-10" title="Khalti">
                   <KhaltiLogo className="h-4.5 object-contain" />
                 </div>
-                <div className="bg-white p-2 rounded-xl border border-clay hover:border-brand/50 hover:shadow-sm transition-all duration-300 flex items-center justify-center h-10">
+                <div className="bg-white p-2 rounded-xl border border-clay hover:border-brand/50 hover:shadow-sm transition-all duration-300 flex items-center justify-center h-10" title="MasterCard">
                   <MasterCardLogo className="h-3.5 w-auto object-contain" />
                 </div>
-                <div className="bg-white p-2 rounded-xl border border-clay hover:border-brand/50 hover:shadow-sm transition-all duration-300 flex items-center justify-center h-10 col-span-1">
+                <div className="bg-white p-2 rounded-xl border border-clay hover:border-brand/50 hover:shadow-sm transition-all duration-300 flex items-center justify-center h-10" title="Bank Transfer">
                   <BankTransferLogo className="h-4.5 object-contain" />
                 </div>
-                <div className="bg-white p-2 rounded-xl border border-clay hover:border-brand/50 hover:shadow-sm transition-all duration-300 flex items-center justify-center h-10 col-span-2">
+                <div className="bg-white p-2 rounded-xl border border-clay hover:border-brand/50 hover:shadow-sm transition-all duration-300 flex items-center justify-center h-10" title="Cash on Delivery">
                   <CODLogo className="h-4.5 object-contain" />
+                </div>
+                <div className="bg-white p-2 rounded-xl border border-clay hover:border-brand/50 hover:shadow-sm transition-all duration-300 flex items-center justify-center h-10" title="PayPal">
+                  <PayPalLogo className="h-4.5 object-contain" />
                 </div>
               </div>
 
@@ -2281,8 +2348,20 @@ export default function App() {
             <p className="text-center sm:text-left">&copy; 2026 Mahi Creations Luxury Boutique. All Rights Reserved. Sourced directly from original global production lines.</p>
             
             {/* Quick navigation links */}
-            <div className="flex items-center gap-3 font-semibold uppercase tracking-wider text-[9px]">
-              <button onClick={() => setActiveView('shop')} className="text-neutral-500 hover:text-brand transition cursor-pointer">Shop</button>
+            <div className="flex flex-wrap items-center justify-center sm:justify-end gap-3 font-semibold uppercase tracking-wider text-[9px] h-full">
+              <span className="flex items-center text-neutral-400 font-medium normal-case text-[10px]">
+                <span>Designed & Developed by</span>
+                <a 
+                  href="https://www.facebook.com/udayarajkhanal369" 
+                  target="_blank" 
+                  rel="noreferrer" 
+                  className="text-brand hover:underline font-extrabold text-[10px] transition inline-block ml-1"
+                >
+                  Udaya Raj Khanal
+                </a>
+              </span>
+              <span className="text-clay">•</span>
+              <button onClick={() => setActiveView('shop')} className="text-neutral-500 hover:text-brand transition cursor-pointer font-semibold uppercase tracking-wider text-[9px]">Shop</button>
               <span className="text-clay">•</span>
               <button 
                 onClick={() => {
@@ -2292,12 +2371,12 @@ export default function App() {
                     setAuthModalOpen(true);
                   }
                 }} 
-                className="text-neutral-500 hover:text-brand transition cursor-pointer"
+                className="text-neutral-500 hover:text-brand transition cursor-pointer font-semibold uppercase tracking-wider text-[9px]"
               >
                 VIP Lounge
               </button>
               <span className="text-clay">•</span>
-              <button onClick={() => { setActiveView('tracker'); setInitialTrackId(''); }} className="text-neutral-500 hover:text-brand transition cursor-pointer">Track</button>
+              <button onClick={() => { setActiveView('tracker'); setInitialTrackId(''); }} className="text-neutral-500 hover:text-brand transition cursor-pointer font-semibold uppercase tracking-wider text-[9px]">Track</button>
               
               {isAdminLoggedIn && (
                 <>

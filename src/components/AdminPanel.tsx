@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Product, Order, OrderStatus, BoutiqueSettings, ProductReview, PromoSlide } from '../types';
+import { Product, Order, OrderStatus, BoutiqueSettings, ProductReview, PromoSlide, Coupon } from '../types';
 import { 
   Settings, Lock, LayoutDashboard, Plus, Edit, Trash2, Check, RefreshCw, X, 
   TrendingUp, DollarSign, Package, ShoppingCart, Percent, Share2, Facebook, 
   Instagram, Linkedin, MessageSquare, Copy, CheckCircle2, Eye, EyeOff, User, Phone, 
-  Sparkles, ExternalLink, Globe, Key, ChevronRight, HelpCircle, ShieldCheck, Zap, Star, MapPin, Search, Home, Mail, Users, Truck, Printer
+  Sparkles, ExternalLink, Globe, Key, ChevronRight, HelpCircle, ShieldCheck, Zap, Star, MapPin, Search, Home, Mail, Users, Truck, Printer, Ticket, CreditCard, Wallet, UploadCloud
 } from 'lucide-react';
 import { formatPrice, CurrencyCode, CURRENCIES, CountryConfig, ShippingLocation } from '../utils/currency';
 import { uploadImageToServer } from '../utils/upload';
@@ -32,6 +32,88 @@ interface AdminPanelProps {
   subscribers?: string[];
   onUpdateSubscribers?: (subscribers: string[]) => void;
 }
+
+// Custom Media Query hook for responsive layout calculations in virtualization
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = React.useState(false);
+  React.useEffect(() => {
+    const media = window.matchMedia(query);
+    if (media.matches !== matches) {
+      setMatches(media.matches);
+    }
+    const listener = () => setMatches(media.matches);
+    media.addEventListener('change', listener);
+    return () => media.removeEventListener('change', listener);
+  }, [query, matches]);
+  return matches;
+}
+
+// Custom lightweight high-performance virtualization hook
+function useVirtual<T>({
+  items,
+  itemHeight,
+  containerRef,
+  buffer = 3,
+}: {
+  items: T[];
+  itemHeight: number;
+  containerRef: React.RefObject<HTMLDivElement | null>;
+  buffer?: number;
+}) {
+  const [scrollTop, setScrollTop] = React.useState(0);
+  const [containerHeight, setContainerHeight] = React.useState(600);
+
+  React.useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      setScrollTop(container.scrollTop);
+    };
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerHeight(entry.contentRect.height || 600);
+      }
+    });
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    resizeObserver.observe(container);
+
+    // Initial run
+    setScrollTop(container.scrollTop);
+    setContainerHeight(container.clientHeight || 600);
+
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+      resizeObserver.disconnect();
+    };
+  }, [containerRef, items]);
+
+  const totalHeight = items.length * itemHeight;
+  const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - buffer);
+  const endIndex = Math.min(items.length - 1, Math.floor((scrollTop + containerHeight) / itemHeight) + buffer);
+
+  const visibleItems = items.slice(startIndex, endIndex + 1);
+  const topPadding = startIndex * itemHeight;
+  const bottomPadding = Math.max(0, totalHeight - topPadding - visibleItems.length * itemHeight);
+
+  return {
+    visibleItems,
+    startIndex,
+    totalHeight,
+    topPadding,
+    bottomPadding,
+  };
+}
+
+const chunkArray = <T,>(arr: T[], size: number): T[][] => {
+  const chunks: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size));
+  }
+  return chunks;
+};
 
 export default function AdminPanel({
   products,
@@ -136,7 +218,17 @@ export default function AdminPanel({
   const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'orders' | 'reviews' | 'settings' | 'shipping' | 'subscribers' | 'future'>('dashboard');
 
   // Sub-tabs inside Boutique Settings tab to reduce scrolling
-  const [settingsSubTab, setSettingsSubTab] = useState<'credentials' | 'socials' | 'showcase' | 'footer' | 'promo-slides' | 'homepage' | 'sourcing'>('credentials');
+  const [settingsSubTab, setSettingsSubTab] = useState<'credentials' | 'socials' | 'showcase' | 'footer' | 'promo-slides' | 'homepage' | 'sourcing' | 'payments'>('credentials');
+
+
+
+  // Coupon admin states
+  const [editingCouponId, setEditingCouponId] = useState<string | null>(null);
+  const [couponCode, setCouponCode] = useState('');
+  const [couponDiscount, setCouponDiscount] = useState<number>(10);
+  const [couponProduct, setCouponProduct] = useState('all');
+  const [couponActive, setCouponActive] = useState(true);
+  const [couponErrorMsg, setCouponErrorMsg] = useState('');
 
   // Shipping Configuration Editor states
   const [shippingCountryCode, setShippingCountryCode] = useState<string>('NP');
@@ -186,12 +278,26 @@ export default function AdminPanel({
 
   // Exclusive Sourcing background states
   const [tempSourcingBgUrl, setTempSourcingBgUrl] = useState(settings.sourcingBgUrl || '');
-  const [tempSourcingBgColor, setTempSourcingBgColor] = useState(settings.sourcingBgColor || '#fcfaf9');
+  const [tempSourcingBgColor, setTempSourcingBgColor] = useState(settings.sourcingBgColor || '#fff0f1');
   const [tempSourcingBgBlur, setTempSourcingBgBlur] = useState<number>(settings.sourcingBgBlur || 0);
   const [tempSourcingTextColor, setTempSourcingTextColor] = useState(settings.sourcingTextColor || '#1a1a1a');
   const [tempSourcingTitle, setTempSourcingTitle] = useState(settings.sourcingTitle || 'Mahi Privilege List');
   const [tempSourcingDescription, setTempSourcingDescription] = useState(settings.sourcingDescription || 'Subscribe for private invitations to global cosmetics drops, traditional apparel pre-orders, and exclusive beauty coupons directly from our certified international houses.');
   const [tempSourcingBadge, setTempSourcingBadge] = useState(settings.sourcingBadge || 'Exclusive Sourcing Access');
+
+  // Payments configuration states
+  const [tempEsewaPhone, setTempEsewaPhone] = useState(settings.esewaAccountPhone || '9802058364');
+  const [tempEsewaName, setTempEsewaName] = useState(settings.esewaAccountName || 'Mahi Creations');
+  const [tempKhaltiPhone, setTempKhaltiPhone] = useState(settings.khaltiAccountPhone || '9802058364');
+  const [tempKhaltiName, setTempKhaltiName] = useState(settings.khaltiAccountName || 'Mahi Creations');
+  const [tempBankName, setTempBankName] = useState(settings.bankName || 'Nabil Bank Limited');
+  const [tempBankAccountNumber, setTempBankAccountNumber] = useState(settings.bankAccountNumber || '0110017500369');
+  const [tempBankAccountName, setTempBankAccountName] = useState(settings.bankAccountName || 'Mahi Creations Pvt. Ltd.');
+  const [tempBankBranch, setTempBankBranch] = useState(settings.bankBranch || 'Jhamsikhel Branch');
+  const [tempPaypalEmail, setTempPaypalEmail] = useState(settings.paypalEmail || 'mahicreations369@gmail.com');
+  const [tempPaypalName, setTempPaypalName] = useState(settings.paypalAccountName || 'Mahi Creations Luxury');
+  const [tempCodInstructions, setTempCodInstructions] = useState(settings.codInstructions || 'Pay cash or scan dynamic Fonepay QR upon home delivery by courier.');
+  const [tempEnabledPayments, setTempEnabledPayments] = useState<string[]>(settings.enabledPayments || ['eSewa', 'Khalti', 'COD', 'Bank Transfer', 'Card Payment', 'PayPal']);
 
   // Promo Slides Form states
   const [editingSlideId, setEditingSlideId] = useState<string | null>(null);
@@ -200,6 +306,7 @@ export default function AdminPanel({
   const [slideFormSubtitle, setSlideFormSubtitle] = useState('');
   const [slideFormDescription, setSlideFormDescription] = useState('');
   const [slideFormImage, setSlideFormImage] = useState('');
+  const [slideFormImageFit, setSlideFormImageFit] = useState<'cover' | 'contain'>('cover');
   const [slideFormLinkText, setSlideFormLinkText] = useState('Explore Catalog');
   const [slideFormLinkUrl, setSlideFormLinkUrl] = useState('#shop-catalog');
 
@@ -236,6 +343,13 @@ export default function AdminPanel({
   const [productSearchQuery, setProductSearchQuery] = useState('');
   const [productCategoryFilter, setProductCategoryFilter] = useState('All');
   const [productBrandFilter, setProductBrandFilter] = useState('All');
+
+  // Dashboard Global Quick-Search Filter state
+  const [globalDashboardSearch, setGlobalDashboardSearch] = useState('');
+
+  // Refs for virtualization scroll containers
+  const productsScrollContainerRef = React.useRef<HTMLDivElement>(null);
+  const ordersScrollContainerRef = React.useRef<HTMLDivElement>(null);
 
   // Advanced Dashboard and Order Filtering States
   const [monthlyGoal, setMonthlyGoal] = useState<number>(() => {
@@ -401,6 +515,18 @@ export default function AdminPanel({
       sourcingDescription: tempSourcingDescription.trim(),
       sourcingBadge: tempSourcingBadge.trim(),
       enabledCurrencies: tempEnabledCurrencies,
+      esewaAccountPhone: tempEsewaPhone.trim(),
+      esewaAccountName: tempEsewaName.trim(),
+      khaltiAccountPhone: tempKhaltiPhone.trim(),
+      khaltiAccountName: tempKhaltiName.trim(),
+      bankName: tempBankName.trim(),
+      bankAccountNumber: tempBankAccountNumber.trim(),
+      bankAccountName: tempBankAccountName.trim(),
+      bankBranch: tempBankBranch.trim(),
+      paypalEmail: tempPaypalEmail.trim(),
+      paypalAccountName: tempPaypalName.trim(),
+      codInstructions: tempCodInstructions.trim(),
+      enabledPayments: tempEnabledPayments,
     });
     setSettingsSuccess('Boutique Settings updated successfully!');
     setTimeout(() => setSettingsSuccess(''), 4000);
@@ -505,6 +631,114 @@ export default function AdminPanel({
       onAddProduct(productData);
     }
     resetForm();
+  };
+
+  // Coupon admin handlers
+  const handleSaveCoupon = (e: React.FormEvent) => {
+    e.preventDefault();
+    setCouponErrorMsg('');
+
+    const trimmedCode = couponCode.trim().toUpperCase();
+    if (!trimmedCode) {
+      setCouponErrorMsg('Coupon code cannot be empty.');
+      return;
+    }
+
+    const currentCoupons: Coupon[] = settings?.coupons || [
+      { id: 'c1', code: 'WELCOME10', discountPercent: 10, applicableProductId: 'all', isActive: true, usedByPhones: [] },
+      { id: 'c2', code: 'LIPSTICK25', discountPercent: 25, applicableProductId: 'p1', isActive: true, usedByPhones: [] },
+      { id: 'c3', code: 'GLOW20', discountPercent: 20, applicableProductId: 'p2', isActive: true, usedByPhones: [] }
+    ];
+
+    // Check duplicate code
+    const duplicate = currentCoupons.find(c => c.code === trimmedCode && c.id !== editingCouponId);
+    if (duplicate) {
+      setCouponErrorMsg(`A coupon with code "${trimmedCode}" already exists.`);
+      return;
+    }
+
+    let updatedCoupons: Coupon[];
+
+    if (editingCouponId) {
+      updatedCoupons = currentCoupons.map(c => {
+        if (c.id === editingCouponId) {
+          return {
+            ...c,
+            code: trimmedCode,
+            discountPercent: Number(couponDiscount),
+            applicableProductId: couponProduct,
+            isActive: couponActive
+          };
+        }
+        return c;
+      });
+    } else {
+      const newCoupon: Coupon = {
+        id: 'coupon-' + Math.random().toString(36).substr(2, 9),
+        code: trimmedCode,
+        discountPercent: Number(couponDiscount),
+        applicableProductId: couponProduct,
+        isActive: couponActive,
+        usedByPhones: []
+      };
+      updatedCoupons = [...currentCoupons, newCoupon];
+    }
+
+    onUpdateSettings({
+      ...settings,
+      coupons: updatedCoupons
+    });
+
+    handleResetCouponForm();
+  };
+
+  const handleEditCouponClick = (coupon: Coupon) => {
+    setEditingCouponId(coupon.id);
+    setCouponCode(coupon.code);
+    setCouponDiscount(coupon.discountPercent);
+    setCouponProduct(coupon.applicableProductId);
+    setCouponActive(coupon.isActive);
+    setCouponErrorMsg('');
+  };
+
+  const handleDeleteCoupon = (id: string) => {
+    const currentCoupons: Coupon[] = settings?.coupons || [
+      { id: 'c1', code: 'WELCOME10', discountPercent: 10, applicableProductId: 'all', isActive: true, usedByPhones: [] },
+      { id: 'c2', code: 'LIPSTICK25', discountPercent: 25, applicableProductId: 'p1', isActive: true, usedByPhones: [] },
+      { id: 'c3', code: 'GLOW20', discountPercent: 20, applicableProductId: 'p2', isActive: true, usedByPhones: [] }
+    ];
+    const updatedCoupons = currentCoupons.filter(c => c.id !== id);
+    onUpdateSettings({
+      ...settings,
+      coupons: updatedCoupons
+    });
+  };
+
+  const handleToggleCouponActive = (coupon: Coupon) => {
+    const currentCoupons: Coupon[] = settings?.coupons || [
+      { id: 'c1', code: 'WELCOME10', discountPercent: 10, applicableProductId: 'all', isActive: true, usedByPhones: [] },
+      { id: 'c2', code: 'LIPSTICK25', discountPercent: 25, applicableProductId: 'p1', isActive: true, usedByPhones: [] },
+      { id: 'c3', code: 'GLOW20', discountPercent: 20, applicableProductId: 'p2', isActive: true, usedByPhones: [] }
+    ];
+    const updatedCoupons = currentCoupons.map(c => {
+      if (c.id === coupon.id) {
+        return { ...c, isActive: !c.isActive };
+      }
+      return c;
+    });
+    onUpdateSettings({
+      ...settings,
+      coupons: updatedCoupons
+    });
+  };
+
+  const handleResetCouponForm = () => {
+    setEditingCouponId(null);
+    setCouponCode('');
+    setCouponDiscount(10);
+    setCouponProduct('all');
+    setCouponActive(true);
+    setCouponErrorMsg('');
   };
 
   // Shipping management functions
@@ -968,6 +1202,55 @@ export default function AdminPanel({
     setTimeout(() => setCopiedText(false), 2500);
   };
 
+  // Virtualization variables and media queries
+  const is2Xl = useMediaQuery('(min-width: 1536px)');
+  const isMobile = useMediaQuery('(max-width: 640px)');
+  
+  // Products Virtualization
+  const getFilteredProducts = () => {
+    return products.filter(p => {
+      const pBrand = p.brand || 'Mahi Creations';
+      const matchesSearch = p.name.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
+                            pBrand.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
+                            p.category.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
+                            p.id.toLowerCase().includes(productSearchQuery.toLowerCase());
+      const matchesCategory = productCategoryFilter === 'All' || p.category === productCategoryFilter;
+      const matchesBrand = productBrandFilter === 'All' || pBrand === productBrandFilter;
+      return matchesSearch && matchesCategory && matchesBrand;
+    });
+  };
+
+  const productCols = is2Xl ? 2 : 1;
+  const productRowHeight = is2Xl ? 250 : (isMobile ? 395 : 250);
+  const topFilteredProducts = getFilteredProducts();
+  const productRows = chunkArray(topFilteredProducts, productCols);
+
+  const {
+    visibleItems: visibleProductRows,
+    topPadding: productsTopPadding,
+    bottomPadding: productsBottomPadding,
+  } = useVirtual({
+    items: productRows,
+    itemHeight: productRowHeight,
+    containerRef: productsScrollContainerRef,
+    buffer: 4,
+  });
+
+  // Orders Virtualization
+  const topFilteredOrders = getFilteredOrders();
+  const orderRowHeight = 94; // Fixed height of an order row on desktop/tablet
+
+  const {
+    visibleItems: visibleOrders,
+    topPadding: ordersTopPadding,
+    bottomPadding: ordersBottomPadding,
+  } = useVirtual({
+    items: topFilteredOrders,
+    itemHeight: orderRowHeight,
+    containerRef: ordersScrollContainerRef,
+    buffer: 6,
+  });
+
   if (!isAuthenticated) {
     return (
       <div className="max-w-md mx-auto py-16 px-4 font-sans">
@@ -1080,6 +1363,158 @@ export default function AdminPanel({
               </div>
             </div>
 
+            {/* Quick-Search & Command Hub */}
+            <div className="relative border-b border-clay-light pb-4">
+              <label className="block text-[9px] uppercase tracking-wider font-extrabold text-neutral-400 mb-1.5">
+                ⚡ Quick Nav & Command Hub
+              </label>
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-neutral-400">
+                  <Search className="w-3.5 h-3.5" />
+                </span>
+                <input
+                  type="text"
+                  placeholder="Type settings, products, orders..."
+                  value={globalDashboardSearch}
+                  onChange={(e) => setGlobalDashboardSearch(e.target.value)}
+                  className="w-full pl-9 pr-8 py-2 bg-neutral-50 hover:bg-neutral-100/50 border border-clay rounded-xl text-xs text-dark focus:outline-none focus:ring-1 focus:ring-brand font-medium placeholder-neutral-400 transition"
+                />
+                {globalDashboardSearch && (
+                  <button
+                    onClick={() => setGlobalDashboardSearch('')}
+                    className="absolute inset-y-0 right-0 flex items-center pr-2.5 text-neutral-400 hover:text-dark cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Suggestions Dropdown */}
+              {globalDashboardSearch.trim().length > 0 && (() => {
+                const query = globalDashboardSearch.toLowerCase().trim();
+                const navShortcuts = [
+                  { label: '📊 Dashboard Summary', tab: 'dashboard' },
+                  { label: '💄 Manage Makeup Products', tab: 'products' },
+                  { label: '➕ Add Cosmetic Item', tab: 'products', action: 'add-product' },
+                  { label: '🚚 Customer Checkout list', tab: 'orders' },
+                  { label: '⭐ Customer Comments & Reviews', tab: 'reviews' },
+                  { label: '🎟️ Automated Discount Coupons', tab: 'coupons' },
+                  { label: '🔐 Security & Admin Credentials', tab: 'settings', subTab: 'credentials' },
+                  { label: '📱 WhatsApp & Social Links', tab: 'settings', subTab: 'socials' },
+                  { label: '🌟 Homepage Product Showcase', tab: 'settings', subTab: 'showcase' },
+                  { label: '📝 Footer Contact & About Details', tab: 'settings', subTab: 'footer' },
+                  { label: '🎁 Promo Ads & Banners Slider', tab: 'settings', subTab: 'promo-slides' },
+                  { label: '🏠 Homepage Custom Text Layouts', tab: 'settings', subTab: 'homepage' },
+                  { label: '💎 VIP Sourcing Contacts', tab: 'settings', subTab: 'sourcing' },
+                ];
+                const matchedNavs = navShortcuts.filter(item => item.label.toLowerCase().includes(query));
+                const matchedProducts = products.filter(p => 
+                  p.name.toLowerCase().includes(query) || 
+                  p.brand.toLowerCase().includes(query) || 
+                  p.id.toLowerCase().includes(query)
+                ).slice(0, 4);
+                const matchedOrders = orders.filter(o => 
+                  o.id.toLowerCase().includes(query) || 
+                  o.customerName.toLowerCase().includes(query) || 
+                  o.customerPhone.toLowerCase().includes(query)
+                ).slice(0, 4);
+
+                const hasResults = matchedNavs.length > 0 || matchedProducts.length > 0 || matchedOrders.length > 0;
+
+                return (
+                  <div className="absolute left-0 right-0 mt-1.5 bg-white border border-clay rounded-2xl shadow-xl z-50 max-h-[300px] overflow-y-auto divide-y divide-clay-light">
+                    {!hasResults ? (
+                      <div className="p-3 text-center text-neutral-400 text-[10px] font-medium leading-normal">
+                        No matches found. Try checking spellings!
+                      </div>
+                    ) : (
+                      <>
+                        {/* Navigation section */}
+                        {matchedNavs.length > 0 && (
+                          <div className="p-2">
+                            <p className="px-2 pb-1 text-[8px] font-black uppercase tracking-wider text-neutral-400">Settings & Pages</p>
+                            <div className="space-y-0.5">
+                              {matchedNavs.map((n, idx) => (
+                                <button
+                                  key={idx}
+                                  onClick={() => {
+                                    setActiveTab(n.tab as any);
+                                    if (n.subTab) {
+                                      setSettingsSubTab(n.subTab as any);
+                                    }
+                                    if (n.action === 'add-product') {
+                                      setIsAdding(true);
+                                      setIsEditing(null);
+                                    } else {
+                                      resetForm();
+                                    }
+                                    setGlobalDashboardSearch('');
+                                  }}
+                                  className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-50 rounded-lg text-[10.5px] font-bold text-dark transition flex items-center justify-between"
+                                >
+                                  <span>{n.label}</span>
+                                  <ChevronRight className="w-3 h-3 text-neutral-300" />
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Products Section */}
+                        {matchedProducts.length > 0 && (
+                          <div className="p-2">
+                            <p className="px-2 pb-1 text-[8px] font-black uppercase tracking-wider text-neutral-400">Products ({matchedProducts.length})</p>
+                            <div className="space-y-0.5">
+                              {matchedProducts.map((p) => (
+                                <button
+                                  key={p.id}
+                                  onClick={() => {
+                                    setActiveTab('products');
+                                    setProductSearchQuery(p.name);
+                                    setGlobalDashboardSearch('');
+                                  }}
+                                  className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-50 rounded-lg text-[10px] font-medium text-dark transition flex items-center justify-between"
+                                >
+                                  <span className="truncate pr-2 font-bold text-dark text-xs">{p.name}</span>
+                                  <span className="text-[9px] font-black font-mono text-brand bg-brand/5 px-1 rounded flex-shrink-0">Stock: {p.stockCount}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Orders Section */}
+                        {matchedOrders.length > 0 && (
+                          <div className="p-2">
+                            <p className="px-2 pb-1 text-[8px] font-black uppercase tracking-wider text-neutral-400">Orders ({matchedOrders.length})</p>
+                            <div className="space-y-0.5">
+                              {matchedOrders.map((o) => (
+                                <button
+                                  key={o.id}
+                                  onClick={() => {
+                                    setActiveTab('orders');
+                                    setOrderSearch(o.id);
+                                    setGlobalDashboardSearch('');
+                                  }}
+                                  className="w-full text-left px-2.5 py-1.5 hover:bg-neutral-50 rounded-lg text-[10px] font-medium text-dark transition flex items-center justify-between"
+                                >
+                                  <div className="truncate flex flex-col">
+                                    <span className="font-mono font-black text-dark text-[9px]">{o.id}</span>
+                                    <span className="text-neutral-400 text-[9px] truncate">{o.customerName}</span>
+                                  </div>
+                                  <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 px-1 rounded flex-shrink-0">{o.status}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+
             {/* Sidebar Tab Triggers */}
             <div className="space-y-1.5">
               <button
@@ -1175,10 +1610,10 @@ export default function AdminPanel({
                 }`}
               >
                 <span className="flex items-center gap-3">
-                  <Zap className="w-4.5 h-4.5 text-brand stroke-[1.8]" />
-                  Extensible Upgrades
+                  <Ticket className="w-4.5 h-4.5 text-brand stroke-[1.8]" />
+                  Discount Coupons
                 </span>
-                <span className="text-[8px] bg-brand text-white px-1.5 py-0.5 rounded font-black">NEW</span>
+                <span className="text-[8px] bg-brand text-white px-1.5 py-0.5 rounded font-black">ACTIVE</span>
               </button>
             </div>
 
@@ -2533,194 +2968,201 @@ export default function AdminPanel({
                         <p className="text-xs font-bold text-neutral-400">No matching products found.</p>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 2xl:grid-cols-2 gap-5">
-                        {filteredProducts.map((p) => {
-                          const discountedPrice = p.price - (p.price * p.discountPercent / 100);
-                          const enteredPrice = p.enteredPrice || p.price;
-                          const enteredCurrency = p.enteredCurrency || 'NPR';
-                          const baseVis = getCurrencyVisual('NPR');
-                          const entVis = getCurrencyVisual(enteredCurrency);
-                          const prodBrand = p.brand || 'Mahi Creations';
+                      <div 
+                        ref={productsScrollContainerRef}
+                        className="max-h-[680px] overflow-y-auto border border-clay rounded-3xl bg-neutral-50/55 p-4.5 scrollbar-thin"
+                      >
+                        <div style={{ paddingTop: productsTopPadding, paddingBottom: productsBottomPadding }}>
+                          <div className="grid grid-cols-1 2xl:grid-cols-2 gap-5">
+                            {visibleProductRows.flatMap(row => row).map((p) => {
+                              const discountedPrice = p.price - (p.price * p.discountPercent / 100);
+                              const enteredPrice = p.enteredPrice || p.price;
+                              const enteredCurrency = p.enteredCurrency || 'NPR';
+                              const baseVis = getCurrencyVisual('NPR');
+                              const entVis = getCurrencyVisual(enteredCurrency);
+                              const prodBrand = p.brand || 'Mahi Creations';
 
-                          return (
-                            <div
-                              key={p.id}
-                              className="bg-white p-5 rounded-2xl border border-clay hover:border-brand transition-all relative shadow-sm hover:shadow-md flex flex-col sm:flex-row gap-5 justify-between"
-                            >
-                              {/* Image and Primary Information */}
-                              <div className="flex gap-4 items-start flex-grow min-w-0">
-                                {/* Product Image */}
-                                <div className="w-16 h-20 bg-clay-light/50 border border-clay rounded-lg overflow-hidden flex-shrink-0 relative">
-                                  <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
-                                  <span className="absolute bottom-1 left-1 text-[8px] bg-dark/75 text-white px-1 py-0.5 rounded font-mono font-black">
-                                    {p.id}
-                                  </span>
-                                </div>
-
-                                {/* Details layout */}
-                                <div className="space-y-1.5 min-w-0 flex-grow">
-                                  <div className="flex flex-wrap gap-1.5 items-center">
-                                    <span className="text-[8px] uppercase tracking-wider font-bold text-brand bg-clay-light px-1.5 py-0.5 rounded">
-                                      {p.category}
-                                    </span>
-                                    <span className="text-[8px] uppercase tracking-wider font-bold text-dark bg-neutral-100 border border-clay px-1.5 py-0.5 rounded">
-                                      🏷️ {prodBrand}
-                                    </span>
-                                  </div>
-                                  <h5 className="font-serif text-sm font-black text-dark tracking-tight leading-snug truncate" title={p.name}>
-                                    {p.name}
-                                  </h5>
-                                  <p className="text-[11px] text-neutral-500 font-light line-clamp-2 leading-relaxed" title={p.description}>
-                                    {p.description}
-                                  </p>
-                                </div>
-                              </div>
-
-                              {/* Inventory / Price / Actions Column with Rigid Alignment */}
-                              <div className="w-full sm:w-52 flex flex-col justify-between items-stretch gap-3 border-t sm:border-t-0 sm:border-l border-clay-light pt-3.5 sm:pt-0 sm:pl-4.5 flex-shrink-0 animate-fade-in">
-                                {/* Stock status & Stock Count */}
-                                <div className="flex items-center justify-between text-[10px]">
-                                  <span className={`inline-flex items-center gap-1 font-bold uppercase tracking-wider ${
-                                    p.inStock ? 'text-emerald-700' : 'text-rose-700'
-                                  }`}>
-                                    <span className={`w-1.5 h-1.5 rounded-full ${p.inStock ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
-                                    {p.inStock ? 'In Stock' : 'Sold Out'}
-                                  </span>
-                                  {p.stockCount !== undefined && (
-                                    <span className={`font-mono font-bold ${
-                                      p.stockCount < 5 ? 'text-rose-600' : 'text-neutral-500'
-                                    }`}>
-                                      Count: {p.stockCount}
-                                    </span>
-                                  )}
-                                </div>
-
-                                {/* Aligned Currency Logos & Pricing */}
-                                <div className="space-y-1 bg-neutral-50 p-2 rounded-xl border border-clay-light">
-                                  {/* Entered Price Currency Logo & Value */}
-                                  <div className="flex items-center justify-between text-[11px] font-bold">
-                                    <span className="text-neutral-400 flex items-center gap-1 text-[9px]">
-                                      <span className="text-xs">{entVis.flag}</span> {entVis.symbol} Price
-                                    </span>
-                                    <span className="text-dark font-black">
-                                      {entVis.symbol === 'Rs.' ? 'Rs. ' : `${entVis.symbol} `}
-                                      {(enteredPrice - (enteredPrice * p.discountPercent / 100)).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-                                    </span>
-                                  </div>
-
-                                  {/* Base Price (NPR) with Nepal Flag Logo */}
-                                  {enteredCurrency !== 'NPR' && (
-                                    <div className="flex items-center justify-between text-[9px] border-t border-dashed border-clay-dark/30 pt-1 text-neutral-500 font-medium">
-                                      <span className="flex items-center gap-1">
-                                        <span>{baseVis.flag}</span> NPR (Base)
-                                      </span>
-                                      <span>
-                                        Rs. {Math.round(discountedPrice).toLocaleString('en-NP')}
+                              return (
+                                <div
+                                  key={p.id}
+                                  className="bg-white p-5 rounded-2xl border border-clay hover:border-brand transition-all relative shadow-sm hover:shadow-md flex flex-col sm:flex-row gap-5 justify-between"
+                                >
+                                  {/* Image and Primary Information */}
+                                  <div className="flex gap-4 items-start flex-grow min-w-0">
+                                    {/* Product Image */}
+                                    <div className="w-16 h-20 bg-clay-light/50 border border-clay rounded-lg overflow-hidden flex-shrink-0 relative">
+                                      <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
+                                      <span className="absolute bottom-1 left-1 text-[8px] bg-dark/75 text-white px-1 py-0.5 rounded font-mono font-black">
+                                        {p.id}
                                       </span>
                                     </div>
-                                  )}
-                                  
-                                  {p.discountPercent > 0 && (
-                                    <div className="text-[8px] text-right font-bold text-rose-600">
-                                      {p.discountPercent}% Discount Applied
-                                    </div>
-                                  )}
-                                </div>
 
-                                {/* Profit & Cost Analysis Section */}
-                                {(() => {
-                                  const costNpr = p.costPrice || Math.round(p.price * 0.6);
-                                  const profitNpr = discountedPrice - costNpr;
-                                  const markup = costNpr > 0 ? (profitNpr / costNpr) * 100 : 0;
-                                  const rate = CURRENCIES.find(c => c.code === enteredCurrency)?.rate || 1.0;
-                                  const costInEnteredVal = Math.round(costNpr * rate);
-                                  
-                                  return (
-                                    <div className="bg-emerald-50/60 border border-emerald-100 p-2 rounded-xl text-[10px] space-y-1 animate-fade-in">
-                                      <div className="flex items-center justify-between text-neutral-500 font-medium">
-                                        <span>📥 Cost Price (क्रय मूल्य):</span>
-                                        <span className="font-semibold text-dark">
-                                          Rs. {costNpr.toLocaleString('en-NP')}
-                                          {enteredCurrency !== 'NPR' && (
-                                            <span className="text-[8px] text-neutral-400 font-normal ml-1">
-                                              ({entVis.symbol}{costInEnteredVal.toLocaleString()})
+                                    {/* Details layout */}
+                                    <div className="space-y-1.5 min-w-0 flex-grow">
+                                      <div className="flex flex-wrap gap-1.5 items-center">
+                                        <span className="text-[8px] uppercase tracking-wider font-bold text-brand bg-clay-light px-1.5 py-0.5 rounded">
+                                          {p.category}
+                                        </span>
+                                        <span className="text-[8px] uppercase tracking-wider font-bold text-dark bg-neutral-100 border border-clay px-1.5 py-0.5 rounded">
+                                          🏷️ {prodBrand}
+                                        </span>
+                                      </div>
+                                      <h5 className="font-serif text-sm font-black text-dark tracking-tight leading-snug truncate" title={p.name}>
+                                        {p.name}
+                                      </h5>
+                                      <p className="text-[11px] text-neutral-500 font-light line-clamp-2 leading-relaxed" title={p.description}>
+                                        {p.description}
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  {/* Inventory / Price / Actions Column with Rigid Alignment */}
+                                  <div className="w-full sm:w-52 flex flex-col justify-between items-stretch gap-3 border-t sm:border-t-0 sm:border-l border-clay-light pt-3.5 sm:pt-0 sm:pl-4.5 flex-shrink-0 animate-fade-in">
+                                    {/* Stock status & Stock Count */}
+                                    <div className="flex items-center justify-between text-[10px]">
+                                      <span className={`inline-flex items-center gap-1 font-bold uppercase tracking-wider ${
+                                        p.inStock ? 'text-emerald-700' : 'text-rose-700'
+                                      }`}>
+                                        <span className={`w-1.5 h-1.5 rounded-full ${p.inStock ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                                        {p.inStock ? 'In Stock' : 'Sold Out'}
+                                      </span>
+                                      {p.stockCount !== undefined && (
+                                        <span className={`font-mono font-bold ${
+                                          p.stockCount < 5 ? 'text-rose-600' : 'text-neutral-500'
+                                        }`}>
+                                          Count: {p.stockCount}
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {/* Aligned Currency Logos & Pricing */}
+                                    <div className="space-y-1 bg-neutral-50 p-2 rounded-xl border border-clay-light">
+                                      {/* Entered Price Currency Logo & Value */}
+                                      <div className="flex items-center justify-between text-[11px] font-bold">
+                                        <span className="text-neutral-400 flex items-center gap-1 text-[9px]">
+                                          <span className="text-xs">{entVis.flag}</span> {entVis.symbol} Price
+                                        </span>
+                                        <span className="text-dark font-black">
+                                          {entVis.symbol === 'Rs.' ? 'Rs. ' : `${entVis.symbol} `}
+                                          {(enteredPrice - (enteredPrice * p.discountPercent / 100)).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                                        </span>
+                                      </div>
+
+                                      {/* Base Price (NPR) with Nepal Flag Logo */}
+                                      {enteredCurrency !== 'NPR' && (
+                                        <div className="flex items-center justify-between text-[9px] border-t border-dashed border-clay-dark/30 pt-1 text-neutral-500 font-medium">
+                                          <span className="flex items-center gap-1">
+                                            <span>{baseVis.flag}</span> NPR (Base)
+                                          </span>
+                                          <span>
+                                            Rs. {Math.round(discountedPrice).toLocaleString('en-NP')}
+                                          </span>
+                                        </div>
+                                      )}
+                                      
+                                      {p.discountPercent > 0 && (
+                                        <div className="text-[8px] text-right font-bold text-rose-600">
+                                          {p.discountPercent}% Discount Applied
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* Profit & Cost Analysis Section */}
+                                    {(() => {
+                                      const costNpr = p.costPrice || Math.round(p.price * 0.6);
+                                      const profitNpr = discountedPrice - costNpr;
+                                      const markup = costNpr > 0 ? (profitNpr / costNpr) * 100 : 0;
+                                      const rate = CURRENCIES.find(c => c.code === enteredCurrency)?.rate || 1.0;
+                                      const costInEnteredVal = Math.round(costNpr * rate);
+                                      
+                                      return (
+                                        <div className="bg-emerald-50/60 border border-emerald-100 p-2 rounded-xl text-[10px] space-y-1 animate-fade-in">
+                                          <div className="flex items-center justify-between text-neutral-500 font-medium">
+                                            <span>📥 Cost Price (क्रय मूल्य):</span>
+                                            <span className="font-semibold text-dark">
+                                              Rs. {costNpr.toLocaleString('en-NP')}
+                                              {enteredCurrency !== 'NPR' && (
+                                                <span className="text-[8px] text-neutral-400 font-normal ml-1">
+                                                  ({entVis.symbol}{costInEnteredVal.toLocaleString()})
+                                                </span>
+                                              )}
                                             </span>
-                                          )}
-                                        </span>
-                                      </div>
-                                      <div className="flex items-center justify-between font-bold text-emerald-800">
-                                        <span>💰 Net Profit (खुद नाफा):</span>
-                                        <span className="font-mono">
-                                          Rs. {Math.round(profitNpr).toLocaleString('en-NP')}
-                                        </span>
-                                      </div>
-                                      <div className="flex items-center justify-between text-[9px] text-emerald-700/80 font-semibold border-t border-dashed border-emerald-200/50 pt-1">
-                                        <span>📈 Profit Margin / Markup:</span>
-                                        <span>
-                                          {markup.toFixed(1)}% Profit
-                                        </span>
-                                      </div>
+                                          </div>
+                                          <div className="flex items-center justify-between font-bold text-emerald-800">
+                                            <span>💰 Net Profit (खुद नाफा):</span>
+                                            <span className="font-mono">
+                                              Rs. {Math.round(profitNpr).toLocaleString('en-NP')}
+                                            </span>
+                                          </div>
+                                          <div className="flex items-center justify-between text-[9px] text-emerald-700/80 font-semibold border-t border-dashed border-emerald-200/50 pt-1">
+                                            <span>📈 Profit Margin / Markup:</span>
+                                            <span>
+                                              {markup.toFixed(1)}% Profit
+                                            </span>
+                                          </div>
+                                        </div>
+                                      );
+                                    })()}
+
+                                    {/* Aligned Control Buttons */}
+                                    <div className="flex items-center justify-between pt-1 border-t border-clay-light text-[10px] font-bold gap-2">
+                                      <button
+                                        onClick={() => handleOpenEditForm(p)}
+                                        className="text-brand hover:text-dark inline-flex items-center gap-1 cursor-pointer transition-colors"
+                                      >
+                                        <Edit className="w-3.5 h-3.5" />
+                                        Edit
+                                      </button>
+
+                                      <button
+                                        onClick={() => {
+                                          onUpdateProduct({
+                                            ...p,
+                                            isVisible: p.isVisible !== false ? false : true
+                                          });
+                                        }}
+                                        className={`inline-flex items-center gap-1 cursor-pointer transition-colors ${
+                                          p.isVisible !== false ? 'text-emerald-600 hover:text-emerald-800' : 'text-neutral-400 hover:text-neutral-600'
+                                        }`}
+                                        title={p.isVisible !== false ? "Visible on shop. Click to Hide" : "Hidden from shop. Click to Show"}
+                                      >
+                                        {p.isVisible !== false ? (
+                                          <>
+                                            <Eye className="w-3.5 h-3.5" />
+                                            Show
+                                          </>
+                                        ) : (
+                                          <>
+                                            <EyeOff className="w-3.5 h-3.5" />
+                                            Hide
+                                          </>
+                                        )}
+                                      </button>
+                                      
+                                      <button
+                                        onClick={() => setSharingProduct(p)}
+                                        className="text-neutral-500 hover:text-dark inline-flex items-center gap-1 cursor-pointer transition-colors"
+                                        title="Social Sharing"
+                                      >
+                                        <Share2 className="w-3.5 h-3.5 text-brand" />
+                                        Share
+                                      </button>
+
+                                      <button
+                                        onClick={() => onDeleteProduct(p.id)}
+                                        className="text-red-600 hover:text-red-800 inline-flex items-center gap-1 cursor-pointer transition-colors"
+                                        title="Delete Product"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                        Delete
+                                      </button>
                                     </div>
-                                  );
-                                })()}
-
-                                {/* Aligned Control Buttons */}
-                                <div className="flex items-center justify-between pt-1 border-t border-clay-light text-[10px] font-bold gap-2">
-                                  <button
-                                    onClick={() => handleOpenEditForm(p)}
-                                    className="text-brand hover:text-dark inline-flex items-center gap-1 cursor-pointer transition-colors"
-                                  >
-                                    <Edit className="w-3.5 h-3.5" />
-                                    Edit
-                                  </button>
-
-                                  <button
-                                    onClick={() => {
-                                      onUpdateProduct({
-                                        ...p,
-                                        isVisible: p.isVisible !== false ? false : true
-                                      });
-                                    }}
-                                    className={`inline-flex items-center gap-1 cursor-pointer transition-colors ${
-                                      p.isVisible !== false ? 'text-emerald-600 hover:text-emerald-800' : 'text-neutral-400 hover:text-neutral-600'
-                                    }`}
-                                    title={p.isVisible !== false ? "Visible on shop. Click to Hide" : "Hidden from shop. Click to Show"}
-                                  >
-                                    {p.isVisible !== false ? (
-                                      <>
-                                        <Eye className="w-3.5 h-3.5" />
-                                        Show
-                                      </>
-                                    ) : (
-                                      <>
-                                        <EyeOff className="w-3.5 h-3.5" />
-                                        Hide
-                                      </>
-                                    )}
-                                  </button>
-                                  
-                                  <button
-                                    onClick={() => setSharingProduct(p)}
-                                    className="text-neutral-500 hover:text-dark inline-flex items-center gap-1 cursor-pointer transition-colors"
-                                    title="Social Sharing"
-                                  >
-                                    <Share2 className="w-3.5 h-3.5 text-brand" />
-                                    Share
-                                  </button>
-
-                                  <button
-                                    onClick={() => onDeleteProduct(p.id)}
-                                    className="text-red-600 hover:text-red-800 inline-flex items-center gap-1 cursor-pointer transition-colors"
-                                    title="Delete Product"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                    Delete
-                                  </button>
+                                  </div>
                                 </div>
-                              </div>
-                            </div>
-                          );
-                        })}
+                              );
+                            })}
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -2867,9 +3309,12 @@ export default function AdminPanel({
                   <p className="text-neutral-500 text-xs font-light max-w-md mx-auto">No custom makeup checkouts meet your currently active filter selections. Try resetting the filters or typing a different search term!</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto border border-clay rounded-2xl bg-white shadow-sm">
-                  <table className="min-w-full text-xs text-neutral-600 text-left">
-                    <thead className="bg-clay-light/40 border-b border-clay uppercase tracking-[0.15em] text-[10px] text-neutral-500 font-bold">
+                <div 
+                  ref={ordersScrollContainerRef}
+                  className="max-h-[600px] overflow-y-auto border border-clay rounded-2xl bg-white shadow-sm scrollbar-thin relative"
+                >
+                  <table className="min-w-full text-xs text-neutral-600 text-left relative">
+                    <thead className="bg-clay-light border-b border-clay uppercase tracking-[0.15em] text-[10px] text-neutral-500 font-bold sticky top-0 z-10 backdrop-blur-md">
                       <tr>
                         <th className="p-4">Order ID</th>
                         <th className="p-4">Customer Details</th>
@@ -2880,7 +3325,12 @@ export default function AdminPanel({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-clay-light font-medium">
-                      {getFilteredOrders().map((o) => (
+                      {ordersTopPadding > 0 && (
+                        <tr>
+                          <td colSpan={6} style={{ height: ordersTopPadding }} />
+                        </tr>
+                      )}
+                      {visibleOrders.map((o) => (
                         <tr key={o.id} className="hover:bg-bg-warm/30 transition">
                           
                           {/* Order ID */}
@@ -2961,6 +3411,11 @@ export default function AdminPanel({
 
                         </tr>
                       ))}
+                      {ordersBottomPadding > 0 && (
+                        <tr>
+                          <td colSpan={6} style={{ height: ordersBottomPadding }} />
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -3114,12 +3569,12 @@ export default function AdminPanel({
                 </div>
               )}
 
-              {/* Settings Sub-Tabs Navigation to minimize scrolling */}
-              <div className="flex flex-wrap items-center gap-1.5 p-1 bg-neutral-100 rounded-xl max-w-2xl border border-clay-light/80">
+              {/* Settings Sub-Tabs Navigation to minimize scrolling - Single line, scrollable */}
+              <div className="flex flex-nowrap overflow-x-auto scrollbar-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] items-center gap-1.5 p-1 bg-neutral-100 rounded-xl w-full border border-clay-light/80 pb-2">
                 <button
                   type="button"
                   onClick={() => setSettingsSubTab('credentials')}
-                  className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer ${
+                  className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer whitespace-nowrap shrink-0 ${
                     settingsSubTab === 'credentials'
                       ? 'bg-white text-brand shadow-sm font-extrabold'
                       : 'text-neutral-500 hover:text-dark'
@@ -3131,7 +3586,7 @@ export default function AdminPanel({
                 <button
                   type="button"
                   onClick={() => setSettingsSubTab('socials')}
-                  className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer ${
+                  className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer whitespace-nowrap shrink-0 ${
                     settingsSubTab === 'socials'
                       ? 'bg-white text-brand shadow-sm font-extrabold'
                       : 'text-neutral-500 hover:text-dark'
@@ -3143,7 +3598,7 @@ export default function AdminPanel({
                 <button
                   type="button"
                   onClick={() => setSettingsSubTab('showcase')}
-                  className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer ${
+                  className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer whitespace-nowrap shrink-0 ${
                     settingsSubTab === 'showcase'
                       ? 'bg-white text-brand shadow-sm font-extrabold'
                       : 'text-neutral-500 hover:text-dark'
@@ -3155,7 +3610,7 @@ export default function AdminPanel({
                 <button
                   type="button"
                   onClick={() => setSettingsSubTab('footer')}
-                  className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer ${
+                  className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer whitespace-nowrap shrink-0 ${
                     settingsSubTab === 'footer'
                       ? 'bg-white text-brand shadow-sm font-extrabold'
                       : 'text-neutral-500 hover:text-dark'
@@ -3167,7 +3622,7 @@ export default function AdminPanel({
                 <button
                   type="button"
                   onClick={() => setSettingsSubTab('promo-slides')}
-                  className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer ${
+                  className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer whitespace-nowrap shrink-0 ${
                     settingsSubTab === 'promo-slides'
                       ? 'bg-white text-brand shadow-sm font-extrabold'
                       : 'text-neutral-500 hover:text-dark'
@@ -3179,7 +3634,7 @@ export default function AdminPanel({
                 <button
                   type="button"
                   onClick={() => setSettingsSubTab('homepage')}
-                  className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer ${
+                  className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer whitespace-nowrap shrink-0 ${
                     settingsSubTab === 'homepage'
                       ? 'bg-white text-brand shadow-sm font-extrabold'
                       : 'text-neutral-500 hover:text-dark'
@@ -3191,7 +3646,7 @@ export default function AdminPanel({
                 <button
                   type="button"
                   onClick={() => setSettingsSubTab('sourcing')}
-                  className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer ${
+                  className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer whitespace-nowrap shrink-0 ${
                     settingsSubTab === 'sourcing'
                       ? 'bg-white text-brand shadow-sm font-extrabold'
                       : 'text-neutral-500 hover:text-dark'
@@ -3200,17 +3655,29 @@ export default function AdminPanel({
                   <Mail className="w-3.5 h-3.5 text-brand" />
                   <span>Sourcing VIP Banner</span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setSettingsSubTab('payments')}
+                  className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer whitespace-nowrap shrink-0 ${
+                    settingsSubTab === 'payments'
+                      ? 'bg-white text-brand shadow-sm font-extrabold'
+                      : 'text-neutral-500 hover:text-dark'
+                  }`}
+                >
+                  <CreditCard className="w-3.5 h-3.5 text-brand" />
+                  <span>Payments & Accounts</span>
+                </button>
               </div>
 
               <form onSubmit={handleSaveSettings} className="space-y-6 text-xs text-neutral-600">
                 
                 {/* Credentials section */}
                 {settingsSubTab === 'credentials' && (
-                  <div className="bg-clay-light/30 border border-clay/70 p-5 rounded-2xl space-y-4 animate-fade-in">
-                    <h4 className="font-serif text-sm font-bold text-dark uppercase tracking-wider flex items-center gap-2">
-                      <Key className="w-4 h-4 text-brand" />
-                      Admin Authentication Credentials
-                    </h4>
+                  <div id="settings-credentials" className="scroll-mt-24 bg-clay-light/30 border border-clay/70 p-5 rounded-2xl space-y-4 animate-fade-in">
+                  <h4 className="font-serif text-sm font-bold text-dark uppercase tracking-wider flex items-center gap-2">
+                    <Key className="w-4 h-4 text-brand" />
+                    Admin Authentication Credentials
+                  </h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1">
                         <label className="text-[10px] uppercase font-bold text-neutral-500">Admin Login Username</label>
@@ -3275,12 +3742,12 @@ export default function AdminPanel({
                         })}
                       </div>
                     </div>
-                  </div>
+                </div>
                 )}
 
                 {/* Primary Contact channel (WhatsApp number) & Social Profiles */}
                 {settingsSubTab === 'socials' && (
-                  <div className="space-y-6 animate-fade-in">
+                <div id="settings-socials" className="scroll-mt-24 space-y-6 animate-fade-in">
                     <div className="bg-clay-light/30 border border-clay/70 p-5 rounded-2xl space-y-4">
                       <h4 className="font-serif text-sm font-bold text-dark uppercase tracking-wider flex items-center gap-2">
                         <MessageSquare className="w-4 h-4 text-emerald-600" />
@@ -3368,12 +3835,12 @@ export default function AdminPanel({
                         </div>
                       </div>
                     </div>
-                  </div>
+                </div>
                 )}
 
                 {/* HOMEPAGE & SLIDER DISPLAY CONTROLS */}
                 {settingsSubTab === 'showcase' && (
-                  <div className="bg-clay-light/30 border border-clay/70 p-5 rounded-2xl space-y-6 animate-fade-in">
+                <div id="settings-showcase" className="scroll-mt-24 bg-clay-light/30 border border-clay/70 p-5 rounded-2xl space-y-6 animate-fade-in">
                     <h4 className="font-serif text-sm font-bold text-dark uppercase tracking-wider flex items-center gap-2">
                       <Sparkles className="w-4 h-4 text-brand" />
                       Boutique Showcase Display Controls
@@ -3534,12 +4001,12 @@ export default function AdminPanel({
                         </div>
                       </div>
                     </div>
-                  </div>
+                </div>
                 )}
 
                 {/* CUSTOM FOOTER STYLING CONTROLS */}
                 {settingsSubTab === 'footer' && (
-                  <div className="bg-clay-light/30 border border-clay/70 p-5 rounded-2xl space-y-4 animate-fade-in">
+                <div id="settings-footer" className="scroll-mt-24 bg-clay-light/30 border border-clay/70 p-5 rounded-2xl space-y-4 animate-fade-in">
                     <h4 className="font-serif text-sm font-bold text-dark uppercase tracking-wider flex items-center gap-2">
                       <Settings className="w-4 h-4 text-brand" />
                       Custom Footer Branding & Colors
@@ -3624,11 +4091,12 @@ export default function AdminPanel({
                         Boutique Clay Rose
                       </button>
                     </div>
-                  </div>
+                </div>
                 )}
 
+                {/* PROMO POSTS & ADS SECTION */}
                 {settingsSubTab === 'promo-slides' && (
-                  <div className="bg-clay-light/30 border border-clay/70 p-5 rounded-2xl space-y-6 animate-fade-in text-xs text-left">
+                <div id="settings-promo-slides" className="scroll-mt-24 bg-clay-light/30 border border-clay/70 p-5 rounded-2xl space-y-6 animate-fade-in text-xs text-left">
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center border-b border-clay-light pb-3 gap-2">
                       <div>
                         <h4 className="font-serif text-sm font-bold text-dark uppercase tracking-wider flex items-center gap-2">
@@ -3650,6 +4118,7 @@ export default function AdminPanel({
                             setSlideFormSubtitle('');
                             setSlideFormDescription('');
                             setSlideFormImage('');
+                            setSlideFormImageFit('cover');
                             setSlideFormLinkText('Explore Catalog');
                             setSlideFormLinkUrl('#shop-catalog');
                           }}
@@ -3717,19 +4186,144 @@ export default function AdminPanel({
                             />
                           </div>
 
-                          <div className="space-y-1 sm:col-span-2">
+                           <div className="space-y-1.5 sm:col-span-2">
                             <div className="flex justify-between items-center">
-                              <label className="text-[10px] uppercase font-bold text-neutral-500 block">Post Image URL *</label>
-                              <span className="text-[9px] text-brand font-bold">Photo first display</span>
+                              <label className="text-[10px] uppercase font-bold text-neutral-500 block">Post Image / Ad Banner *</label>
+                              <span className="text-[9px] text-brand font-black">PHOTO AUTOMATIC ADJUSTMENT SYSTEM</span>
                             </div>
-                            <input
-                              type="text"
-                              value={slideFormImage}
-                              onChange={(e) => setSlideFormImage(e.target.value)}
-                              className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark font-mono focus:ring-1 focus:ring-brand focus:outline-none"
-                              placeholder="https://images.unsplash.com/..."
-                              required
-                            />
+
+                            <div className="bg-amber-50 border border-amber-200/60 rounded-xl p-3 mb-2 text-[10px] text-amber-900 leading-relaxed text-left">
+                              <strong>📷 Banner Dimensions & Auto-Adjustment Guide:</strong>
+                              <ul className="list-disc pl-4 mt-1 space-y-0.5 text-[9px]">
+                                <li>Ideal size: <strong className="font-mono">1360 × 600 px</strong> or <strong className="font-mono">1200 × 520 px</strong> for wide banners.</li>
+                                <li><em>नेपाली:</em> ब्यानरको फोटो राम्रो देखाउनको लागि चौडाई (width) <strong>1360 px</strong> र उचाई (height) <strong>600 px</strong> भएको फोटो राख्नुहोला।</li>
+                                <li>Our system automatically scales, centers, and adjusts any photo you upload to fit flawlessly without distorting!</li>
+                              </ul>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {/* Drag & Drop Upload Container */}
+                              <div className="space-y-2">
+                                <div 
+                                  className="border-2 border-dashed border-clay hover:border-brand bg-neutral-50/50 rounded-2xl p-5 flex flex-col items-center justify-center text-center transition-all cursor-pointer relative group min-h-[160px]"
+                                  onClick={() => document.getElementById('slide-image-file-input')?.click()}
+                                >
+                                  <input
+                                    id="slide-image-file-input"
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) {
+                                        const reader = new FileReader();
+                                        reader.onloadend = () => {
+                                          if (typeof reader.result === 'string') {
+                                            setSlideFormImage(reader.result);
+                                          }
+                                        };
+                                        reader.readAsDataURL(file);
+                                      }
+                                    }}
+                                    className="hidden"
+                                  />
+                                  <UploadCloud className="w-8 h-8 text-neutral-400 group-hover:text-brand transition-colors mb-2" />
+                                  <span className="text-[10px] font-bold text-dark uppercase tracking-wider block">
+                                    Upload Banner Photo
+                                  </span>
+                                  <p className="text-[9px] text-neutral-400 mt-0.5">
+                                    Drag & drop or click to select image (PNG, JPG, WebP)
+                                  </p>
+                                </div>
+
+                                <div className="space-y-1">
+                                  <label className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider block">Or Paste Custom Image URL instead:</label>
+                                  <input
+                                    type="text"
+                                    value={slideFormImage}
+                                    onChange={(e) => setSlideFormImage(e.target.value)}
+                                    className="w-full text-xs border border-clay rounded-lg p-2 bg-white text-dark font-mono focus:ring-1 focus:ring-brand focus:outline-none"
+                                    placeholder="https://images.unsplash.com/..."
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Live Preview & Fitting Modes */}
+                              <div className="flex flex-col justify-between border border-clay-light bg-neutral-50/50 p-4 rounded-2xl text-left">
+                                <div className="space-y-3">
+                                  <span className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider block">Live Banner Aspect Preview:</span>
+                                  
+                                  {slideFormImage ? (
+                                    <div className="relative aspect-[2.1/1] w-full rounded-xl overflow-hidden border border-neutral-200/60 bg-neutral-100 flex items-center justify-center">
+                                      {slideFormImageFit === 'contain' ? (
+                                        <>
+                                          <div 
+                                            className="absolute inset-0 bg-cover bg-center blur-md opacity-30 saturate-[1.2]"
+                                            style={{ backgroundImage: `url(${slideFormImage})` }}
+                                          />
+                                          <img 
+                                            src={slideFormImage} 
+                                            alt="Preview" 
+                                            className="relative max-h-full max-w-full object-contain z-10" 
+                                          />
+                                        </>
+                                      ) : (
+                                        <img 
+                                          src={slideFormImage} 
+                                          alt="Preview" 
+                                          className="w-full h-full object-cover object-center" 
+                                        />
+                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={() => setSlideFormImage('')}
+                                        className="absolute top-2 right-2 p-1.5 bg-black/70 hover:bg-red-600 text-white rounded-full transition z-20 cursor-pointer"
+                                        title="Clear Image"
+                                      >
+                                        <Trash2 className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div className="aspect-[2.1/1] w-full rounded-xl border border-dashed border-clay flex flex-col items-center justify-center bg-white text-neutral-400 text-[10px] italic">
+                                      No image selected or uploaded yet
+                                    </div>
+                                  )}
+
+                                  {/* FIT CHOICE */}
+                                  <div className="space-y-1 text-left">
+                                    <label className="text-[9.5px] uppercase font-bold text-neutral-500 block">
+                                      🔄 Banner Fit Mode (Auto-Adjust System)
+                                    </label>
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => setSlideFormImageFit('cover')}
+                                        className={`py-1.5 px-3 rounded-xl border text-[9px] font-bold uppercase tracking-wider transition cursor-pointer text-center ${
+                                          slideFormImageFit === 'cover'
+                                            ? 'bg-brand border-brand text-white shadow-xs'
+                                            : 'bg-white border-clay text-neutral-600 hover:bg-neutral-50'
+                                        }`}
+                                      >
+                                        Cover (Auto-Crop)
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setSlideFormImageFit('contain')}
+                                        className={`py-1.5 px-3 rounded-xl border text-[9px] font-bold uppercase tracking-wider transition cursor-pointer text-center ${
+                                          slideFormImageFit === 'contain'
+                                            ? 'bg-brand border-brand text-white shadow-xs'
+                                            : 'bg-white border-clay text-neutral-600 hover:bg-neutral-50'
+                                        }`}
+                                      >
+                                        Contain (Full Fit)
+                                      </button>
+                                    </div>
+                                    <p className="text-[8.5px] text-neutral-400 mt-1 leading-normal">
+                                      * <strong>Cover</strong> fills the slide beautifully. <strong>Contain</strong> scales the whole photo without cropping.
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
                             
                             {/* Preset Unsplash high-resolution recommendations */}
                             <div className="pt-2 text-left">
@@ -3833,6 +4427,7 @@ export default function AdminPanel({
                                     subtitle: slideFormSubtitle.trim(),
                                     description: slideFormDescription.trim(),
                                     image: slideFormImage.trim(),
+                                    imageFit: slideFormImageFit,
                                     linkText: slideFormLinkText.trim(),
                                     linkUrl: slideFormLinkUrl.trim()
                                   } : s)
@@ -3845,6 +4440,7 @@ export default function AdminPanel({
                                   subtitle: slideFormSubtitle.trim(),
                                   description: slideFormDescription.trim(),
                                   image: slideFormImage.trim(),
+                                  imageFit: slideFormImageFit,
                                   linkText: slideFormLinkText.trim(),
                                   linkUrl: slideFormLinkUrl.trim()
                                 };
@@ -3877,13 +4473,27 @@ export default function AdminPanel({
                               >
                                 <div>
                                   {/* PHOTO FIRST visual representation */}
-                                  <div className="relative aspect-[16/10] rounded-xl overflow-hidden mb-3 border border-neutral-100">
-                                    <img
-                                      src={slide.image}
-                                      alt={slide.title}
-                                      className="w-full h-full object-cover"
-                                    />
-                                    <div className="absolute top-2 left-2 bg-dark/70 text-white text-[8px] font-black uppercase px-2 py-0.5 rounded-md">
+                                  <div className="relative aspect-[16/10] rounded-xl overflow-hidden mb-3 border border-neutral-100 bg-neutral-900 flex items-center justify-center">
+                                    {slide.imageFit === 'contain' ? (
+                                      <>
+                                        <div 
+                                          className="absolute inset-0 bg-cover bg-center blur-sm opacity-35"
+                                          style={{ backgroundImage: `url(${slide.image})` }}
+                                        />
+                                        <img
+                                          src={slide.image}
+                                          alt={slide.title}
+                                          className="relative max-h-full max-w-full object-contain z-10"
+                                        />
+                                      </>
+                                    ) : (
+                                      <img
+                                        src={slide.image}
+                                        alt={slide.title}
+                                        className="w-full h-full object-cover object-center"
+                                      />
+                                    )}
+                                    <div className="absolute top-2 left-2 bg-dark/70 text-white text-[8px] font-black uppercase px-2 py-0.5 rounded-md z-20">
                                       Slide #{index + 1}
                                     </div>
                                   </div>
@@ -3915,6 +4525,7 @@ export default function AdminPanel({
                                         setSlideFormSubtitle(slide.subtitle);
                                         setSlideFormDescription(slide.description);
                                         setSlideFormImage(slide.image);
+                                        setSlideFormImageFit(slide.imageFit || 'cover');
                                         setSlideFormLinkText(slide.linkText || 'Explore Catalog');
                                         setSlideFormLinkUrl(slide.linkUrl || '#shop-catalog');
                                         setIsAddingSlide(false);
@@ -3959,7 +4570,7 @@ export default function AdminPanel({
 
                 {/* HOMEPAGE COPY & TEXTS STYLING CONTROLS */}
                 {settingsSubTab === 'homepage' && (
-                  <div className="bg-clay-light/30 border border-clay/70 p-5 rounded-2xl space-y-6 animate-fade-in text-left">
+                <div id="settings-homepage" className="scroll-mt-24 bg-clay-light/30 border border-clay/70 p-5 rounded-2xl space-y-6 animate-fade-in text-left">
                     <div>
                       <h4 className="font-serif text-sm font-bold text-dark uppercase tracking-wider flex items-center gap-2">
                         <Home className="w-4 h-4 text-brand" />
@@ -4265,12 +4876,12 @@ export default function AdminPanel({
                         </p>
                       </div>
                     </div>
-                  </div>
+                </div>
                 )}
 
                 {/* Sourcing VIP Settings section */}
                 {settingsSubTab === 'sourcing' && (
-                  <div className="bg-clay-light/30 border border-clay/70 p-5 rounded-2xl space-y-6 animate-fade-in text-left">
+                <div id="settings-sourcing" className="scroll-mt-24 bg-clay-light/30 border border-clay/70 p-5 rounded-2xl space-y-6 animate-fade-in text-left">
                     <div>
                       <h4 className="font-serif text-sm font-bold text-dark uppercase tracking-wider flex items-center gap-2">
                         <Mail className="w-4 h-4 text-brand" />
@@ -4465,6 +5076,237 @@ export default function AdminPanel({
                         </p>
                       </div>
                     </div>
+
+                    <div className="bg-brand/5 border border-brand/10 p-4 rounded-2xl flex items-start gap-2.5 text-left text-brand text-xs">
+                      <Sparkles className="w-4 h-4 mt-0.5 animate-pulse flex-shrink-0" />
+                      <div>
+                        <span className="font-bold text-[10px] uppercase tracking-wider block">Unsaved Changes Notice</span>
+                        <p className="text-[10px] text-brand/85 mt-0.5 leading-relaxed">
+                          All changes edited on this tab are stored temporarily. Please click the main <strong>"SAVE ALL SETTINGS"</strong> button below to apply and publish them live to your storefront!
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Payments & Accounts section */}
+                {settingsSubTab === 'payments' && (
+                  <div id="settings-payments" className="scroll-mt-24 bg-clay-light/30 border border-clay/70 p-5 rounded-2xl space-y-6 animate-fade-in text-left">
+                    <div>
+                      <h4 className="font-serif text-sm font-bold text-dark uppercase tracking-wider flex items-center gap-2">
+                        <CreditCard className="w-4 h-4 text-brand" />
+                        Boutique Payment Gateways & Accounts Config
+                      </h4>
+                      <p className="text-[10px] text-neutral-400 font-light mt-0.5">
+                        Enable payment gateways and configure your merchant account details. Customers will see these instructions upon checking out.
+                      </p>
+                    </div>
+
+                    {/* Enable/Disable payment methods */}
+                    <div className="bg-white p-5 rounded-2xl border border-clay/60 space-y-4">
+                      <h5 className="font-bold text-[11px] uppercase tracking-wider text-neutral-700 border-b border-clay-light pb-2 flex items-center gap-1.5">
+                        <Settings className="w-3.5 h-3.5 text-neutral-500" />
+                        1. Active Payment Options
+                      </h5>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                        {['eSewa', 'Khalti', 'Bank Transfer', 'PayPal', 'COD', 'Card Payment'].map((method) => {
+                          const isEnabled = tempEnabledPayments.includes(method);
+                          return (
+                            <button
+                              key={method}
+                              type="button"
+                              onClick={() => {
+                                if (isEnabled) {
+                                  setTempEnabledPayments(tempEnabledPayments.filter(m => m !== method));
+                                } else {
+                                  setTempEnabledPayments([...tempEnabledPayments, method]);
+                                }
+                              }}
+                              className={`p-3 rounded-xl border text-center transition flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
+                                isEnabled
+                                  ? 'border-brand bg-brand/5 text-brand font-extrabold shadow-sm'
+                                  : 'border-clay hover:bg-neutral-50 text-neutral-500'
+                              }`}
+                            >
+                              <span className="text-[10px] uppercase tracking-wider font-bold">{method}</span>
+                              <span className={`text-[8px] px-1.5 py-0.5 rounded font-bold uppercase ${
+                                isEnabled ? 'bg-brand/20 text-brand' : 'bg-neutral-100 text-neutral-400'
+                              }`}>
+                                {isEnabled ? 'Active' : 'Disabled'}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* eSewa Details */}
+                    {tempEnabledPayments.includes('eSewa') && (
+                      <div className="bg-white p-5 rounded-2xl border border-clay/60 space-y-4">
+                        <h5 className="font-bold text-[11px] uppercase tracking-wider text-[#60bb46] border-b border-clay-light pb-2 flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-[#60bb46]" />
+                          eSewa Wallet Merchant Account
+                        </h5>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="text-[9px] uppercase font-bold text-neutral-500">eSewa ID / Mobile Number</label>
+                            <input
+                              type="text"
+                              value={tempEsewaPhone}
+                              onChange={(e) => setTempEsewaPhone(e.target.value)}
+                              className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none font-semibold"
+                              placeholder="e.g. 9802058364"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] uppercase font-bold text-neutral-500">Registered Account Name</label>
+                            <input
+                              type="text"
+                              value={tempEsewaName}
+                              onChange={(e) => setTempEsewaName(e.target.value)}
+                              className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none font-semibold"
+                              placeholder="e.g. Mahi Creations"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Khalti Details */}
+                    {tempEnabledPayments.includes('Khalti') && (
+                      <div className="bg-white p-5 rounded-2xl border border-clay/60 space-y-4">
+                        <h5 className="font-bold text-[11px] uppercase tracking-wider text-[#5c2d91] border-b border-clay-light pb-2 flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-[#5c2d91]" />
+                          Khalti Wallet Merchant Account
+                        </h5>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="text-[9px] uppercase font-bold text-neutral-500">Khalti ID / Mobile Number</label>
+                            <input
+                              type="text"
+                              value={tempKhaltiPhone}
+                              onChange={(e) => setTempKhaltiPhone(e.target.value)}
+                              className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none font-semibold"
+                              placeholder="e.g. 9802058364"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] uppercase font-bold text-neutral-500">Registered Account Name</label>
+                            <input
+                              type="text"
+                              value={tempKhaltiName}
+                              onChange={(e) => setTempKhaltiName(e.target.value)}
+                              className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none font-semibold"
+                              placeholder="e.g. Mahi Creations"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Bank Transfer Details */}
+                    {tempEnabledPayments.includes('Bank Transfer') && (
+                      <div className="bg-white p-5 rounded-2xl border border-clay/60 space-y-4">
+                        <h5 className="font-bold text-[11px] uppercase tracking-wider text-[#0a2540] border-b border-clay-light pb-2 flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-[#0a2540]" />
+                          Boutique Settlement Bank Account
+                        </h5>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="text-[9px] uppercase font-bold text-neutral-500">Bank Name</label>
+                            <input
+                              type="text"
+                              value={tempBankName}
+                              onChange={(e) => setTempBankName(e.target.value)}
+                              className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none font-semibold"
+                              placeholder="e.g. Nabil Bank Limited"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] uppercase font-bold text-neutral-500">Account Number</label>
+                            <input
+                              type="text"
+                              value={tempBankAccountNumber}
+                              onChange={(e) => setTempBankAccountNumber(e.target.value)}
+                              className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none font-mono font-semibold"
+                              placeholder="e.g. 0110017500369"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] uppercase font-bold text-neutral-500">Account Holder Name</label>
+                            <input
+                              type="text"
+                              value={tempBankAccountName}
+                              onChange={(e) => setTempBankAccountName(e.target.value)}
+                              className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none font-semibold"
+                              placeholder="e.g. Mahi Creations Pvt. Ltd."
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] uppercase font-bold text-neutral-500">Branch Location</label>
+                            <input
+                              type="text"
+                              value={tempBankBranch}
+                              onChange={(e) => setTempBankBranch(e.target.value)}
+                              className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none font-semibold"
+                              placeholder="e.g. Jhamsikhel Branch"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* PayPal Details */}
+                    {tempEnabledPayments.includes('PayPal') && (
+                      <div className="bg-white p-5 rounded-2xl border border-clay/60 space-y-4">
+                        <h5 className="font-bold text-[11px] uppercase tracking-wider text-[#003087] border-b border-clay-light pb-2 flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-[#003087]" />
+                          PayPal Merchant Account (Global Sourcing Settlement)
+                        </h5>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="text-[9px] uppercase font-bold text-neutral-500">PayPal Email Address</label>
+                            <input
+                              type="email"
+                              value={tempPaypalEmail}
+                              onChange={(e) => setTempPaypalEmail(e.target.value)}
+                              className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none font-semibold"
+                              placeholder="e.g. paypal@mahicreations.com"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] uppercase font-bold text-neutral-500">Registered Name</label>
+                            <input
+                              type="text"
+                              value={tempPaypalName}
+                              onChange={(e) => setTempPaypalName(e.target.value)}
+                              className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none font-semibold"
+                              placeholder="e.g. Mahi Creations Luxury"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* COD Details */}
+                    {tempEnabledPayments.includes('COD') && (
+                      <div className="bg-white p-5 rounded-2xl border border-clay/60 space-y-4">
+                        <h5 className="font-bold text-[11px] uppercase tracking-wider text-neutral-800 border-b border-clay-light pb-2 flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-neutral-800" />
+                          Cash on Delivery (COD) Instructions
+                        </h5>
+                        <div className="space-y-1">
+                          <label className="text-[9px] uppercase font-bold text-neutral-500">Customer Payment Instructions</label>
+                          <textarea
+                            rows={2}
+                            value={tempCodInstructions}
+                            onChange={(e) => setTempCodInstructions(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none font-light leading-relaxed animate-fade-in"
+                            placeholder="e.g. Pay cash or scan dynamic Fonepay QR upon delivery."
+                          />
+                        </div>
+                      </div>
+                    )}
 
                     <div className="bg-brand/5 border border-brand/10 p-4 rounded-2xl flex items-start gap-2.5 text-left text-brand text-xs">
                       <Sparkles className="w-4 h-4 mt-0.5 animate-pulse flex-shrink-0" />
@@ -4856,67 +5698,225 @@ export default function AdminPanel({
             </div>
           )}
 
-          {/* EXTENSIBLE UPGRADES TAB (FUTURE-PROOF ARTIFACTS) */}
-          {activeTab === 'future' && (
-            <div className="space-y-6 animate-fade-in">
-              <div>
-                <h3 className="font-serif text-xl font-bold text-dark uppercase tracking-wide">Extensible Upgrades & Future Integrations</h3>
-                <p className="text-neutral-500 text-xs font-light">Modular feature pipeline. Instantly scale boutique capabilities in the future.</p>
+          {/* DISCOUNT COUPONS ENGINE TAB */}
+          {activeTab === 'future' && (() => {
+            const currentCoupons: Coupon[] = settings?.coupons || [
+              { id: 'c1', code: 'WELCOME10', discountPercent: 10, applicableProductId: 'all', isActive: true, usedByPhones: [] },
+              { id: 'c2', code: 'LIPSTICK25', discountPercent: 25, applicableProductId: 'p1', isActive: true, usedByPhones: [] },
+              { id: 'c3', code: 'GLOW20', discountPercent: 20, applicableProductId: 'p2', isActive: true, usedByPhones: [] }
+            ];
+
+            return (
+              <div className="space-y-6 animate-fade-in">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-clay pb-4">
+                  <div>
+                    <h3 className="font-serif text-xl font-bold text-dark uppercase tracking-wide flex items-center gap-2">
+                      <Ticket className="w-5 h-5 text-brand" />
+                      Promo & Discount Coupons Engine
+                    </h3>
+                    <p className="text-neutral-500 text-xs font-light">Create, configure, and monitor promotional voucher codes for your boutique storefront.</p>
+                  </div>
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full uppercase tracking-wider">
+                    Anti-Tamper Active
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Left Column - Add / Edit Coupon Form */}
+                  <div className="lg:col-span-1 bg-bg-warm/30 p-5 rounded-2xl border border-clay">
+                    <h4 className="text-xs font-extrabold tracking-wider text-dark uppercase mb-4 flex items-center gap-1.5">
+                      {editingCouponId ? '✏️ Edit Coupon Code' : '➕ Create Promo Coupon'}
+                    </h4>
+
+                    <form onSubmit={handleSaveCoupon} className="space-y-4 text-xs">
+                      {couponErrorMsg && (
+                        <div className="p-3 bg-red-50 text-red-600 rounded-xl font-medium border border-red-100">
+                          ⚠️ {couponErrorMsg}
+                        </div>
+                      )}
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase tracking-wider font-bold text-neutral-600">Promo Code</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. SPECIAL30"
+                          value={couponCode}
+                          onChange={(e) => setCouponCode(e.target.value)}
+                          className="w-full border border-clay rounded-lg p-2.5 bg-white font-mono font-bold uppercase focus:outline-none focus:ring-1 focus:ring-brand"
+                        />
+                        <span className="text-[9px] text-neutral-400">Letters and numbers only. Case insensitive.</span>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase tracking-wider font-bold text-neutral-600">Discount Percent (%)</label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="100"
+                          value={couponDiscount}
+                          onChange={(e) => setCouponDiscount(Number(e.target.value))}
+                          className="w-full border border-clay rounded-lg p-2.5 bg-white focus:outline-none focus:ring-1 focus:ring-brand"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase tracking-wider font-bold text-neutral-600">Applicable Product Scope</label>
+                        <select
+                          value={couponProduct}
+                          onChange={(e) => setCouponProduct(e.target.value)}
+                          className="w-full border border-clay rounded-lg p-2.5 bg-white focus:outline-none focus:ring-1 focus:ring-brand"
+                        >
+                          <option value="all">Apply to All Products (Subtotal)</option>
+                          {products.map(p => (
+                            <option key={p.id} value={p.id}>Strictly on: {p.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-2">
+                        <input
+                          type="checkbox"
+                          id="couponActiveCheckbox"
+                          checked={couponActive}
+                          onChange={(e) => setCouponActive(e.target.checked)}
+                          className="rounded border-clay text-brand focus:ring-brand w-4 h-4 accent-brand cursor-pointer"
+                        />
+                        <label htmlFor="couponActiveCheckbox" className="text-[11px] font-bold text-neutral-700 cursor-pointer select-none">
+                          Active & Redeemable by customers
+                        </label>
+                      </div>
+
+                      <div className="flex gap-2 pt-3">
+                        {editingCouponId && (
+                          <button
+                            type="button"
+                            onClick={handleResetCouponForm}
+                            className="flex-1 bg-clay hover:bg-clay-dark text-neutral-700 font-bold py-2 px-3 rounded-lg uppercase tracking-wider text-[10px]"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                        <button
+                          type="submit"
+                          className="flex-1 bg-dark hover:bg-brand text-white font-bold py-2 px-3 rounded-lg uppercase tracking-widest text-[10px]"
+                        >
+                          {editingCouponId ? 'Update Coupon' : 'Create Coupon'}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+
+                  {/* Right Column - Coupon list table */}
+                  <div className="lg:col-span-2 space-y-4">
+                    <div className="bg-white rounded-2xl border border-clay overflow-hidden shadow-sm">
+                      <div className="px-5 py-4 bg-bg-warm/30 border-b border-clay flex items-center justify-between">
+                        <span className="text-xs font-bold text-dark uppercase tracking-wider">Configured Coupons</span>
+                        <span className="text-[10px] font-bold text-neutral-400">{currentCoupons.length} total codes</span>
+                      </div>
+
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs">
+                          <thead>
+                            <tr className="bg-neutral-50/80 border-b border-clay text-neutral-400 font-bold text-[10px] uppercase tracking-wider">
+                              <th className="px-5 py-3">Code</th>
+                              <th className="px-5 py-3">Discount</th>
+                              <th className="px-5 py-3">Product Scope</th>
+                              <th className="px-5 py-3">Redeemed</th>
+                              <th className="px-5 py-3">Status</th>
+                              <th className="px-5 py-3 text-right">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-clay/50">
+                            {currentCoupons.length === 0 ? (
+                              <tr>
+                                <td colSpan={6} className="text-center py-8 text-neutral-400 font-light">
+                                  No promotional coupons found. Create one using the form on the left!
+                                </td>
+                              </tr>
+                            ) : (
+                              currentCoupons.map((coupon) => {
+                                const scopeProduct = products.find(p => p.id === coupon.applicableProductId);
+                                const redemptions = coupon.usedByPhones?.length || 0;
+
+                                return (
+                                  <tr key={coupon.id} className="hover:bg-neutral-50/40 transition">
+                                    <td className="px-5 py-3.5 font-mono font-bold text-dark text-xs tracking-wider">
+                                      {coupon.code}
+                                    </td>
+                                    <td className="px-5 py-3.5 font-semibold text-brand text-xs">
+                                      {coupon.discountPercent}% OFF
+                                    </td>
+                                    <td className="px-5 py-3.5 text-neutral-600 font-light max-w-[150px] truncate">
+                                      {coupon.applicableProductId === 'all' ? (
+                                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider bg-neutral-100 px-2 py-0.5 rounded">All Products</span>
+                                      ) : (
+                                        scopeProduct?.name || 'Specific Product'
+                                      )}
+                                    </td>
+                                    <td className="px-5 py-3.5 font-bold text-neutral-500">
+                                      <span className="inline-flex items-center gap-1" title={coupon.usedByPhones?.join(', ') || 'No redemptions yet'}>
+                                        <Users className="w-3.5 h-3.5 text-neutral-400" />
+                                        {redemptions} {redemptions === 1 ? 'user' : 'users'}
+                                      </span>
+                                    </td>
+                                    <td className="px-5 py-3.5">
+                                      <button
+                                        onClick={() => handleToggleCouponActive(coupon)}
+                                        className={`inline-flex items-center gap-1.5 text-[9px] font-extrabold tracking-widest uppercase px-2 py-1 rounded-full transition ${
+                                          coupon.isActive
+                                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                            : 'bg-neutral-100 text-neutral-500 border border-neutral-200'
+                                        }`}
+                                      >
+                                        <span className={`w-1.5 h-1.5 rounded-full ${coupon.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-neutral-400'}`}></span>
+                                        {coupon.isActive ? 'Active' : 'Inactive'}
+                                      </button>
+                                    </td>
+                                    <td className="px-5 py-3.5 text-right space-x-1.5 whitespace-nowrap">
+                                      <button
+                                        onClick={() => handleEditCouponClick(coupon)}
+                                        className="inline-flex items-center gap-1 bg-neutral-50 hover:bg-neutral-100 text-neutral-600 p-1.5 rounded-lg transition"
+                                        title="Edit Coupon"
+                                      >
+                                        <Edit className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          if (confirm(`Are you sure you want to delete coupon "${coupon.code}"?`)) {
+                                            handleDeleteCoupon(coupon.id);
+                                          }
+                                        }}
+                                        className="inline-flex items-center gap-1 bg-rose-50 hover:bg-rose-100 text-rose-600 p-1.5 rounded-lg transition"
+                                        title="Delete Coupon"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              })
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <div className="p-4 bg-clay-light/20 border border-clay rounded-2xl flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-full bg-brand/10 text-brand flex items-center justify-center font-bold text-xs mt-0.5 shrink-0">
+                        🛡️
+                      </div>
+                      <div>
+                        <h5 className="text-[11px] font-extrabold text-dark uppercase tracking-wide">Security Enforcement & Hacking Mitigation</h5>
+                        <p className="text-[10px] text-neutral-500 leading-normal mt-0.5 font-light">
+                          Each coupon has a strict validation process tied to the master catalog prices. Any client-side price modification (HTML/Inspect Element) is automatically rejected. Coupons are strictly limited to **one use per phone number/account** to prevent redemption exploits.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                
-                <div className="bg-white p-5 rounded-2xl border border-clay/80 shadow-sm space-y-3 relative overflow-hidden">
-                  <div className="absolute top-3 right-3 bg-brand/10 text-brand text-[8px] font-black tracking-widest uppercase px-2 py-0.5 rounded-full">
-                    Ready to Connect
-                  </div>
-                  <div className="w-10 h-10 rounded-xl bg-clay-light flex items-center justify-center text-dark font-black">
-                    🏷️
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-dark">Automated Coupon Code Engine</h4>
-                    <p className="text-[11px] text-neutral-400 mt-1 leading-normal font-light">
-                      Create promotional discount codes (e.g., WELCOME15, DUBAI2026) that customers can apply during checkout.
-                    </p>
-                  </div>
-                  <button className="w-full bg-clay-light hover:bg-clay text-dark text-[10px] font-bold tracking-wider uppercase py-2 rounded-lg transition">
-                    Request Integration Activation
-                  </button>
-                </div>
-
-                <div className="bg-white p-5 rounded-2xl border border-clay/80 shadow-sm space-y-3 relative overflow-hidden">
-                  <div className="absolute top-3 right-3 bg-amber-100 text-amber-800 text-[8px] font-black tracking-widest uppercase px-2 py-0.5 rounded-full">
-                    Coming Soon
-                  </div>
-                  <div className="w-10 h-10 rounded-xl bg-clay-light flex items-center justify-center text-dark font-black">
-                    💬
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-dark">Sms Delivery Status Gateways</h4>
-                    <p className="text-[11px] text-neutral-400 mt-1 leading-normal font-light">
-                      Dispatch automatic status notifications to customer mobile phones when products are packed, out, or delivered.
-                    </p>
-                  </div>
-                  <button className="w-full bg-clay-light text-neutral-400 text-[10px] font-bold tracking-wider uppercase py-2 rounded-lg cursor-not-allowed" disabled>
-                    In Active Development
-                  </button>
-                </div>
-
-                <div className="bg-white p-5 rounded-2xl border border-clay/80 shadow-sm space-y-3 relative overflow-hidden col-span-1 sm:col-span-2">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
-                    <ShieldCheck className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-dark">Custom Modular Architecture</h4>
-                    <p className="text-[11px] text-neutral-500 leading-relaxed font-light">
-                      Our system is natively configured with standard extensible interfaces. Future software engineers can easily inject SQL bindings, real-time firestore event hooks, or advanced shipping APIs without modifying core layout systems.
-                    </p>
-                  </div>
-                </div>
-
-              </div>
-            </div>
-          )}
+            );
+          })()}
 
         </div>
 

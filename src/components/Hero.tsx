@@ -99,6 +99,34 @@ export default function Hero({
   // Extract unique categories from products
   const uniqueCategories = Array.from(new Set(products.map(p => p.category)));
 
+  // Spotlight Tab state for High Demand, Best Sellers, and New Products
+  const [spotlightTab, setSpotlightTab] = useState<'bestseller' | 'highdemand' | 'new'>('bestseller');
+
+  const bestSellers = [...products]
+    .filter(p => p.isVisible !== false)
+    .sort((a, b) => (b.reviewsCount || 0) - (a.reviewsCount || 0))
+    .slice(0, 3);
+
+  const highDemand = [...products]
+    .filter(p => p.isVisible !== false)
+    .sort((a, b) => {
+      if ((b.rating || 0) !== (a.rating || 0)) {
+        return (b.rating || 0) - (a.rating || 0);
+      }
+      return (b.reviewsCount || 0) - (a.reviewsCount || 0);
+    })
+    .slice(0, 3);
+
+  const newProducts = [...products]
+    .filter(p => p.isVisible !== false)
+    .reverse()
+    .slice(0, 3);
+
+  const selectedSpotlightProducts = 
+    spotlightTab === 'bestseller' ? bestSellers :
+    spotlightTab === 'highdemand' ? highDemand :
+    newProducts;
+
   // Current active promo slide details
   const currentSlide = promoSlides[activeSlideIndex] || (promoSlides.length > 0 ? promoSlides[0] : null);
 
@@ -110,30 +138,68 @@ export default function Hero({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           
           {/* Main Campaign Slide Carousel (9 Cols on desktop) */}
-          <div className="col-span-1 lg:col-span-9 relative bg-neutral-900 rounded-2xl overflow-hidden aspect-[21/9] sm:aspect-[2.6/1] md:aspect-[3/1] lg:aspect-[3/1] shadow-md group">
+          <div className="col-span-1 lg:col-span-9 relative bg-neutral-100 rounded-2xl overflow-hidden aspect-[4/3] sm:aspect-[16/10] md:aspect-[1.8/1] lg:aspect-[1.9/1] xl:aspect-[2.0/1] min-h-[320px] sm:min-h-[400px] md:min-h-[450px] lg:min-h-[480px] shadow-xl border border-neutral-200/10 hover:shadow-2xl hover:shadow-orange-500/10 transition-all duration-500 group">
             {currentSlide ? (
               <div className="absolute inset-0 w-full h-full">
-                {/* Promo Slide Image with elegant backdrop blending */}
-                <img 
-                  src={currentSlide.image} 
-                  alt={currentSlide.title} 
-                  referrerPolicy="no-referrer"
-                  className="w-full h-full object-cover object-center opacity-85 transition-transform duration-700 hover:scale-105"
-                />
+                {/* Promo Slide Image with auto-adjustment support */}
+                {currentSlide.imageFit === 'contain' ? (
+                  <div className="absolute inset-0 w-full h-full bg-neutral-950 flex items-center justify-center overflow-hidden">
+                    {/* Blurred background layer */}
+                    <div 
+                      className="absolute inset-0 bg-cover bg-center blur-2xl opacity-45 scale-110 saturate-[1.1]"
+                      style={{ backgroundImage: `url(${currentSlide.image})` }}
+                    />
+                    {/* Centered full image */}
+                    <img 
+                      src={currentSlide.image} 
+                      alt={currentSlide.title} 
+                      referrerPolicy="no-referrer"
+                      className="relative max-h-full max-w-full object-contain z-10 transition-transform duration-[3000ms] ease-out group-hover:scale-[1.03] saturate-[1.05] contrast-[1.03]"
+                    />
+                  </div>
+                ) : (
+                  <img 
+                    src={currentSlide.image} 
+                    alt={currentSlide.title} 
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full object-cover object-center opacity-100 transition-transform duration-[3000ms] ease-out group-hover:scale-105 saturate-[1.05] contrast-[1.03]"
+                  />
+                )}
                 
-                {/* Gradient vignette overlay */}
-                <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/40 to-transparent flex items-center p-6 sm:p-10 md:p-12">
-                  <div className="max-w-[85%] sm:max-w-[65%] text-left space-y-1 sm:space-y-2 md:space-y-3">
-                    <span className="inline-block bg-orange-600 text-white text-[8px] sm:text-[10px] md:text-xs font-extrabold uppercase tracking-widest px-2.5 py-1 rounded-md shadow-lg animate-pulse">
-                      ⚡ {currentSlide.subtitle || 'Mega Deal'}
-                    </span>
-                    <h2 className="font-sans text-lg sm:text-2xl md:text-3xl lg:text-4xl font-black text-white leading-tight uppercase tracking-tight drop-shadow-md">
+                {/* Clean, lightweight gradient overlay that lets the product shine */}
+                <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-transparent flex items-center p-4 sm:p-8 md:p-10 lg:p-12">
+                  
+                  {/* Glassmorphic 3D Layer Text Container sitting directly on top of the photo */}
+                  <div className="backdrop-blur-[10px] bg-black/40 border border-white/15 p-5 sm:p-7 md:p-8 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.2)] hover:border-white/25 transition-all duration-300 max-w-[95%] sm:max-w-[75%] md:max-w-[65%] text-left space-y-2.5 sm:space-y-4 md:space-y-4">
+                    
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-center gap-1.5 bg-gradient-to-r from-orange-600 to-amber-500 text-white text-[8px] sm:text-[10px] md:text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-[0_4px_12px_rgba(234,88,12,0.3)] animate-pulse">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                        ⚡ {currentSlide.subtitle || 'Mega Deal'}
+                      </span>
+                      <span className="text-[7px] sm:text-[9px] uppercase tracking-wider text-amber-200/90 font-black flex items-center gap-1 bg-white/5 px-2 py-1 rounded-md border border-white/5">
+                        <Sparkles className="w-2.5 h-2.5 text-amber-400 animate-spin" /> Live Campaign
+                      </span>
+                    </div>
+
+                    <h2 
+                      className="font-sans text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-4.5xl font-black text-transparent bg-gradient-to-r from-white via-neutral-100 to-amber-100 bg-clip-text leading-tight uppercase tracking-tight"
+                      style={{ 
+                        textShadow: '1px 1px 0px #d97706, 2.5px 2.5px 0px #b45309, 4px 4px 10px rgba(0,0,0,0.95)',
+                        WebkitTextStroke: '0.5px rgba(255,255,255,0.15)'
+                      }}
+                    >
                       {currentSlide.title}
                     </h2>
-                    <p className="text-white/80 font-normal text-[10px] sm:text-xs md:text-sm leading-relaxed line-clamp-2 max-w-lg hidden sm:block">
+
+                    <p 
+                      className="text-neutral-100 font-medium text-[10px] sm:text-xs md:text-sm leading-relaxed line-clamp-3 select-text"
+                      style={{ textShadow: '1px 1px 3px rgba(0,0,0,0.9)' }}
+                    >
                       {currentSlide.description}
                     </p>
-                    <div className="pt-1.5 sm:pt-3">
+
+                    <div className="pt-1.5 sm:pt-2">
                       <a 
                         href={currentSlide.linkUrl || '#shop-catalog'}
                         onClick={(e) => {
@@ -142,13 +208,15 @@ export default function Hero({
                             onDiscoverClick();
                           }
                         }}
-                        className="inline-flex items-center gap-1.5 bg-orange-600 hover:bg-orange-500 text-white text-[9px] sm:text-[11px] md:text-xs font-bold uppercase tracking-widest px-4 sm:px-6 py-2.5 sm:py-3 rounded-full transition-all duration-300 transform hover:scale-[1.02] shadow-lg shadow-orange-950/20"
+                        className="inline-flex items-center gap-2 bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-white text-[9px] sm:text-[11px] md:text-xs font-black uppercase tracking-widest px-5 sm:px-7 py-3 rounded-full transition-all duration-300 transform hover:scale-[1.04] shadow-[0_8px_20px_rgba(234,88,12,0.4)] hover:shadow-[0_12px_24px_rgba(234,88,12,0.6)] border border-orange-400/20 active:scale-95 group/btn"
                       >
                         <span>{currentSlide.linkText || 'Shop Offer'}</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
+                        <ArrowRight className="w-3.5 h-3.5 transform group-hover/btn:translate-x-1 transition-transform duration-300" />
                       </a>
                     </div>
+
                   </div>
+
                 </div>
               </div>
             ) : (
@@ -163,14 +231,14 @@ export default function Hero({
               <>
                 <button
                   onClick={handlePrevSlide}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 p-2 bg-black/40 hover:bg-orange-600 text-white rounded-full transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 z-10"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 p-2.5 bg-black/50 hover:bg-orange-600 text-white rounded-full transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 z-10 hover:scale-110 active:scale-95 cursor-pointer shadow-lg border border-white/5"
                   aria-label="Previous Slide"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 <button
                   onClick={handleNextSlide}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-black/40 hover:bg-orange-600 text-white rounded-full transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 z-10"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 bg-black/50 hover:bg-orange-600 text-white rounded-full transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 z-10 hover:scale-110 active:scale-95 cursor-pointer shadow-lg border border-white/5"
                   aria-label="Next Slide"
                 >
                   <ChevronRight className="w-4 h-4" />
@@ -180,13 +248,13 @@ export default function Hero({
 
             {/* Dot indicators at the bottom */}
             {promoSlides.length > 1 && (
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10 bg-black/30 backdrop-blur-xs px-3 py-1.5 rounded-full border border-white/5 shadow-md">
                 {promoSlides.map((_, idx) => (
                   <button
                     key={idx}
                     onClick={() => setActiveSlideIndex(idx)}
-                    className={`h-1.5 rounded-full transition-all ${
-                      idx === activeSlideIndex ? 'w-5 bg-orange-600' : 'w-1.5 bg-white/50 hover:bg-white'
+                    className={`h-2 rounded-full transition-all duration-300 ${
+                      idx === activeSlideIndex ? 'w-6 bg-orange-500 shadow-[0_0_8px_#f97316]' : 'w-2 bg-white/40 hover:bg-white'
                     }`}
                     title={`Go to slide ${idx + 1}`}
                   />
@@ -195,68 +263,158 @@ export default function Hero({
             )}
           </div>
 
-          {/* Right Campaign Highlights Panel (3 Cols on desktop - hidden on mobile/tablet) */}
-          <div className="col-span-1 lg:col-span-3 hidden lg:flex flex-col bg-white rounded-2xl p-5 border border-neutral-200/70 shadow-sm justify-between">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full bg-orange-500 animate-pulse" />
-                <span className="text-[11px] font-black uppercase tracking-wider text-neutral-800">Mahi Privilege Access</span>
+          {/* Right Campaign Highlights Panel (Visible everywhere, stacks on mobile) */}
+          <div className="col-span-1 lg:col-span-3 flex flex-col bg-white rounded-2xl p-4 sm:p-5 border border-neutral-200/70 shadow-sm justify-between gap-4 animate-fade-in">
+            <div className="space-y-3.5">
+              <div className="flex items-center justify-between border-b border-neutral-100 pb-2.5">
+                <div className="flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-orange-600 animate-pulse" />
+                  <span className="text-[11px] font-black uppercase tracking-wider text-neutral-800">Spotlight Hub</span>
+                </div>
+                <span className="text-[8px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded font-black uppercase tracking-widest animate-pulse">Live</span>
               </div>
               
+              {/* Tabs selector */}
+              <div className="grid grid-cols-3 gap-1 bg-neutral-100 p-1 rounded-xl">
+                <button
+                  onClick={() => setSpotlightTab('bestseller')}
+                  className={`text-[9px] font-extrabold uppercase tracking-wider py-1.5 px-0.5 rounded-lg transition-all ${
+                    spotlightTab === 'bestseller' 
+                      ? 'bg-white text-orange-600 shadow-sm' 
+                      : 'text-neutral-500 hover:text-neutral-800'
+                  }`}
+                  title="धेरै बिक्री भएको (Best Sellers)"
+                >
+                  Best Seller
+                </button>
+                <button
+                  onClick={() => setSpotlightTab('highdemand')}
+                  className={`text-[9px] font-extrabold uppercase tracking-wider py-1.5 px-0.5 rounded-lg transition-all ${
+                    spotlightTab === 'highdemand' 
+                      ? 'bg-white text-orange-600 shadow-sm' 
+                      : 'text-neutral-500 hover:text-neutral-800'
+                  }`}
+                  title="धेरै मागिएको (High Demand)"
+                >
+                  High Demand
+                </button>
+                <button
+                  onClick={() => setSpotlightTab('new')}
+                  className={`text-[9px] font-extrabold uppercase tracking-wider py-1.5 px-0.5 rounded-lg transition-all ${
+                    spotlightTab === 'new' 
+                      ? 'bg-white text-orange-600 shadow-sm' 
+                      : 'text-neutral-500 hover:text-neutral-800'
+                  }`}
+                  title="नयाँ सामान (New Arrivals)"
+                >
+                  New Arrivals
+                </button>
+              </div>
+
+              {/* Tab Content: list of 3 items */}
+              <div className="space-y-2.5 min-h-[190px]">
+                {selectedSpotlightProducts.length > 0 ? (
+                  selectedSpotlightProducts.map((p) => {
+                    const discountedPrice = p.price - (p.price * p.discountPercent / 100);
+                    return (
+                      <div 
+                        key={p.id}
+                        onClick={() => onViewDetails?.(p)}
+                        className="group/item flex items-center gap-3 p-2 rounded-xl border border-neutral-100 hover:border-orange-500/30 hover:bg-orange-50/20 cursor-pointer transition-all duration-300"
+                      >
+                        <div className="w-11 h-11 bg-neutral-50 border border-neutral-100 rounded-lg overflow-hidden shrink-0 flex items-center justify-center p-1 group-hover/item:bg-white transition-all">
+                          <img src={p.image} alt={p.name} referrerPolicy="no-referrer" className="max-h-full max-w-full object-contain" />
+                        </div>
+                        <div className="flex-grow min-w-0 text-left space-y-0.5">
+                          <div className="flex items-center gap-1">
+                            <span className="text-[7px] font-bold text-orange-500 uppercase tracking-widest bg-orange-50 px-1 py-0.2 rounded truncate max-w-[80px]">
+                              {p.category}
+                            </span>
+                            {p.discountPercent > 0 && (
+                              <span className="text-[7px] font-black text-rose-600 uppercase tracking-widest bg-rose-50 px-1 py-0.2 rounded">
+                                -{p.discountPercent}%
+                              </span>
+                            )}
+                          </div>
+                          <h5 className="text-[10px] font-bold text-neutral-800 uppercase tracking-tight leading-tight truncate group-hover/item:text-orange-600 transition" title={p.name}>
+                            {p.name}
+                          </h5>
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="font-mono text-[10px] font-black text-neutral-900 leading-none">
+                              {formatPrice(discountedPrice, currency)}
+                            </span>
+                            {p.discountPercent > 0 && (
+                              <span className="font-mono text-[8px] text-neutral-400 line-through leading-none">
+                                {formatPrice(p.price, currency)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const text = encodeURIComponent(`Hi Mahi Creations, I would like to inquire about this spotlight item: "${p.name}" at ${formatPrice(discountedPrice, currency)}.`);
+                            window.open(`https://wa.me/${whatsappNumber.replace(/[^0-9]/g, '')}?text=${text}`, '_blank');
+                          }}
+                          className="w-7 h-7 bg-orange-50 border border-orange-100 hover:bg-orange-600 hover:text-white text-orange-600 rounded-lg flex items-center justify-center transition shrink-0"
+                          title="WhatsApp Inquiry"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="h-44 flex flex-col items-center justify-center text-center text-neutral-400">
+                    <ShoppingBag className="w-6 h-6 text-neutral-300 mb-1" />
+                    <p className="text-[9px] font-bold">No items found</p>
+                  </div>
+                )}
+              </div>
+
               {/* Showroom Preview Mini-Frame */}
-              <div className="relative rounded-xl overflow-hidden aspect-[16/10] bg-neutral-100 border border-neutral-100">
+              <div className="relative rounded-xl overflow-hidden aspect-[16/8] bg-neutral-100 border border-neutral-100 shadow-inner group/preview">
                 <img 
                   src={aboutImageUrl} 
                   alt="Mahi Showroom" 
                   referrerPolicy="no-referrer"
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover group-hover/preview:scale-105 transition-transform duration-500"
                 />
-                <div className="absolute inset-0 bg-black/45 flex items-end p-2">
-                  <p className="text-[9px] font-bold text-white tracking-tight uppercase line-clamp-1">
-                    📍 {heroImageCaption || 'Jhamsikhel, Lalitpur'}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent flex items-end p-2">
+                  <p className="text-[9px] font-black text-white tracking-wide uppercase">
+                    📍 Lalitpur Boutique
                   </p>
                 </div>
               </div>
 
-              {/* Privilege Bullet points with elegant mini styling */}
-              <div className="space-y-3 pt-1">
-                <div className="flex items-start gap-2.5">
-                  <ShieldCheck className="w-4 h-4 text-orange-600 mt-0.5 shrink-0" />
-                  <div>
-                    <h4 className="text-[10px] font-black uppercase text-neutral-800 tracking-tight leading-none">100% Certified Authentic</h4>
-                    <p className="text-[9px] text-neutral-500 leading-tight">Sourced directly from certified brand global houses.</p>
-                  </div>
+              {/* Compact Privilege indicators */}
+              <div className="grid grid-cols-3 gap-1 text-center border-t border-dashed border-neutral-100 pt-2.5">
+                <div className="space-y-0.5">
+                  <span className="block text-[8px] font-black text-orange-600 uppercase tracking-tight">Authentic</span>
+                  <p className="text-[7px] text-neutral-400 leading-none">100% Certified</p>
                 </div>
-
-                <div className="flex items-start gap-2.5">
-                  <Truck className="w-4 h-4 text-orange-600 mt-0.5 shrink-0" />
-                  <div>
-                    <h4 className="text-[10px] font-black uppercase text-neutral-800 tracking-tight leading-none">Valley Speed Delivery</h4>
-                    <p className="text-[9px] text-neutral-500 leading-tight">Same-day secure courier delivery inside Kathmandu.</p>
-                  </div>
+                <div className="space-y-0.5 border-x border-neutral-100">
+                  <span className="block text-[8px] font-black text-orange-600 uppercase tracking-tight">Express</span>
+                  <p className="text-[7px] text-neutral-400 leading-none">Kathmandu/UAE</p>
                 </div>
-
-                <div className="flex items-start gap-2.5">
-                  <QrCode className="w-4 h-4 text-orange-600 mt-0.5 shrink-0" />
-                  <div>
-                    <h4 className="text-[10px] font-black uppercase text-neutral-800 tracking-tight leading-none">VIP WhatsApp Support</h4>
-                    <p className="text-[9px] text-neutral-500 leading-tight">Send any cosmetic image to source premium formulas.</p>
-                  </div>
+                <div className="space-y-0.5">
+                  <span className="block text-[8px] font-black text-orange-600 uppercase tracking-tight">VIP Support</span>
+                  <p className="text-[7px] text-neutral-400 leading-none">24/7 Concierge</p>
                 </div>
               </div>
             </div>
 
-            {/* Quick Action Button */}
-            <div className="pt-3 border-t border-dashed border-neutral-100">
+            {/* Quick WhatsApp Sourcing Call-to-Action */}
+            <div className="pt-2">
               <button
                 onClick={() => {
                   const text = encodeURIComponent("Hi Mahi Creations! I am browsing the boutique app and would like to inquire about premium sourcing options.");
                   window.open(`https://wa.me/${whatsappNumber.replace(/[^0-9]/g, '')}?text=${text}`, '_blank');
                 }}
-                className="w-full flex items-center justify-center gap-1.5 bg-neutral-900 hover:bg-orange-600 text-white text-[10px] font-bold uppercase tracking-wider py-2.5 rounded-xl transition"
+                className="w-full flex items-center justify-center gap-1.5 bg-neutral-900 hover:bg-orange-600 text-white text-[9px] font-extrabold uppercase tracking-wider py-2.5 rounded-xl transition duration-300"
               >
                 <PhoneCall className="w-3.5 h-3.5 text-orange-400" />
-                <span>Source Any Product</span>
+                <span>Source Any Custom Product</span>
               </button>
             </div>
           </div>
