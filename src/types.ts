@@ -168,5 +168,8 @@ export interface UserSession {
   fullName: string;
   phone: string;
   address: string;
+  country?: string;
+  whatsapp?: string;
+  location?: string;
 }
 

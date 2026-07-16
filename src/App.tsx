@@ -10,6 +10,7 @@ import CheckoutModal from './components/CheckoutModal';
 import OrderTracker from './components/OrderTracker';
 import AdminPanel from './components/AdminPanel';
 import CustomerPortal from './components/CustomerPortal';
+import PolicyPage from './components/PolicyPage';
 import ProductDetailModal from './components/ProductDetailModal';
 import QuickViewModal from './components/QuickViewModal';
 import WhatsAppChat from './components/WhatsAppChat';
@@ -18,7 +19,7 @@ import CompareBar from './components/CompareBar';
 import CompareModal from './components/CompareModal';
 import ToastContainer, { ToastItem } from './components/Toast';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, Filter, ArrowUpDown, CheckCircle2, Heart, ShieldAlert, ShoppingBag, Eye, HelpCircle, Globe, Mail, ShieldCheck, Send, CreditCard, Check, Facebook, Instagram, Linkedin, RefreshCw, FileText, X, Truck, Info, Lock, ChevronDown, MapPin, Phone, Clock, ChevronLeft, ChevronRight, ArrowUp } from 'lucide-react';
+import { Sparkles, Filter, ArrowUpDown, CheckCircle2, Heart, ShieldAlert, ShoppingBag, Eye, HelpCircle, Globe, Mail, ShieldCheck, Send, CreditCard, Check, Facebook, Instagram, Linkedin, RefreshCw, FileText, X, Truck, Info, Lock, ChevronDown, MapPin, Phone, Clock, ChevronLeft, ChevronRight, ArrowUp, Flame } from 'lucide-react';
 import { CurrencyCode, CountryConfig, getCustomCountries, saveCustomCountries } from './utils/currency';
 import { ESewaLogo, KhaltiLogo, VisaLogo, MasterCardLogo, CODLogo, BankTransferLogo, PayPalLogo, FacebookLogo, InstagramLogo, TikTokLogo, WhatsAppLogo } from './components/BrandLogos';
 import SmartRoutineQuiz from './components/SmartRoutineQuiz';
@@ -146,6 +147,8 @@ export default function App() {
     return products.filter(p => compareIds.includes(p.id));
   }, [products, compareIds]);
 
+
+
   const handleToggleCompare = (productId: string) => {
     setCompareIds(prev => {
       if (prev.includes(productId)) {
@@ -237,6 +240,16 @@ export default function App() {
         if (!parsed.promoSlides || !Array.isArray(parsed.promoSlides) || parsed.promoSlides.length === 0) {
           parsed.promoSlides = DEFAULT_PROMO_SLIDES;
         }
+        // Upgrade About section with the beautiful Dubai sourcing, Nepal delivery and Worldwide story
+        if (!parsed.aboutPara1 || parsed.aboutPara1.includes('Lalitpur, Jhamsikhel') || parsed.aboutPara1.includes('Founded with a vision')) {
+          parsed.aboutBadge = 'Dubai & Worldwide';
+          parsed.aboutTitle = 'Our Sourcing Legacy';
+          parsed.aboutSubtitle = 'Sourced in Dubai, Delivered in Nepal, Shipped Worldwide.';
+          parsed.aboutPara1 = 'Established as a premier luxury digital hub in Dubai, Mahi Creations is built on the philosophy of global accessibility and authentic quality. Every piece of exquisite couture, hand-crafted jewelry, and certified cosmetic formulation is personally sourced from exclusive international distributors right here in the luxury fashion hubs of Dubai.';
+          parsed.aboutPara2 = 'While our primary sourcing and authentication hub is based in Dubai, we are deeply committed to bridging premium luxury directly to Nepal and worldwide. With reliable delivery partnerships in Nepal and secure air cargo networks, your luxury curations reach you in perfect condition, no matter where you are in the world.';
+          parsed.aboutPara3 = 'All cosmetics are guaranteed 100% authentic, verified, and direct from authorized brand houses. Pair that with our personalized bridal couture fittings, certified high-end jewelry, and round-the-clock concierge support, and Mahi Creations offers a truly global standard of boutique excellence.';
+          parsed.footerAbout = 'Mahi Creations is a premium luxury boutique. Sourced directly from Dubai, we deliver high-end authentic cosmetic formulations, custom jewelry, and designer couture to Nepal and worldwide.';
+        }
         if (!parsed.coupons || !Array.isArray(parsed.coupons) || parsed.coupons.length === 0) {
           parsed.coupons = [
             { id: 'c1', code: 'WELCOME10', discountPercent: 10, applicableProductId: 'all', isActive: true, usedByPhones: [] },
@@ -276,21 +289,21 @@ export default function App() {
           sliderProductIds: INITIAL_PRODUCTS.map(p => p.id).slice(0, 3),
           footerBgColor: '#fff0f1',
           footerTextColor: '#1a1a1a',
-          footerAbout: 'Mahi Creations is Nepal’s premier luxury digital boutique, bridging authentic global formulations and high-end cosmetics directly from Paris, Seoul, Tokyo, and New York.',
+          footerAbout: 'Mahi Creations is a premium luxury boutique. Sourced directly from Dubai, we deliver high-end authentic cosmetic formulations, custom jewelry, and designer couture to Nepal and worldwide.',
           promoSlides: DEFAULT_PROMO_SLIDES,
           aboutImageUrl: '/src/assets/images/mahi_about_me_1783496157685.jpg',
-          heroBadge: 'Mahi Creations Boutique',
-          heroTitle: 'Bridging Authenticity & Global Sourcing Luxury',
-          heroImageCaption: 'Mahi Creations Lalitpur, Jhamsikhel',
-          heroDescription: "Welcome to Mahi Creations, Nepal's premier digital gateway to high-end certified products. We specialize in curating premium global cosmetic formulations, traditional custom-crafted apparel, and bespoke fine jewelry directly from fashion capitals.",
+          heroBadge: 'Mahi Creations Dubai',
+          heroTitle: 'Authentic Dubai Sourcing & Worldwide Delivery Luxury',
+          heroImageCaption: 'Mahi Creations Showroom & Sourcing Hub',
+          heroDescription: "Welcome to Mahi Creations, a premium digital gateway to 100% authentic international treasures. Hand-selected in our luxury sourcing hubs in Dubai, we curate high-end certified cosmetics, fine custom jewelry, and bespoke traditional couture with express delivery to Nepal and worldwide.",
           catalogTitle: 'Our Premium Curations',
-          catalogSubtitle: 'Showing authentic cosmetics displaying real-time stock levels',
-          aboutBadge: 'Our Legacy',
-          aboutTitle: 'About Mahi Creations',
-          aboutSubtitle: 'Nepal’s premier luxury digital boutique, bridging authentic global formulations and high-end apparel directly to your doorstep.',
-          aboutPara1: 'Founded with a vision of blending luxury cosmetic formulations, custom-crafted fine jewelry, and premium traditional apparel, Mahi Creations serves as an exclusive gateway to authentic luxury. Operating from Lalitpur, Jhamsikhel, we curate only the finest certified treasures.',
-          aboutPara2: 'Every cosmetic bottle we carry represents genuine global standards of safety, hydration, and glow. Our traditional apparel lines are hand-stitched by boutique master artisans, preserving timeless cultural heritages while adapting them for the contemporary modern aesthetic.',
-          aboutPara3: 'Whether you are searching for premium Korean skincare regimes, custom makeup, or bespoke boutique jewelry, Mahi Creations ensures standard compliance, real-time stock levels, and expedited courier delivery across Nepal.',
+          catalogSubtitle: 'Showing authentic cosmetics sourced in Dubai with real-time stock levels',
+          aboutBadge: 'Dubai & Worldwide',
+          aboutTitle: 'Our Sourcing Legacy',
+          aboutSubtitle: 'Sourced in Dubai, Delivered in Nepal, Shipped Worldwide.',
+          aboutPara1: 'Established as a premier luxury digital hub in Dubai, Mahi Creations is built on the philosophy of global accessibility and authentic quality. Every piece of exquisite couture, hand-crafted jewelry, and certified cosmetic formulation is personally sourced from exclusive international distributors right here in the luxury fashion hubs of Dubai.',
+          aboutPara2: 'While our primary sourcing and authentication hub is based in Dubai, we are deeply committed to bridging premium luxury directly to Nepal and worldwide. With reliable delivery partnerships in Nepal and secure air cargo networks, your luxury curations reach you in perfect condition, no matter where you are in the world.',
+          aboutPara3: 'All cosmetics are guaranteed 100% authentic, verified, and direct from authorized brand houses. Pair that with our personalized bridal couture fittings, certified high-end jewelry, and round-the-clock concierge support, and Mahi Creations offers a truly global standard of boutique excellence.',
           sourcingBgUrl: '',
           sourcingBgColor: '#fff0f1',
           sourcingBgBlur: 0,
@@ -335,21 +348,21 @@ export default function App() {
       sliderProductIds: INITIAL_PRODUCTS.map(p => p.id).slice(0, 3),
       footerBgColor: '#fff0f1',
       footerTextColor: '#1a1a1a',
-      footerAbout: 'Mahi Creations is Nepal’s premier luxury digital boutique, bridging authentic global formulations and high-end cosmetics directly from Paris, Seoul, Tokyo, and New York.',
+      footerAbout: 'Mahi Creations is a premium luxury boutique. Sourced directly from Dubai, we deliver high-end authentic cosmetic formulations, custom jewelry, and designer couture to Nepal and worldwide.',
       promoSlides: DEFAULT_PROMO_SLIDES,
       aboutImageUrl: '/src/assets/images/mahi_about_me_1783496157685.jpg',
-      heroBadge: 'Mahi Creations Boutique',
-      heroTitle: 'Bridging Authenticity & Global Sourcing Luxury',
-      heroImageCaption: 'Mahi Creations Lalitpur, Jhamsikhel',
-      heroDescription: "Welcome to Mahi Creations, Nepal's premier digital gateway to high-end certified products. We specialize in curating premium global cosmetic formulations, traditional custom-crafted apparel, and bespoke fine jewelry directly from fashion capitals.",
+      heroBadge: 'Mahi Creations Dubai',
+      heroTitle: 'Authentic Dubai Sourcing & Worldwide Delivery Luxury',
+      heroImageCaption: 'Mahi Creations Showroom & Sourcing Hub',
+      heroDescription: "Welcome to Mahi Creations, a premium digital gateway to 100% authentic international treasures. Hand-selected in our luxury sourcing hubs in Dubai, we curate high-end certified cosmetics, fine custom jewelry, and bespoke traditional couture with express delivery to Nepal and worldwide.",
       catalogTitle: 'Our Premium Curations',
-      catalogSubtitle: 'Showing authentic cosmetics displaying real-time stock levels',
-      aboutBadge: 'Our Legacy',
-      aboutTitle: 'About Mahi Creations',
-      aboutSubtitle: 'Nepal’s premier luxury digital boutique, bridging authentic global formulations and high-end apparel directly to your doorstep.',
-      aboutPara1: 'Founded with a vision of blending luxury cosmetic formulations, custom-crafted fine jewelry, and premium traditional apparel, Mahi Creations serves as an exclusive gateway to authentic luxury. Operating from Lalitpur, Jhamsikhel, we curate only the finest certified treasures.',
-      aboutPara2: 'Every cosmetic bottle we carry represents genuine global standards of safety, hydration, and glow. Our traditional apparel lines are hand-stitched by boutique master artisans, preserving timeless cultural heritages while adapting them for the contemporary modern aesthetic.',
-      aboutPara3: 'Whether you are searching for premium Korean skincare regimes, custom makeup, or bespoke boutique jewelry, Mahi Creations ensures standard compliance, real-time stock levels, and expedited courier delivery across Nepal.',
+      catalogSubtitle: 'Showing authentic cosmetics sourced in Dubai with real-time stock levels',
+      aboutBadge: 'Dubai & Worldwide',
+      aboutTitle: 'Our Sourcing Legacy',
+      aboutSubtitle: 'Sourced in Dubai, Delivered in Nepal, Shipped Worldwide.',
+      aboutPara1: 'Established as a premier luxury digital hub in Dubai, Mahi Creations is built on the philosophy of global accessibility and authentic quality. Every piece of exquisite couture, hand-crafted jewelry, and certified cosmetic formulation is personally sourced from exclusive international distributors right here in the luxury fashion hubs of Dubai.',
+      aboutPara2: 'While our primary sourcing and authentication hub is based in Dubai, we are deeply committed to bridging premium luxury directly to Nepal and worldwide. With reliable delivery partnerships in Nepal and secure air cargo networks, your luxury curations reach you in perfect condition, no matter where you are in the world.',
+      aboutPara3: 'All cosmetics are guaranteed 100% authentic, verified, and direct from authorized brand houses. Pair that with our personalized bridal couture fittings, certified high-end jewelry, and round-the-clock concierge support, and Mahi Creations offers a truly global standard of boutique excellence.',
       sourcingBgUrl: '',
       sourcingBgColor: '#fff0f1',
       sourcingBgBlur: 0,
@@ -416,7 +429,9 @@ export default function App() {
   }, [currency, countries]);
 
   // Navigation / Modal triggers
-  const [activeView, setActiveView] = useState<'shop' | 'tracker' | 'admin' | 'portal'>('shop');
+  const isHDMode = true;
+
+  const [activeView, setActiveView] = useState<'shop' | 'tracker' | 'admin' | 'portal' | 'about' | 'contact' | 'returns' | 'shipping' | 'privacy' | 'terms' | 'authenticity'>('shop');
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [initialTrackId, setInitialTrackId] = useState('');
@@ -427,8 +442,6 @@ export default function App() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [newsletterSubscribed, setNewsletterSubscribed] = useState(false);
-  const [policyModalOpen, setPolicyModalOpen] = useState(false);
-  const [activePolicyTab, setActivePolicyTab] = useState<'about' | 'returns' | 'shipping' | 'privacy' | 'terms' | 'authenticity'>('about');
 
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(() => {
     return localStorage.getItem('mahi_admin_logged_in') === 'true';
@@ -596,29 +609,48 @@ export default function App() {
     const brandName = settings.shopName || "Mahi Creations";
     let title = `${brandName} | Luxury Handcrafted Treasures & Apparel`;
     let desc = `Explore ${brandName}' exclusive collection of luxury cosmetic treasures, handcrafted custom jewelry, premium traditional clothing, and curated premium lifestyle pieces.`;
+    let ogUrl = "https://mahicreations.xyz/";
+    let ogImage = "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&q=80&w=1200&h=630";
 
     if (detailModalOpen && selectedProduct) {
       title = `${selectedProduct.name} | ${brandName}`;
       desc = selectedProduct.description;
+      ogUrl = `https://mahicreations.xyz/?product=${selectedProduct.id}`;
+      ogImage = selectedProduct.image;
     } else if (quickViewOpen && quickViewProduct) {
       title = `Quick View: ${quickViewProduct.name} | ${brandName}`;
       desc = quickViewProduct.description;
+      ogUrl = `https://mahicreations.xyz/?product=${quickViewProduct.id}`;
+      ogImage = quickViewProduct.image;
     } else if (activeView === 'admin') {
       title = `Merchant Admin Console | ${brandName}`;
       desc = "Manage products, track orders, adjust settings, and view business performance analytics.";
+      ogUrl = "https://mahicreations.xyz/admin";
     } else if (activeView === 'tracker') {
       title = `Track Your Order | ${brandName}`;
       desc = "Enter your tracking code or order ID to get live status, courier, and delivery details.";
+      ogUrl = "https://mahicreations.xyz/tracker";
     } else if (activeView === 'portal') {
       title = `Customer Portal | ${brandName}`;
       desc = "View your order history, account information, loyalty points, and custom rewards.";
+      ogUrl = "https://mahicreations.xyz/portal";
     } else if (selectedCategory && selectedCategory !== 'All') {
       title = `${selectedCategory} Collection | ${brandName}`;
       desc = `Browse our premium handcrafted ${selectedCategory.toLowerCase()} collection.`;
+      ogUrl = `https://mahicreations.xyz/?category=${encodeURIComponent(selectedCategory)}`;
     }
 
     // Update document title
     document.title = title;
+
+    // Update canonical link
+    let canonicalElement = document.querySelector('link[rel="canonical"]');
+    if (!canonicalElement) {
+      canonicalElement = document.createElement('link');
+      canonicalElement.setAttribute('rel', 'canonical');
+      document.head.appendChild(canonicalElement);
+    }
+    canonicalElement.setAttribute('href', ogUrl);
 
     // Dynamically update OG and normal description meta tags if they exist
     const updateMeta = (selector: string, attribute: string, value: string) => {
@@ -637,12 +669,22 @@ export default function App() {
       element.setAttribute(attribute, value);
     };
 
+    // Primary Meta tags
     updateMeta('meta[name="description"]', 'content', desc);
     updateMeta('meta[name="title"]', 'content', title);
+    
+    // Open Graph / Facebook Meta tags
+    updateMeta('meta[property="og:url"]', 'content', ogUrl);
     updateMeta('meta[property="og:title"]', 'content', title);
     updateMeta('meta[property="og:description"]', 'content', desc);
-    updateMeta('meta[property="twitter:title"]', 'content', title);
-    updateMeta('meta[property="twitter:description"]', 'content', desc);
+    updateMeta('meta[property="og:image"]', 'content', ogImage);
+    updateMeta('meta[property="og:image:secure_url"]', 'content', ogImage);
+    
+    // Twitter Card Meta tags
+    updateMeta('meta[name="twitter:url"]', 'content', ogUrl);
+    updateMeta('meta[name="twitter:title"]', 'content', title);
+    updateMeta('meta[name="twitter:description"]', 'content', desc);
+    updateMeta('meta[name="twitter:image"]', 'content', ogImage);
   }, [activeView, selectedCategory, selectedProduct, detailModalOpen, quickViewProduct, quickViewOpen]);
 
   const handleLogin = (session: UserSession) => {
@@ -987,8 +1029,39 @@ export default function App() {
     return ['All', ...Array.from(unique)];
   }, [products]);
 
+  // Dynamically compute most ordered/demanded products based on orders history (sabai bhanda dherai magiayeko product list)
+  const mostOrderedProducts = useMemo(() => {
+    const productOrderCounts: Record<string, number> = {};
+    orders.forEach(order => {
+      if (order.status !== 'Cancelled') {
+        order.items.forEach(item => {
+          productOrderCounts[item.productId] = (productOrderCounts[item.productId] || 0) + item.quantity;
+        });
+      }
+    });
+
+    const visibleProducts = products.filter(p => p.isVisible !== false);
+    
+    // Sort products by order count. If equal or no orders, sort by rating index (rating * reviewsCount)
+    return [...visibleProducts].sort((a, b) => {
+      const countA = productOrderCounts[a.id] || 0;
+      const countB = productOrderCounts[b.id] || 0;
+      
+      if (countB !== countA) {
+        return countB - countA;
+      }
+      
+      // Fallback popularity rating index
+      const popA = a.rating * (a.reviewsCount || 1);
+      const popB = b.rating * (b.reviewsCount || 1);
+      return popB - popA;
+    });
+  }, [products, orders]);
+
   return (
-    <div className="min-h-screen bg-bg-warm flex flex-col font-sans select-none antialiased">
+    <div className={`min-h-screen bg-bg-warm flex flex-col font-sans select-none antialiased transition-all duration-300 ${
+      isHDMode ? 'subpixel-antialiased tracking-wide text-stone-900' : 'text-neutral-800'
+    }`}>
       
       {/* Promo banner ticker at top */}
       <div className="bg-dark text-white py-2.5 px-4 text-center text-[11px] font-semibold tracking-widest uppercase flex items-center justify-center gap-2">
@@ -1027,8 +1100,7 @@ export default function App() {
         }}
         onPortalClick={() => setActiveView('portal')}
         onContactClick={() => {
-          setActivePolicyTab('contact');
-          setPolicyModalOpen(true);
+          setActiveView('contact');
         }}
         cartCount={cart.reduce((sum, item) => sum + item.quantity, 0)}
         currency={currency}
@@ -1087,8 +1159,110 @@ export default function App() {
                   }}
                 />
 
+                {/* DYNAMIC TRENDING / MOST REQUESTED SECTION (Real-Time Best Sellers Feed) */}
+                {mostOrderedProducts.length > 0 && (
+                  <section className={`mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8 transition-all duration-300 ${isHDMode ? 'max-w-[1440px]' : 'max-w-7xl'}`}>
+                    <div className="bg-gradient-to-br from-[#0c0c0f] via-[#141419] to-[#1c1611] rounded-3xl p-6 sm:p-8 md:p-10 border border-amber-500/15 shadow-[0_25px_60px_rgba(0,0,0,0.85)] relative overflow-hidden">
+                      {/* Ambient Golden Background Orbs */}
+                      <div className="absolute top-0 right-0 w-80 h-80 bg-amber-500/5 rounded-full blur-[100px] pointer-events-none" />
+                      <div className="absolute -bottom-20 -left-20 w-96 h-96 bg-orange-600/5 rounded-full blur-[120px] pointer-events-none" />
+                      
+                      {/* Golden top neon accent line */}
+                      <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-transparent via-amber-500/80 to-transparent" />
+
+                      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 relative z-10 border-b border-white/5 pb-6">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full shadow-[0_0_15px_rgba(245,158,11,0.15)]">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                              🔴 Real-Time Demand Feed
+                            </span>
+                            <span className="text-[9px] uppercase tracking-wider text-neutral-400 font-bold hidden sm:inline">
+                              Fast Demand Tracking System
+                            </span>
+                          </div>
+                          
+                          <h3 
+                            className="font-sans text-xl sm:text-2xl md:text-3xl font-black text-transparent bg-gradient-to-r from-yellow-100 via-amber-300 to-yellow-200 bg-clip-text leading-tight uppercase tracking-tight"
+                            style={{ textShadow: '0 2px 10px rgba(245,158,11,0.15)' }}
+                          >
+                            🔥 Best Sellers & High Demand
+                          </h3>
+                          <p className="text-neutral-400 text-xs font-light max-w-2xl leading-relaxed">
+                            These premier items are automatically ranked and loaded in real-time according to recent purchase volumes, customer requests, and live checkout demands from our sourcing hubs.
+                          </p>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 text-amber-400 text-xs font-black shrink-0">
+                          <Flame className="w-4 h-4 text-orange-500 animate-bounce" />
+                          <span>UPDATED LIVE SECONDS AGO</span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 pt-8">
+                        {mostOrderedProducts.slice(0, 4).map((prod, index) => {
+                          // Define prestigious tags for the rankings
+                          const ranks = [
+                            { label: "👑 No. 1 Best Seller", style: "from-amber-600 via-yellow-500 to-amber-500 text-neutral-950 font-black" },
+                            { label: "🔥 Top #2 Highly Requested", style: "from-orange-600 to-amber-500 text-white font-bold" },
+                            { label: "✨ Top #3 Sourced Hot", style: "from-neutral-800 to-neutral-950 text-amber-300 border border-amber-500/30 font-bold" },
+                            { label: "💎 Top #4 Crowd Choice", style: "from-indigo-900 to-purple-900 text-white font-bold" }
+                          ];
+                          const rank = ranks[index] || { label: `⚡ Top #${index + 1} Trending`, style: "from-neutral-900 to-neutral-950 text-neutral-300 font-medium" };
+
+                          return (
+                            <div key={`trending-${prod.id}`} className="relative group/rank-card">
+                              {/* Exclusive Luxury Floating Rank Badge */}
+                              <div className="absolute -top-3.5 left-4 z-20 shadow-lg">
+                                <span className={`inline-flex items-center gap-1 bg-gradient-to-r ${rank.style} text-[8px] sm:text-[9.5px] uppercase tracking-wider px-3 py-1 rounded-full shadow-[0_4px_12px_rgba(0,0,0,0.5)]`}>
+                                  {rank.label}
+                                </span>
+                              </div>
+
+                              {/* Glowing card container for the absolute #1 and #2 items */}
+                              <div className={`rounded-2xl transition-all duration-300 ${
+                                index === 0 
+                                  ? 'ring-2 ring-amber-500/40 shadow-[0_10px_30px_rgba(245,158,11,0.15)] group-hover/rank-card:ring-amber-500/60' 
+                                  : index === 1
+                                    ? 'ring-1 ring-orange-500/20 shadow-[0_10px_25px_rgba(234,88,12,0.1)]'
+                                    : ''
+                              }`}>
+                                <ProductCard
+                                  product={prod}
+                                  onAddToCart={handleAddToCart}
+                                  currency={currency}
+                                  onViewDetails={handleViewDetails}
+                                  onQuickView={(p) => {
+                                    setQuickViewProduct(p);
+                                    setQuickViewOpen(true);
+                                  }}
+                                  isWishlisted={wishlist.includes(prod.id)}
+                                  onToggleWishlist={handleToggleWishlist}
+                                  isCompared={compareIds.includes(prod.id)}
+                                  onToggleCompare={handleToggleCompare}
+                                  isHDMode={isHDMode}
+                                />
+                              </div>
+
+                              {/* Live Demand Stats Ribbon under card */}
+                              <div className="mt-2.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/5 flex items-center justify-between text-[9px] text-neutral-400 font-medium">
+                                <span className="flex items-center gap-1 text-amber-500/90 font-bold">
+                                  <Sparkles className="w-2.5 h-2.5 shrink-0" /> Live Demand
+                                </span>
+                                <span>
+                                  {index === 0 ? '🔥 High Stock-Out Risk' : index === 1 ? '✨ Sells Fast' : 'Verified Dubai Quality'}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </section>
+                )}
+
                 {/* PRODUCT CATALOG WRAPPER */}
-                <section id="shop-catalog" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-10">
+                <section id="shop-catalog" className={`mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-10 transition-all duration-300 ${isHDMode ? 'max-w-[1440px]' : 'max-w-7xl'}`}>
                   
 
                   {/* Dynamic Empty state or Grid */}
@@ -1121,7 +1295,9 @@ export default function App() {
                         variants={containerVariants}
                         initial="hidden"
                         animate="show"
-                        className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 sm:gap-8 max-w-7xl mx-auto"
+                        className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 sm:gap-8 mx-auto transition-all duration-300 ${
+                          isHDMode ? 'max-w-[1440px]' : 'max-w-7xl'
+                        }`}
                       >
                         {paginatedProducts.map((prod) => (
                           <motion.div key={prod.id} variants={itemVariants}>
@@ -1138,6 +1314,7 @@ export default function App() {
                               onToggleWishlist={handleToggleWishlist}
                               isCompared={compareIds.includes(prod.id)}
                               onToggleCompare={handleToggleCompare}
+                              isHDMode={isHDMode}
                             />
                           </motion.div>
                         ))}
@@ -1313,7 +1490,7 @@ export default function App() {
                         <p className="text-neutral-500 text-xs font-light">Select a luxury collection to instantly filter global cosmetics and laboratory skincare</p>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-8 pt-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-8 pt-2">
                         {/* Collection 1: Premium Cosmetics */}
                         <div 
                           onClick={() => {
@@ -1453,7 +1630,73 @@ export default function App() {
                             </div>
                           </div>
                         </div>
+
+                        {/* Collection 3: Royal Traditional Wear & Bridal Jewels */}
+                        <div 
+                          onClick={() => {
+                            setSelectedCategory('Clothing');
+                            setTimeout(() => {
+                              const catalog = document.getElementById('shop-catalog');
+                              catalog?.scrollIntoView({ behavior: 'smooth' });
+                            }, 100);
+                          }}
+                          className="group cursor-pointer flex flex-col lg:flex-row gap-4 items-start"
+                        >
+                          {/* Image container - Precise Same Size & Ratio */}
+                          <div className="aspect-[16/10] w-full lg:w-44 overflow-hidden rounded-2xl border border-clay bg-neutral-100 shadow-sm relative group-hover:shadow-md transition-all duration-500 flex-shrink-0">
+                            <img 
+                              src="https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=800&q=80" 
+                              alt="Royal Traditional Wear & Bridal Jewels" 
+                              referrerPolicy="no-referrer"
+                              className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent pointer-events-none" />
+                            <span className="absolute top-2 left-2 text-[8px] font-black uppercase tracking-widest text-white bg-dark/90 px-2 py-0.5 rounded shadow-sm">
+                              Bridal & Wear
+                            </span>
+                          </div>
+                          {/* Content */}
+                          <div className="flex-1 min-w-0 text-left">
+                            <div className="flex items-center justify-between gap-2">
+                              <h3 className="font-serif text-base font-bold text-neutral-900 group-hover:text-brand transition-colors duration-300">
+                                Royal Traditional Wear & Bridal Jewels
+                              </h3>
+                              <span className="text-[9px] font-mono text-neutral-400 bg-clay-light px-1.5 py-0.5 rounded flex-shrink-0">
+                                {getCategoryCount('Clothing') + getCategoryCount('Jewelry')} drop
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-neutral-500 font-light mt-1 leading-relaxed">
+                              Intricate organza silk sarees, royal velvet lehengas, and precious gold-plated Kundan wedding jewelry sets.
+                            </p>
+                            {/* Sub-category Filter Chips */}
+                            <div className="flex flex-wrap gap-1.5 mt-2.5" onClick={(e) => e.stopPropagation()}>
+                              {['Clothing', 'Jewelry'].map((subCat) => (
+                                <button
+                                  key={subCat}
+                                  onClick={() => {
+                                    setSelectedCategory(subCat);
+                                    setTimeout(() => {
+                                      const catalog = document.getElementById('shop-catalog');
+                                      catalog?.scrollIntoView({ behavior: 'smooth' });
+                                    }, 100);
+                                  }}
+                                  className={`px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider transition-all duration-300 ${
+                                    selectedCategory === subCat
+                                      ? 'bg-brand text-white'
+                                      : 'bg-clay-light hover:bg-clay text-neutral-600'
+                                  }`}
+                                >
+                                  {subCat}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
                       </div>
+
+
+
                     </div>
 
                     {/* Right Side: Concierge FAQ (Compact) */}
@@ -1520,6 +1763,19 @@ export default function App() {
                 wishlist={wishlist}
                 onToggleWishlist={handleToggleWishlist}
                 onAddToCart={handleAddToCart}
+              />
+            )}
+
+            {/* SEPARATE POLICY & INFORMATION VIEWS */}
+            {['about', 'contact', 'returns', 'shipping', 'privacy', 'terms', 'authenticity'].includes(activeView) && (
+              <PolicyPage
+                viewType={activeView as any}
+                onBackToShop={() => {
+                  setActiveView('shop');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                settings={settings}
+                currency={currency}
               />
             )}
           </motion.div>
@@ -1640,376 +1896,7 @@ export default function App() {
         onRegisterUser={(newUser) => {
           setRegisteredUsers(prev => [...prev, newUser]);
         }}
-      />      {/* Multi-Policy & Information Center Modal */}
-      {policyModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white text-dark rounded-3xl max-w-4xl w-full overflow-hidden shadow-2xl border border-clay animate-scale-up flex flex-col md:flex-row h-[85vh] md:h-[70vh]">
-            
-            {/* Left Sidebar for Policy Navigation (Desktop) / Top bar (Mobile) */}
-            <div className="bg-bg-warm/60 border-b md:border-b-0 md:border-r border-clay-light p-5 md:w-80 flex-shrink-0 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center gap-2 mb-6">
-                  <div className="w-8 h-8 rounded-full bg-brand flex items-center justify-center text-white">
-                    <Sparkles className="w-4 h-4 text-white animate-pulse" />
-                  </div>
-                  <div>
-                    <h3 className="font-serif text-sm font-bold text-dark uppercase tracking-wider">Mahi Creations</h3>
-                    <p className="text-[8px] uppercase tracking-widest text-neutral-400 font-bold">Information Desk</p>
-                  </div>
-                </div>
-
-                {/* Tabs Selector list */}
-                <div className="flex md:flex-col overflow-x-auto md:overflow-x-visible pb-3 md:pb-0 gap-1.5 no-scrollbar">
-                  {[
-                    { id: 'about', label: 'About Us', icon: Info },
-                    { id: 'contact', label: 'Contact Us', icon: MapPin },
-                    { id: 'returns', label: 'Return & Exchange', icon: RefreshCw },
-                    { id: 'shipping', label: 'Shipping & Delivery', icon: Truck },
-                    { id: 'privacy', label: 'Privacy & Security', icon: Lock },
-                    { id: 'terms', label: 'Terms of Service', icon: FileText },
-                    { id: 'authenticity', label: 'Authenticity Pledge', icon: CheckCircle2 },
-                  ].map((tab) => {
-                    const IconComp = tab.icon;
-                    const isActive = activePolicyTab === tab.id;
-                    return (
-                      <button
-                        key={tab.id}
-                        onClick={() => setActivePolicyTab(tab.id as any)}
-                        className={`flex items-center gap-2.5 px-4 py-3 rounded-xl text-left text-[11px] font-bold transition-all duration-300 flex-shrink-0 cursor-pointer ${
-                          isActive 
-                            ? 'bg-brand text-white shadow-md shadow-brand/20 translate-x-1' 
-                            : 'bg-white hover:bg-brand/10 text-neutral-600 hover:text-brand border border-clay/30'
-                        }`}
-                      >
-                        <IconComp className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-brand'}`} />
-                        <span>{tab.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Sidebar bottom signature */}
-              <div className="hidden md:block border-t border-clay-light pt-4 mt-4 space-y-2">
-                <p className="text-[9px] text-neutral-400 leading-normal">
-                  Our customer service concierge is fully active. Feel free to contact us on WhatsApp for live resolution.
-                </p>
-                <a 
-                  href={`https://wa.me/${settings.whatsappNumber}`} 
-                  target="_blank" 
-                  rel="noreferrer"
-                  className="flex items-center justify-center gap-1.5 w-full bg-green-500 hover:bg-green-600 text-white py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all duration-300 shadow-sm"
-                >
-                  <WhatsAppLogo className="w-3.5 h-3.5 text-white" />
-                  <span>Chat Concierge</span>
-                </a>
-              </div>
-            </div>
-
-            {/* Right Side: Content Area */}
-            <div className="flex-1 flex flex-col justify-between overflow-hidden bg-white">
-              
-              {/* Header with Close */}
-              <div className="border-b border-clay-light px-6 py-4 flex items-center justify-between bg-neutral-50">
-                <div>
-                  <span className="text-[8px] uppercase tracking-[0.25em] font-black text-brand">Official Documentation</span>
-                  <h4 className="font-serif text-base font-extrabold text-dark uppercase tracking-tight">
-                    {activePolicyTab === 'about' && 'About Mahi Creations'}
-                    {activePolicyTab === 'contact' && 'Contact Us & Store Location'}
-                    {activePolicyTab === 'returns' && 'Return & Refund Policy'}
-                    {activePolicyTab === 'shipping' && 'Shipping & Delivery Policy'}
-                    {activePolicyTab === 'privacy' && 'Privacy & Security Policy'}
-                    {activePolicyTab === 'terms' && 'Terms & Conditions of Service'}
-                    {activePolicyTab === 'authenticity' && 'Authenticity & Import Pledge'}
-                  </h4>
-                </div>
-                <button 
-                  onClick={() => setPolicyModalOpen(false)}
-                  className="p-1.5 rounded-full hover:bg-neutral-200 text-neutral-500 hover:text-dark transition cursor-pointer"
-                  title="Close Modal"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Dynamic Scrollable Content */}
-              <div className="flex-1 p-6 overflow-y-auto space-y-6 text-neutral-600 text-[11px] leading-relaxed font-light">
-                
-                {/* ABOUT US TAB */}
-                {activePolicyTab === 'about' && (
-                  <div className="space-y-4 animate-fade-in">
-                    <div className="relative overflow-hidden rounded-2xl border border-clay-light shadow-inner mb-4">
-                      <img 
-                        src={settings.aboutImageUrl || "/src/assets/images/mahi_about_me_1783496157685.jpg"} 
-                        alt="About Mahi Creations Studio Sourcing" 
-                        referrerPolicy="no-referrer"
-                        className="w-full h-32 object-cover"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-dark/60 to-transparent flex items-end p-3">
-                        <span className="text-white font-serif text-[11px] font-bold">Mahi Creations Vanity Sourcing Hub</span>
-                      </div>
-                    </div>
-                    
-                    <p>
-                      Welcome to <strong className="text-dark font-bold">Mahi Creations</strong>, Nepal’s premier luxury digital boutique and handpicked beauty catalog. We specialize in bridging premium global cosmetic formulations, advanced hydration regimes, high-end traditional apparel, and designer accessories directly to the discerning client.
-                    </p>
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                      <div className="p-3.5 bg-neutral-50 rounded-2xl border border-clay-light space-y-1">
-                        <span className="block font-serif text-xs font-bold text-brand uppercase">Kathmandu Hub</span>
-                        <p className="text-[10px]">Based in the heart of Lalitpur, Jhamsikhel, serving as our central quality check and direct expedited courier dispatch point across Nepal.</p>
-                      </div>
-                      <div className="p-3.5 bg-neutral-50 rounded-2xl border border-clay-light space-y-1">
-                        <span className="block font-serif text-xs font-bold text-brand uppercase">Global Sourcing</span>
-                        <p className="text-[10px]">Partnering with authorized distributors worldwide to procure 100% genuine, certified luxury assets straight from major beauty capitals.</p>
-                      </div>
-                    </div>
-
-                    <p>
-                      Our primary legacy is complete customer trust. We partner directly with authorized distributors and certified laboratories to ensure that every drop of serum, every shade of lipstick, and every thread of our apparel is flawless and meets strict standard safety protocols.
-                    </p>
-                  </div>
-                )}
-
-                {/* CONTACT US TAB */}
-                {activePolicyTab === 'contact' && (
-                  <div className="space-y-5 animate-fade-in text-[11px]">
-                    <div className="bg-neutral-50 border border-clay-light p-6 rounded-2xl space-y-4">
-                      <div className="flex items-center gap-3 border-b border-clay-light pb-3">
-                        <div className="w-9 h-9 rounded-full bg-brand/10 flex items-center justify-center text-brand flex-shrink-0">
-                          <MapPin className="w-4.5 h-4.5" />
-                        </div>
-                        <div>
-                          <h5 className="text-[10px] uppercase font-bold tracking-wider text-neutral-400">Store / Boutique Location</h5>
-                          <p className="text-xs text-dark font-extrabold">{settings.shopAddress || 'Lalitpur, Jhamsikhel, Nepal'}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3 border-b border-clay-light pb-3">
-                        <div className="w-9 h-9 rounded-full bg-brand/10 flex items-center justify-center text-brand flex-shrink-0">
-                          <Mail className="w-4.5 h-4.5" />
-                        </div>
-                        <div>
-                          <h5 className="text-[10px] uppercase font-bold tracking-wider text-neutral-400">Official Support Email</h5>
-                          <a 
-                            href={`mailto:${settings.adminEmail || 'mahicreations369@gmail.com'}`}
-                            className="text-xs text-brand hover:underline font-extrabold"
-                          >
-                            {settings.adminEmail || 'mahicreations369@gmail.com'}
-                          </a>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-brand/10 flex items-center justify-center text-brand flex-shrink-0">
-                          <Phone className="w-4.5 h-4.5" />
-                        </div>
-                        <div>
-                          <h5 className="text-[10px] uppercase font-bold tracking-wider text-neutral-400">WhatsApp & Direct Support</h5>
-                          <a 
-                            href={`https://wa.me/${settings.whatsappNumber}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-xs text-emerald-600 hover:underline font-extrabold flex items-center gap-1"
-                          >
-                            <span>+{settings.whatsappNumber || '9779802058364'}</span>
-                            <span className="text-[8px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded font-black uppercase">Live Chat</span>
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-bg-warm/40 p-5 rounded-2xl border border-clay-light space-y-3">
-                      <h6 className="text-[10px] uppercase font-bold tracking-wider text-neutral-500 flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5 text-brand" />
-                        Boutique Operating Hours
-                      </h6>
-                      <div className="grid grid-cols-2 gap-4 font-semibold text-neutral-600">
-                        <div>
-                          <p className="text-neutral-400 font-medium uppercase text-[8px]">Sunday - Friday</p>
-                          <p className="text-dark text-xs font-bold">10:00 AM - 08:00 PM</p>
-                        </div>
-                        <div>
-                          <p className="text-neutral-400 font-medium uppercase text-[8px]">Saturday</p>
-                          <p className="text-dark text-xs font-bold">12:00 PM - 06:00 PM</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="border border-clay-light p-5 rounded-2xl bg-white space-y-2">
-                      <h6 className="text-[10px] uppercase font-bold tracking-wider text-neutral-500">Concierge Response Commitment</h6>
-                      <p className="leading-relaxed text-neutral-400 font-light">
-                        Every makeup consultation, global cosmetics inquiry, and traditional dress measurement session can be dynamically coordinated. Our support staff committedly monitors all incoming email notifications and WhatsApp pings. Expect direct human replies inside 24 hours.
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* RETURN & REFUND POLICY TAB */}
-                {activePolicyTab === 'returns' && (
-                  <div className="space-y-4 animate-fade-in">
-                    <div className="flex gap-3 items-start p-3 bg-brand/5 border border-brand/20 rounded-2xl">
-                      <RefreshCw className="w-4 h-4 text-brand mt-0.5 flex-shrink-0" />
-                      <div>
-                        <h5 className="font-serif text-xs font-bold text-dark uppercase mb-0.5">7-Day Free Exchange & Refund</h5>
-                        <p className="text-[10px]">We provide an absolute 7-day visual verification window. If you receive a damaged, mismatched, or wrong product, let us make it right immediately!</p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <h6 className="font-serif text-[11px] font-bold text-dark uppercase">Eligibility and Criteria</h6>
-                      <ul className="list-disc pl-4 space-y-1 text-[10px]">
-                        <li>Items must be strictly unopened, unused, and presented in original premium retail packaging.</li>
-                        <li>Manufacturer security tags, original barcodes, and cellophane box seals must be fully intact.</li>
-                        <li>For hygiene and standard safety compliance, opened cosmetic liquid bottles, hydration drops, eye palettes, or custom altered traditional dresses cannot be exchanged.</li>
-                      </ul>
-                    </div>
-
-                    <div className="space-y-1 border-t border-clay-light pt-3">
-                      <h6 className="font-serif text-[11px] font-bold text-dark uppercase">How Refunds are Sent</h6>
-                      <p>Once our Lalitpur inspection center verifies the integrity of the returned package, your refund will be directly credited to your preferred digital wallet (<span className="font-bold text-dark">eSewa</span> or <span className="font-bold text-dark">Khalti</span>) or direct <span className="font-bold text-dark">Bank Transfer</span> within 24 to 48 hours.</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* SHIPPING & DELIVERY TAB */}
-                {activePolicyTab === 'shipping' && (
-                  <div className="space-y-4 animate-fade-in">
-                    <div className="flex gap-3 items-start p-3 bg-blue-50 border border-blue-200 rounded-2xl">
-                      <Truck className="w-4 h-4 text-blue-700 mt-0.5 flex-shrink-0" />
-                      <div>
-                        <h5 className="font-serif text-xs font-bold text-blue-900 uppercase mb-0.5">Expedited Regional Delivery</h5>
-                        <p className="text-[10px]">Free express shipping inside Kathmandu Valley on all qualifying boutique purchases! Outer valley shipping handled by our dedicated logistics network.</p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="p-3.5 bg-neutral-50 rounded-2xl border border-clay-light">
-                        <span className="font-bold text-dark block mb-1">Kathmandu Valley</span>
-                        <p className="text-[10px]">Dispatched via our in-house delivery fleet. Expect delivery inside 12 to 24 hours. Full Cash on Delivery is fully active.</p>
-                      </div>
-                      <div className="p-3.5 bg-neutral-50 rounded-2xl border border-clay-light">
-                        <span className="font-bold text-dark block mb-1">Outside Valley & UAE</span>
-                        <p className="text-[10px]">Shipped via express corporate courier links (Pathao, Nepal Can Move, Aramex). Expected arrival takes 2 to 4 business days.</p>
-                      </div>
-                    </div>
-
-                    <div className="border-t border-clay-light pt-3 space-y-1">
-                      <h6 className="font-serif text-[11px] font-bold text-dark uppercase">Order Tracking Engine</h6>
-                      <p>Every single order generates a unique digital Tracking ID (e.g., <span className="font-mono text-dark font-bold">MC-55120</span>). You can paste this ID inside our online Order Tracker page to trace real-time updates from packaging to final courier delivery.</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* PRIVACY POLICY TAB */}
-                {activePolicyTab === 'privacy' && (
-                  <div className="space-y-4 animate-fade-in">
-                    <div className="flex gap-3 items-start p-3 bg-green-50 border border-green-200 rounded-2xl">
-                      <Lock className="w-4 h-4 text-green-700 mt-0.5 flex-shrink-0" />
-                      <div>
-                        <h5 className="font-serif text-xs font-bold text-green-900 uppercase mb-0.5">Safe Buyer Protection</h5>
-                        <p className="text-[10px]">Your personal information, telephone numbers, and delivery locations are heavily encrypted. We enforce zero telemetry or third-party sharing.</p>
-                      </div>
-                    </div>
-
-                    <p>
-                      Mahi Creations strictly secures all transactions using encrypted security sockets (SSL). Any information shared during the VIP member sign-up or guest checkout is strictly used to organize fulfillment.
-                    </p>
-
-                    <div className="space-y-1 border-t border-clay-light pt-3">
-                      <h6 className="font-serif text-[11px] font-bold text-dark uppercase">Wallet & Payment Confidentiality</h6>
-                      <p>
-                        Our systems integrate via official API handshakes with <span className="font-bold text-dark">eSewa</span> and <span className="font-bold text-dark">Khalti</span>. We do not store or read your digital PINs or bank passwords. All transfers are securely processed at the banking gateway layer.
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* TERMS OF SERVICE TAB */}
-                {activePolicyTab === 'terms' && (
-                  <div className="space-y-4 animate-fade-in">
-                    <p>
-                      By utilizing the Mahi Creations boutique platform, you agree to comply with our general Terms of Service. Please review the key pillars of our client agreement:
-                    </p>
-
-                    <div className="space-y-3">
-                      <div className="flex gap-2.5 items-start">
-                        <span className="w-4 h-4 rounded-full bg-brand/10 text-brand flex items-center justify-center font-bold font-mono text-[9px] flex-shrink-0 mt-0.5">1</span>
-                        <div>
-                          <span className="font-bold text-dark block text-[10px]">Pricing & Billing</span>
-                          <p className="text-[10px]">All boutique pricing, VAT components, and active discounts are finalized upon checkout. We honor automatic savings of up to 25% on our Monsoon Glow offerings.</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-2.5 items-start border-t border-clay-light/50 pt-2.5">
-                        <span className="w-4 h-4 rounded-full bg-brand/10 text-brand flex items-center justify-center font-bold font-mono text-[9px] flex-shrink-0 mt-0.5">2</span>
-                        <div>
-                          <span className="font-bold text-dark block text-[10px]">Product Sourcing Liability</span>
-                          <p className="text-[10px]">We guarantee authentic formulation from international beauty labs. We provide full ingredient listings so customers with sensitive skin can review before ordering.</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-2.5 items-start border-t border-clay-light/50 pt-2.5">
-                        <span className="w-4 h-4 rounded-full bg-brand/10 text-brand flex items-center justify-center font-bold font-mono text-[9px] flex-shrink-0 mt-0.5">3</span>
-                        <div>
-                          <span className="font-bold text-dark block text-[10px]">Abuse Policy</span>
-                          <p className="text-[10px]">Mahi Creations reserves the right to suspend accounts or blacklist orders in cases of suspicious payment activity or repeatedly rejected cash-on-delivery shipments.</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* AUTHENTICITY GUARANTEE TAB */}
-                {activePolicyTab === 'authenticity' && (
-                  <div className="space-y-4 animate-fade-in">
-                    <div className="text-center p-5 bg-neutral-50 rounded-2xl border border-clay-light/80 space-y-2">
-                      <Sparkles className="w-6 h-6 text-brand mx-auto animate-pulse" />
-                      <h5 className="font-serif text-xs font-bold text-dark uppercase">100% Genuine Certified Boutique</h5>
-                      <div className="h-0.5 w-10 bg-brand mx-auto"></div>
-                      <p className="text-[10px] text-neutral-500 font-light leading-relaxed">
-                        We maintain zero tolerance for counterfeit cosmetics. Every single box contains real batch codes linked back to certified production capitals.
-                      </p>
-                    </div>
-
-                    <p>
-                      Mahi Creations is proud to offer cosmetics, apparel, and jewelry direct from official distribution channels in <span className="text-dark font-bold">Paris</span>, <span className="text-dark font-bold">Seoul</span>, <span className="text-dark font-bold">Tokyo</span>, and <span className="text-dark font-bold">New York</span>. By eliminating intermediate broker channels, we can promise unparalleled freshness and absolute brand integrity.
-                    </p>
-                  </div>
-                )}
-
-              </div>
-
-              {/* Footer Actions inside Modal */}
-              <div className="border-t border-clay-light p-4 bg-neutral-50 flex flex-col sm:flex-row gap-3 items-center justify-between">
-                <div className="flex items-center gap-1.5 text-[10px] text-neutral-400">
-                  <ShieldCheck className="w-4 h-4 text-brand" />
-                  <span>Licensed and Certified Boutique Sourcing</span>
-                </div>
-                
-                {/* Mobile Whatsapp quick-connect */}
-                <div className="flex gap-2 w-full sm:w-auto justify-end">
-                  <a 
-                    href={`https://wa.me/${settings.whatsappNumber}`} 
-                    target="_blank" 
-                    rel="noreferrer"
-                    className="md:hidden flex items-center justify-center gap-1 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-xl text-[10px] font-bold transition-all cursor-pointer"
-                  >
-                    <WhatsAppLogo className="w-3.5 h-3.5 text-white" />
-                    <span>WhatsApp</span>
-                  </a>
-                  <button 
-                    onClick={() => setPolicyModalOpen(false)}
-                    className="bg-dark hover:bg-brand text-white px-5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer"
-                  >
-                    Close Information
-                  </button>
-                </div>
-              </div>
-
-            </div>
-
-          </div>
-        </div>
-      )}
+      />
 
       {/* Smart AI Beauty Routine Finder Quiz - SMART AI CURATION */}
       {activeView !== 'admin' && (
@@ -2172,13 +2059,22 @@ export default function App() {
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
               >
-                <div className="relative flex items-center justify-center w-9 h-9 rounded-full bg-dark text-white border border-brand/20 shadow-md">
-                  <Sparkles className="w-4.5 h-4.5 text-brand animate-pulse" />
-                  <div className="absolute inset-0 rounded-full border border-white/10 animate-ping opacity-25" />
-                </div>
+                {settings.logoUrl ? (
+                  <img 
+                    src={settings.logoUrl} 
+                    alt={settings.shopName || 'Boutique Logo'} 
+                    className="max-h-9 w-auto max-w-[120px] object-contain border border-clay/40 rounded-lg p-0.5 bg-white shrink-0 shadow-sm transition-all duration-300"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="relative flex items-center justify-center w-9 h-9 rounded-full bg-dark text-white border border-brand/20 shadow-md">
+                    <Sparkles className="w-4.5 h-4.5 text-brand animate-pulse" />
+                    <div className="absolute inset-0 rounded-full border border-white/10 animate-ping opacity-25" />
+                  </div>
+                )}
                 <div>
                   <span className="font-serif text-sm font-extrabold text-dark tracking-wider block uppercase leading-none">
-                    Mahi Creations
+                    {settings.shopName || 'Mahi Creations'}
                   </span>
                   <span className="text-[7.5px] uppercase tracking-[0.25em] text-neutral-400 font-bold">
                     Premium Boutique Luxury
@@ -2242,35 +2138,35 @@ export default function App() {
               <h5 className="font-serif text-xs font-bold text-dark uppercase tracking-wider">Customer Care</h5>
               <div className="flex flex-col space-y-2 font-semibold text-neutral-600">
                 <button 
-                  onClick={() => { setActivePolicyTab('returns'); setPolicyModalOpen(true); }}
+                  onClick={() => { setActiveView('returns'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                   className="text-left hover:text-brand transition flex items-center gap-2 group cursor-pointer"
                 >
                   <RefreshCw className="w-3.5 h-3.5 text-brand/80 group-hover:rotate-45 transition-transform" />
                   <span>Return & Refund Policy</span>
                 </button>
                 <button 
-                  onClick={() => { setActivePolicyTab('shipping'); setPolicyModalOpen(true); }}
+                  onClick={() => { setActiveView('shipping'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                   className="text-left hover:text-brand transition flex items-center gap-2 group cursor-pointer"
                 >
                   <Truck className="w-3.5 h-3.5 text-brand/80" />
                   <span>Shipping & Delivery Policy</span>
                 </button>
                 <button 
-                  onClick={() => { setActivePolicyTab('privacy'); setPolicyModalOpen(true); }}
+                  onClick={() => { setActiveView('privacy'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                   className="text-left hover:text-brand transition flex items-center gap-2 group cursor-pointer"
                 >
                   <Lock className="w-3.5 h-3.5 text-brand/80" />
                   <span>Privacy & Security Policy</span>
                 </button>
                 <button 
-                  onClick={() => { setActivePolicyTab('terms'); setPolicyModalOpen(true); }}
+                  onClick={() => { setActiveView('terms'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                   className="text-left hover:text-brand transition flex items-center gap-2 group cursor-pointer"
                 >
                   <FileText className="w-3.5 h-3.5 text-brand/80" />
                   <span>Terms & Conditions</span>
                 </button>
                 <button 
-                  onClick={() => { setActivePolicyTab('contact'); setPolicyModalOpen(true); }}
+                  onClick={() => { setActiveView('contact'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                   className="text-left hover:text-brand transition flex items-center gap-2 group cursor-pointer font-bold text-brand"
                 >
                   <MapPin className="w-3.5 h-3.5 text-brand" />
@@ -2284,14 +2180,14 @@ export default function App() {
               <h5 className="font-serif text-xs font-bold text-dark uppercase tracking-wider">The Boutique Legacy</h5>
               <div className="flex flex-col space-y-2 font-semibold text-neutral-600">
                 <button 
-                  onClick={() => { setActivePolicyTab('about'); setPolicyModalOpen(true); }}
+                  onClick={() => { setActiveView('about'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                   className="text-left hover:text-brand transition flex items-center gap-2 group cursor-pointer"
                 >
                   <Info className="w-3.5 h-3.5 text-brand/80" />
                   <span>About Our Boutique</span>
                 </button>
                 <button 
-                  onClick={() => { setActivePolicyTab('authenticity'); setPolicyModalOpen(true); }}
+                  onClick={() => { setActiveView('authenticity'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                   className="text-left hover:text-brand transition flex items-center gap-2 group cursor-pointer"
                 >
                   <CheckCircle2 className="w-3.5 h-3.5 text-brand/80" />

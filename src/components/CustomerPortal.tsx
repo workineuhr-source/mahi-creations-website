@@ -77,6 +77,9 @@ export default function CustomerPortal({
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
+  const [country, setCountry] = useState('Nepal');
+  const [whatsapp, setWhatsapp] = useState('');
+  const [location, setLocation] = useState('');
   const [loginError, setLoginError] = useState('');
 
   // Write Review form states
@@ -119,7 +122,10 @@ export default function CustomerPortal({
     onLogin({
       fullName: fullName.trim(),
       phone: phone.trim(),
-      address: address.trim()
+      address: address.trim(),
+      country: country.trim() || 'Nepal',
+      whatsapp: whatsapp.trim() || phone.trim(),
+      location: location.trim() || address.trim().split(',')[0]
     });
     setLoginError('');
   };
@@ -379,7 +385,7 @@ export default function CustomerPortal({
               </p>
             </div>
 
-            <form onSubmit={handleLoginSubmit} className="space-y-4 text-xs">
+             <form onSubmit={handleLoginSubmit} className="space-y-4 text-xs">
               
               <div className="space-y-1.5">
                 <label className="font-bold text-neutral-600 uppercase tracking-wider block">Full Name</label>
@@ -396,18 +402,69 @@ export default function CustomerPortal({
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="font-bold text-neutral-600 uppercase tracking-wider block">Phone Number</label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-neutral-400" />
-                  <input
-                    type="tel"
-                    required
-                    placeholder="Enter phone (e.g. 9802058364)"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full text-xs pl-10 pr-4 py-3 bg-bg-warm/45 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium font-mono"
-                  />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="font-bold text-neutral-600 uppercase tracking-wider block">Phone Number</label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-neutral-400" />
+                    <input
+                      type="tel"
+                      required
+                      placeholder="e.g. 9802058364"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="w-full text-xs pl-10 pr-4 py-3 bg-bg-warm/45 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-bold text-neutral-600 uppercase tracking-wider block">WhatsApp Number</label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-emerald-500" />
+                    <input
+                      type="tel"
+                      placeholder="Same as phone if empty"
+                      value={whatsapp}
+                      onChange={(e) => setWhatsapp(e.target.value)}
+                      className="w-full text-xs pl-10 pr-4 py-3 bg-bg-warm/45 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="font-bold text-neutral-600 uppercase tracking-wider block">Country</label>
+                  <select
+                    value={country}
+                    onChange={(e) => setCountry(e.target.value)}
+                    className="w-full text-xs px-4 py-3 bg-bg-warm/45 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium cursor-pointer"
+                  >
+                    <option value="Nepal">🇳🇵 Nepal</option>
+                    <option value="United Arab Emirates">🇦🇪 United Arab Emirates (UAE)</option>
+                    <option value="India">🇮🇳 India</option>
+                    <option value="Qatar">🇶🇦 Qatar</option>
+                    <option value="Saudi Arabia">🇸🇦 Saudi Arabia</option>
+                    <option value="United States">🇺🇸 United States (USA)</option>
+                    <option value="Australia">🇦🇺 Australia</option>
+                    <option value="Other">🌍 Other Country</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-bold text-neutral-600 uppercase tracking-wider block">City / Location Area</label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-neutral-400" />
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Kathmandu / Dubai"
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      className="w-full text-xs pl-10 pr-4 py-3 bg-bg-warm/45 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -417,8 +474,8 @@ export default function CustomerPortal({
                   <MapPin className="absolute left-3 top-3 w-4.5 h-4.5 text-neutral-400" />
                   <textarea
                     required
-                    rows={3}
-                    placeholder="Enter exact landmark, area name, ward number (e.g. New Baneshwor, Marg-10, near Civil Hospital)"
+                    rows={2}
+                    placeholder="Exact landmark, area, ward number (e.g. New Baneshwor, Marg-10, near Civil Hospital)"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                     className="w-full text-xs pl-10 pr-4 py-3 bg-bg-warm/45 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium"
@@ -553,7 +610,10 @@ export default function CustomerPortal({
                               onLogin({
                                 fullName: manualOrder.customerName,
                                 phone: manualOrder.customerPhone,
-                                address: manualOrder.customerAddress
+                                address: manualOrder.customerAddress,
+                                country: manualOrder.countryCode === 'NP' ? 'Nepal' : manualOrder.countryCode === 'AE' ? 'United Arab Emirates' : 'Nepal',
+                                whatsapp: manualOrder.customerPhone,
+                                location: manualOrder.deliveryLocationName
                               });
                               setManualOrder(null);
                               setManualSearchId('');
@@ -808,6 +868,98 @@ export default function CustomerPortal({
               {/* RIGHT Portion: MY SETTINGS & PRODUCT FEEDBACKS */}
               <div className="space-y-6">
                 
+                {/* DIGITAL VIP MEMBERSHIP CARD */}
+                <div className="relative overflow-hidden bg-gradient-to-br from-stone-950 via-neutral-900 to-amber-950 text-white rounded-3xl border border-amber-500/35 p-6 shadow-2xl space-y-6">
+                  {/* Subtle golden glare overlay */}
+                  <div className="absolute -top-12 -right-12 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none"></div>
+                  <div className="absolute -bottom-16 -left-16 w-36 h-36 bg-amber-600/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1.5 text-amber-400">
+                        <Sparkles className="w-5 h-5 animate-pulse" />
+                        <span className="font-serif text-sm font-black tracking-widest uppercase">Mahi Creations</span>
+                      </div>
+                      <p className="text-[9px] text-amber-500/80 tracking-widest font-bold uppercase">Boutique VIP Lounge</p>
+                    </div>
+                    <span className="text-[8px] bg-amber-400/20 text-amber-300 border border-amber-400/30 px-2 py-0.5 rounded font-black tracking-widest uppercase">
+                      ROYAL PASS
+                    </span>
+                  </div>
+
+                  {/* Golden chip & Contactless Wireless Signal Visual */}
+                  <div className="flex justify-between items-center pt-2">
+                    {/* Chip Graphic */}
+                    <div className="w-10 h-7 rounded-md bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-500 p-[1px] opacity-85">
+                      <div className="w-full h-full rounded-[5px] bg-amber-800/10 border border-amber-900/10 grid grid-cols-3 grid-rows-2 gap-[1px]">
+                        {[...Array(6)].map((_, i) => (
+                          <div key={i} className="border-[0.5px] border-amber-400/30"></div>
+                        ))}
+                      </div>
+                    </div>
+                    {/* Wireless signal */}
+                    <svg className="w-6 h-6 text-amber-400/50 rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 18h.01M8 21h8M12 3v14" />
+                    </svg>
+                  </div>
+
+                  {/* Member Card Information */}
+                  <div className="space-y-3 pt-2">
+                    <div className="space-y-0.5">
+                      <p className="text-[8px] text-stone-400 uppercase tracking-widest font-bold">VIP Cardholder</p>
+                      <h4 className="font-serif text-base font-extrabold text-amber-100 tracking-wide">
+                        {userSession.fullName}
+                      </h4>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 text-left">
+                      <div className="space-y-0.5">
+                        <p className="text-[8px] text-stone-400 uppercase tracking-widest font-bold">WhatsApp / Contact</p>
+                        <p className="text-[11px] font-mono text-neutral-200 font-semibold flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
+                          {userSession.whatsapp || userSession.phone}
+                        </p>
+                      </div>
+
+                      <div className="space-y-0.5">
+                        <p className="text-[8px] text-stone-400 uppercase tracking-widest font-bold">Country / State</p>
+                        <p className="text-[11px] text-neutral-200 font-semibold">
+                          {userSession.country || 'Nepal'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 text-left border-t border-amber-500/15 pt-3">
+                      <div className="space-y-0.5">
+                        <p className="text-[8px] text-stone-400 uppercase tracking-widest font-bold">Lounge Location</p>
+                        <p className="text-[11px] text-neutral-200 font-semibold truncate" title={userSession.location || userSession.address}>
+                          {userSession.location || 'Kathmandu'}
+                        </p>
+                      </div>
+
+                      <div className="space-y-0.5">
+                        <p className="text-[8px] text-stone-400 uppercase tracking-widest font-bold">VIP membership no.</p>
+                        <p className="text-[11px] font-mono text-amber-400 font-bold tracking-wider">
+                          MC-VIP-{(userSession.phone || '9800000000').slice(-4)}-{((userSession.fullName || 'A').charCodeAt(0) * 7) % 99}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-0.5 border-t border-amber-500/15 pt-3 text-left">
+                      <p className="text-[8px] text-stone-400 uppercase tracking-widest font-bold">Full Registered Address</p>
+                      <p className="text-[10px] text-stone-300 font-light leading-snug">
+                        {userSession.address}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Card Security/Footer Seal */}
+                  <div className="flex justify-between items-center pt-2 border-t border-amber-500/10 text-[8px] text-amber-500/60 tracking-wider font-semibold">
+                    <span>MEMBER SINCE {new Date().getFullYear()}</span>
+                    <span>ACTIVE VIP LEVEL 1</span>
+                  </div>
+                </div>
+
                 {/* LOUNGE FEEDBACK STATS CARD */}
                 <div className="bg-white p-6 rounded-3xl border border-clay shadow-md space-y-4">
                   <h4 className="font-serif text-base font-bold text-dark uppercase tracking-wider flex items-center gap-2 border-b border-clay pb-2">

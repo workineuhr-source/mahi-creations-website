@@ -93,8 +93,28 @@ export default function Hero({
     return () => clearInterval(interval);
   }, []);
 
-  // Filter products that are "on offer" (have discount) or are "new/featured"
-  const flashSaleProducts = products.filter(p => p.discountPercent > 0).slice(0, 8);
+  // Rotate Flash Sale Products state (Exactly 6 products, auto-rotating)
+  const [flashOffset, setFlashOffset] = useState(0);
+  const discountedProducts = products.filter(p => p.discountPercent > 0 && p.isVisible !== false);
+  
+  useEffect(() => {
+    if (discountedProducts.length <= 6) return;
+    const interval = setInterval(() => {
+      setFlashOffset((prev) => (prev + 1) % discountedProducts.length);
+    }, 10000); // Dynamic rotation every 10 seconds
+    return () => clearInterval(interval);
+  }, [discountedProducts.length]);
+
+  const flashSaleProducts = React.useMemo(() => {
+    const pool = discountedProducts.length > 0 ? discountedProducts : products.filter(p => p.isVisible !== false);
+    if (pool.length <= 6) return pool;
+    
+    const result = [];
+    for (let i = 0; i < 6; i++) {
+      result.push(pool[(flashOffset + i) % pool.length]);
+    }
+    return result;
+  }, [discountedProducts, products, flashOffset]);
   
   // Extract unique categories from products
   const uniqueCategories = Array.from(new Set(products.map(p => p.category)));
@@ -140,83 +160,77 @@ export default function Hero({
           {/* Main Campaign Slide Carousel (9 Cols on desktop) */}
           <div className="col-span-1 lg:col-span-9 relative bg-neutral-100 rounded-2xl overflow-hidden aspect-[4/3] sm:aspect-[16/10] md:aspect-[1.8/1] lg:aspect-[1.9/1] xl:aspect-[2.0/1] min-h-[320px] sm:min-h-[400px] md:min-h-[450px] lg:min-h-[480px] shadow-xl border border-neutral-200/10 hover:shadow-2xl hover:shadow-orange-500/10 transition-all duration-500 group">
             {currentSlide ? (
-              <div className="absolute inset-0 w-full h-full">
-                {/* Promo Slide Image with auto-adjustment support */}
-                {currentSlide.imageFit === 'contain' ? (
-                  <div className="absolute inset-0 w-full h-full bg-neutral-950 flex items-center justify-center overflow-hidden">
-                    {/* Blurred background layer */}
-                    <div 
-                      className="absolute inset-0 bg-cover bg-center blur-2xl opacity-45 scale-110 saturate-[1.1]"
-                      style={{ backgroundImage: `url(${currentSlide.image})` }}
-                    />
-                    {/* Centered full image */}
-                    <img 
-                      src={currentSlide.image} 
-                      alt={currentSlide.title} 
-                      referrerPolicy="no-referrer"
-                      className="relative max-h-full max-w-full object-contain z-10 transition-transform duration-[3000ms] ease-out group-hover:scale-[1.03] saturate-[1.05] contrast-[1.03]"
-                    />
-                  </div>
-                ) : (
-                  <img 
-                    src={currentSlide.image} 
-                    alt={currentSlide.title} 
-                    referrerPolicy="no-referrer"
-                    className="w-full h-full object-cover object-center opacity-100 transition-transform duration-[3000ms] ease-out group-hover:scale-105 saturate-[1.05] contrast-[1.03]"
-                  />
-                )}
-                
-                {/* Clean, lightweight gradient overlay that lets the product shine */}
-                <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-transparent flex items-center p-4 sm:p-8 md:p-10 lg:p-12">
+              <div className="absolute inset-0 w-full h-full flex flex-col md:flex-row">
+                {/* Left side: Product Information (Jankari) */}
+                <div className="w-full md:w-[45%] lg:w-[42%] flex-shrink-0 h-[50%] md:h-full bg-gradient-to-br from-white via-clay-light to-bg-warm border-b md:border-b-0 md:border-r border-clay flex flex-col justify-center p-5 sm:p-6 md:p-8 lg:p-10 text-left space-y-2.5 sm:space-y-4 relative z-10 overflow-y-auto no-scrollbar">
                   
-                  {/* Glassmorphic 3D Layer Text Container sitting directly on top of the photo */}
-                  <div className="backdrop-blur-[10px] bg-black/40 border border-white/15 p-5 sm:p-7 md:p-8 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.2)] hover:border-white/25 transition-all duration-300 max-w-[95%] sm:max-w-[75%] md:max-w-[65%] text-left space-y-2.5 sm:space-y-4 md:space-y-4">
-                    
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="inline-flex items-center gap-1.5 bg-gradient-to-r from-orange-600 to-amber-500 text-white text-[8px] sm:text-[10px] md:text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-[0_4px_12px_rgba(234,88,12,0.3)] animate-pulse">
-                        <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
-                        ⚡ {currentSlide.subtitle || 'Mega Deal'}
-                      </span>
-                      <span className="text-[7px] sm:text-[9px] uppercase tracking-wider text-amber-200/90 font-black flex items-center gap-1 bg-white/5 px-2 py-1 rounded-md border border-white/5">
-                        <Sparkles className="w-2.5 h-2.5 text-amber-400 animate-spin" /> Live Campaign
-                      </span>
-                    </div>
-
-                    <h2 
-                      className="font-sans text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-4.5xl font-black text-transparent bg-gradient-to-r from-white via-neutral-100 to-amber-100 bg-clip-text leading-tight uppercase tracking-tight"
-                      style={{ 
-                        textShadow: '1px 1px 0px #d97706, 2.5px 2.5px 0px #b45309, 4px 4px 10px rgba(0,0,0,0.95)',
-                        WebkitTextStroke: '0.5px rgba(255,255,255,0.15)'
-                      }}
-                    >
-                      {currentSlide.title}
-                    </h2>
-
-                    <p 
-                      className="text-neutral-100 font-medium text-[10px] sm:text-xs md:text-sm leading-relaxed line-clamp-3 select-text"
-                      style={{ textShadow: '1px 1px 3px rgba(0,0,0,0.9)' }}
-                    >
-                      {currentSlide.description}
-                    </p>
-
-                    <div className="pt-1.5 sm:pt-2">
-                      <a 
-                        href={currentSlide.linkUrl || '#shop-catalog'}
-                        onClick={(e) => {
-                          if (currentSlide.linkUrl?.startsWith('#')) {
-                            e.preventDefault();
-                            onDiscoverClick();
-                          }
-                        }}
-                        className="inline-flex items-center gap-2 bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-white text-[9px] sm:text-[11px] md:text-xs font-black uppercase tracking-widest px-5 sm:px-7 py-3 rounded-full transition-all duration-300 transform hover:scale-[1.04] shadow-[0_8px_20px_rgba(234,88,12,0.4)] hover:shadow-[0_12px_24px_rgba(234,88,12,0.6)] border border-orange-400/20 active:scale-95 group/btn"
-                      >
-                        <span>{currentSlide.linkText || 'Shop Offer'}</span>
-                        <ArrowRight className="w-3.5 h-3.5 transform group-hover/btn:translate-x-1 transition-transform duration-300" />
-                      </a>
-                    </div>
-
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="inline-flex items-center gap-1 bg-gradient-to-r from-orange-600 to-amber-500 text-white text-[8px] sm:text-[9px] md:text-xs font-black uppercase tracking-widest px-2.5 py-0.5 sm:py-1 rounded-full shadow-[0_4px_12px_rgba(234,88,12,0.3)] animate-pulse">
+                      <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                      ⚡ {currentSlide.subtitle || 'Mega Deal'}
+                    </span>
+                    <span className="text-[7px] sm:text-[8px] uppercase tracking-wider text-brand font-black flex items-center gap-1 bg-brand/5 px-2 py-0.5 sm:py-1 rounded-md border border-brand/20">
+                      <Sparkles className="w-2 h-2 text-brand animate-spin" /> Live Campaign
+                    </span>
                   </div>
 
+                  <h2 
+                    className="font-serif text-base sm:text-xl md:text-2xl lg:text-3xl font-extrabold text-dark leading-tight uppercase tracking-tight"
+                  >
+                    {currentSlide.title}
+                  </h2>
+
+                  <p 
+                    className="text-neutral-600 font-medium text-[9px] sm:text-xs md:text-sm leading-relaxed line-clamp-2 md:line-clamp-4 select-text"
+                  >
+                    {currentSlide.description}
+                  </p>
+
+                  <div className="pt-1.5 sm:pt-2">
+                    <a 
+                      href={currentSlide.linkUrl || '#shop-catalog'}
+                      onClick={(e) => {
+                        if (currentSlide.linkUrl?.startsWith('#')) {
+                          e.preventDefault();
+                          onDiscoverClick();
+                        }
+                      }}
+                      className="inline-flex items-center gap-1.5 bg-gradient-to-r from-brand to-brand-hover hover:from-brand-hover hover:to-brand text-white text-[8px] sm:text-[9px] md:text-xs font-black uppercase tracking-widest px-4 sm:px-6 py-2 sm:py-2.5 rounded-full transition-all duration-300 transform hover:scale-[1.04] shadow-[0_6px_15px_rgba(200,160,141,0.3)] hover:shadow-[0_10px_20px_rgba(200,160,141,0.5)] border border-brand-hover/20 active:scale-95 group/btn"
+                    >
+                      <span>{currentSlide.linkText || 'Shop Offer'}</span>
+                      <ArrowRight className="w-3.5 h-3.5 transform group-hover/btn:translate-x-1 transition-transform duration-300" />
+                    </a>
+                  </div>
+
+                </div>
+
+                {/* Right side: Product Image */}
+                <div className="flex-1 h-[50%] md:h-full relative overflow-hidden bg-bg-warm flex items-center justify-center">
+                  {currentSlide.imageFit === 'cover' ? (
+                    <div className="w-full h-full overflow-hidden relative">
+                      <img 
+                        src={currentSlide.image} 
+                        alt={currentSlide.title} 
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover object-center opacity-100 transition-transform duration-[3000ms] ease-out group-hover:scale-105 saturate-[1.05] contrast-[1.03]"
+                      />
+                    </div>
+                  ) : (
+                    <div className="absolute inset-0 w-full h-full flex items-center justify-center overflow-hidden bg-bg-warm">
+                      {/* Blurred background layer using the same photo */}
+                      <div 
+                        className="absolute inset-0 bg-cover bg-center blur-3xl opacity-50 scale-110 saturate-[1.1]"
+                        style={{ backgroundImage: `url(${currentSlide.image})` }}
+                      />
+                      {/* Centered full image - automatically matches Hero Slider size and aspect ratio */}
+                      <img 
+                        src={currentSlide.image} 
+                        alt={currentSlide.title} 
+                        referrerPolicy="no-referrer"
+                        className="relative w-full h-full object-contain z-10 transition-transform duration-[3500ms] ease-out group-hover:scale-[1.03] saturate-[1.05] contrast-[1.03]"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
@@ -382,7 +396,7 @@ export default function Hero({
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent flex items-end p-2">
                   <p className="text-[9px] font-black text-white tracking-wide uppercase">
-                    📍 Lalitpur Boutique
+                    📍 Dubai & Nepal Hub
                   </p>
                 </div>
               </div>
@@ -395,11 +409,11 @@ export default function Hero({
                 </div>
                 <div className="space-y-0.5 border-x border-neutral-100">
                   <span className="block text-[8px] font-black text-orange-600 uppercase tracking-tight">Express</span>
-                  <p className="text-[7px] text-neutral-400 leading-none">Kathmandu/UAE</p>
+                  <p className="text-[7px] text-neutral-400 leading-none">Nepal & Global</p>
                 </div>
                 <div className="space-y-0.5">
                   <span className="block text-[8px] font-black text-orange-600 uppercase tracking-tight">VIP Support</span>
-                  <p className="text-[7px] text-neutral-400 leading-none">24/7 Concierge</p>
+                  <p className="text-[7px] text-neutral-400 leading-none">24/7 Sourcing</p>
                 </div>
               </div>
             </div>

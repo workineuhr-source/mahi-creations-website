@@ -60,18 +60,20 @@ export default function ProductDetailModal({
   const [currentImgIndex, setCurrentImgIndex] = useState(0);
   const [addedMessage, setAddedMessage] = useState(false);
   const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
+  const [lensPos, setLensPos] = useState({ x: 0, y: 0 });
+  const [zoomMode, setZoomMode] = useState<'loupe' | 'full'>('loupe');
   const [isZoomed, setIsZoomed] = useState(false);
 
   const images = product.images && product.images.length > 0 ? product.images : [product.image];
 
   // Auto-slide images every 5 seconds if multiple photos exist
   React.useEffect(() => {
-    if (images.length <= 1) return;
+    if (images.length <= 1 || isZoomed) return; // Pause auto-slide when inspecting texture
     const interval = setInterval(() => {
       setCurrentImgIndex((prev) => (prev + 1) % images.length);
     }, 5000);
     return () => clearInterval(interval);
-  }, [currentImgIndex, images.length]);
+  }, [currentImgIndex, images.length, isZoomed]);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!product.inStock) return;
@@ -79,6 +81,7 @@ export default function ProductDetailModal({
     const x = ((e.clientX - left) / width) * 100;
     const y = ((e.clientY - top) / height) * 100;
     setZoomPos({ x, y });
+    setLensPos({ x: e.clientX - left, y: e.clientY - top });
   };
 
   // Review submission state
@@ -145,7 +148,7 @@ export default function ProductDetailModal({
                 onMouseEnter={() => product.inStock && setIsZoomed(true)}
                 onMouseLeave={() => setIsZoomed(false)}
                 onClick={(e) => {
-                  if (images.length > 1) {
+                  if (images.length > 1 && !isZoomed) {
                     setCurrentImgIndex((prev) => (prev + 1) % images.length);
                   }
                 }}
@@ -161,9 +164,9 @@ export default function ProductDetailModal({
                   src={images[currentImgIndex]}
                   alt={product.name}
                   referrerPolicy="no-referrer"
-                  className="w-full h-full object-cover object-center"
+                  className="w-full h-full object-cover object-center select-none"
                   style={
-                    isZoomed
+                    isZoomed && zoomMode === 'full'
                       ? {
                           transformOrigin: `${zoomPos.x}% ${zoomPos.y}%`,
                           transform: 'scale(2.5)',
@@ -176,6 +179,29 @@ export default function ProductDetailModal({
                         }
                   }
                 />
+
+                {/* Floating Luxury Glass Magnifier Loupe */}
+                {isZoomed && zoomMode === 'loupe' && (
+                  <div
+                    className="absolute pointer-events-none rounded-full border border-white/50 shadow-[0_20px_50px_rgba(0,0,0,0.45)] overflow-hidden z-20"
+                    style={{
+                      width: '180px',
+                      height: '180px',
+                      left: `${lensPos.x}px`,
+                      top: `${lensPos.y}px`,
+                      transform: 'translate(-50%, -50%)',
+                      backgroundImage: `url(${images[currentImgIndex]})`,
+                      backgroundPosition: `${zoomPos.x}% ${zoomPos.y}%`,
+                      backgroundSize: '350% 350%',
+                      backgroundRepeat: 'no-repeat',
+                      boxShadow: '0 0 0 3px rgba(212,163,115,0.45), 0 0 0 1px rgba(255,255,255,0.6), inset 0 0 20px rgba(0,0,0,0.35), 0 20px 50px rgba(0,0,0,0.45)'
+                    }}
+                  >
+                    {/* Glass glare effect overlays */}
+                    <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-white/20 pointer-events-none" />
+                    <div className="absolute top-2 right-4 bg-white/15 w-10 h-5 rounded-full blur-xs rotate-[-30deg]" />
+                  </div>
+                )}
 
                 {/* Left/Right Chevrons overlay */}
                 {images.length > 1 && (
@@ -217,6 +243,42 @@ export default function ProductDetailModal({
                   </div>
                 )}
               </div>
+
+              {/* Luxury zoom selector */}
+              {product.inStock && (
+                <div className="flex items-center justify-between gap-2 px-1.5 py-1.5 bg-neutral-50/50 border border-clay-light rounded-xl shadow-xs">
+                  <span className="text-[9px] font-mono font-bold text-neutral-400 uppercase tracking-widest pl-2 flex items-center gap-1 select-none">
+                    <Sparkles className="w-3 h-3 text-brand" />
+                    Inspection Mode
+                  </span>
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setZoomMode('loupe')}
+                      className={`px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider rounded-lg transition-all flex items-center gap-1 border cursor-pointer ${
+                        zoomMode === 'loupe'
+                          ? 'bg-brand text-white border-brand shadow-sm font-bold'
+                          : 'bg-white hover:bg-neutral-50 text-neutral-500 border-clay-light font-medium'
+                      }`}
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      Luxury Loupe
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setZoomMode('full')}
+                      className={`px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider rounded-lg transition-all flex items-center gap-1 border cursor-pointer ${
+                        zoomMode === 'full'
+                          ? 'bg-brand text-white border-brand shadow-sm font-bold'
+                          : 'bg-white hover:bg-neutral-50 text-neutral-500 border-clay-light font-medium'
+                      }`}
+                    >
+                      <Image className="w-3 h-3" />
+                      Full Frame
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Thumbnails list if multiple images exist */}
               {images.length > 1 && (

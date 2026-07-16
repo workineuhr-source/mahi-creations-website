@@ -16,6 +16,7 @@ interface ProductCardProps {
   onToggleWishlist: (productId: string) => void;
   isCompared: boolean;
   onToggleCompare: (productId: string) => void;
+  isHDMode?: boolean;
 }
 
 export default function ProductCard({
@@ -27,7 +28,8 @@ export default function ProductCard({
   isWishlisted,
   onToggleWishlist,
   isCompared,
-  onToggleCompare
+  onToggleCompare,
+  isHDMode = true
 }: ProductCardProps) {
   const [currentImgIndex, setCurrentImgIndex] = useState(0);
   const [shareOpen, setShareOpen] = useState(false);
@@ -90,7 +92,11 @@ export default function ProductCard({
         viewport={{ once: true, amount: 0.12 }}
         transition={{ duration: 0.6, ease: [0.215, 0.61, 0.355, 1] }}
         onClick={() => onViewDetails?.(product)}
-        className="group bg-white rounded-2xl border border-clay overflow-hidden hover:shadow-2xl hover:border-brand/40 hover:-translate-y-1 hover:scale-[1.02] transition-all duration-300 flex flex-col h-full relative cursor-pointer"
+        className={`group bg-white rounded-2xl border overflow-hidden transition-all duration-300 flex flex-col h-full relative cursor-pointer ${
+          isHDMode 
+            ? 'border-neutral-300/80 shadow-md hover:shadow-2xl hover:border-brand/60 hover:-translate-y-1.5 hover:scale-[1.025]' 
+            : 'border-clay hover:shadow-xl hover:border-brand/40 hover:-translate-y-1 hover:scale-[1.02]'
+        }`}
       >
         
         {/* Floating Share Button (Top Left) */}

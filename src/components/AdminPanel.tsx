@@ -252,6 +252,8 @@ export default function AdminPanel({
   const [tempTiktok, setTempTiktok] = useState(settings.tiktokLink);
   const [tempInsta, setTempInsta] = useState(settings.instagramLink);
   const [tempLinkedin, setTempLinkedin] = useState(settings.linkedinLink);
+  const [tempLogoUrl, setTempLogoUrl] = useState(settings.logoUrl || '/src/assets/images/mahi_logo_new_1783763329444.jpg');
+  const [tempFaviconUrl, setTempFaviconUrl] = useState(settings.faviconUrl || '/src/assets/images/mahi_logo_new_1783763329444.jpg');
   const [tempHomeProductIds, setTempHomeProductIds] = useState<string[]>(settings.homeProductIds || products.map(p => p.id));
   const [tempSliderProductIds, setTempSliderProductIds] = useState<string[]>(settings.sliderProductIds || products.map(p => p.id));
   const [tempFooterBgColor, setTempFooterBgColor] = useState(settings.footerBgColor || '#f9f6f4');
@@ -311,6 +313,7 @@ export default function AdminPanel({
   const [slideFormLinkUrl, setSlideFormLinkUrl] = useState('#shop-catalog');
 
   const [settingsSuccess, setSettingsSuccess] = useState('');
+  const [presetAppliedMessage, setPresetAppliedMessage] = useState('');
 
   // Subscribers state from props
   const handleDeleteSubscriber = (emailToDelete: string) => {
@@ -337,6 +340,7 @@ export default function AdminPanel({
   const [formStockCount, setFormStockCount] = useState<number>(10);
   const [formPriceCurrency, setFormPriceCurrency] = useState<CurrencyCode>('NPR');
   const [formImages, setFormImages] = useState<string[]>([]);
+  const [isFileUploading, setIsFileUploading] = useState(false);
   const [formBrand, setFormBrand] = useState('Mahi Creations');
 
   // Search and Filter states for Managing Products
@@ -470,6 +474,66 @@ export default function AdminPanel({
     }
   };
 
+  const applyHomepagePreset = (presetType: 'dubai' | 'kathmandu' | 'skincare') => {
+    if (presetType === 'dubai') {
+      setTempShopName('Mahi Creations');
+      setTempShopAddress('Dubai Sourcing Hub & Kathmandu Showroom');
+      setTempAdminEmail('mahicreations369@gmail.com');
+      setTempHeroBadge('Mahi Creations Dubai');
+      setTempHeroTitle('Sourced in Dubai, Delivered in Nepal, Shipped Worldwide.');
+      setTempHeroImageCaption('Mahi Creations Showroom & Sourcing Hub');
+      setTempHeroDescription("Welcome to Mahi Creations, a premium digital gateway to 100% authentic international treasures. Hand-selected in our luxury sourcing hubs in Dubai, we curate high-end certified cosmetics, fine custom jewelry, and bespoke traditional couture with express delivery to Nepal and worldwide.");
+      setTempCatalogTitle('Our Dubai-Sourced Collections');
+      setTempCatalogSubtitle('Showing authentic cosmetics sourced in Dubai with real-time stock levels');
+      setTempAboutBadge('Dubai & Worldwide');
+      setTempAboutTitle('Our Sourcing Legacy');
+      setTempAboutSubtitle('Sourced in Dubai, Delivered in Nepal, Shipped Worldwide.');
+      setTempAboutPara1('Established as a premier luxury digital hub in Dubai, Mahi Creations is built on the philosophy of global accessibility and authentic quality. Every piece of exquisite couture, hand-crafted jewelry, and certified cosmetic formulation is personally sourced from exclusive international distributors right here in the luxury fashion hubs of Dubai.');
+      setTempAboutPara2('While our primary sourcing and authentication hub is based in Dubai, we are deeply committed to bridging premium luxury directly to Nepal and worldwide. With reliable delivery partnerships in Nepal and secure air cargo networks, your luxury curations reach you in perfect condition, no matter where you are in the world.');
+      setTempAboutPara3('All cosmetics are guaranteed 100% authentic, verified, and direct from authorized brand houses. Pair that with our personalized bridal couture fittings, certified high-end jewelry, and round-the-clock concierge support, and Mahi Creations offers a truly global standard of boutique excellence.');
+      setTempFooterAbout('Mahi Creations is a premium luxury boutique. Sourced directly from Dubai, we deliver high-end authentic cosmetic formulations, custom jewelry, and designer couture to Nepal and worldwide.');
+      setTempHeaderPromo('✨ Sourced in Dubai, Shipped Globally! Secure payment and express tracked air delivery to Nepal & Worldwide. ✨');
+    } else if (presetType === 'kathmandu') {
+      setTempShopName('Mahi Creations Nepal');
+      setTempShopAddress('Jhamsikhel Lane 4, Lalitpur, Nepal');
+      setTempAdminEmail('mahicreations369@gmail.com');
+      setTempHeroBadge('Mahi Creations Lalitpur');
+      setTempHeroTitle('Bridging Authenticity & Global Sourcing Luxury');
+      setTempHeroImageCaption('Mahi Creations Boutique - Jhamsikhel');
+      setTempHeroDescription("Welcome to Mahi Creations, Nepal's premier digital gateway to high-end certified products. Operating from Lalitpur, Jhamsikhel, we specialize in curating premium global cosmetic formulations, traditional custom-crafted apparel, and bespoke fine jewelry directly from fashion capitals.");
+      setTempCatalogTitle('Our Premium Curations');
+      setTempCatalogSubtitle('Showing authentic cosmetics displaying real-time stock levels');
+      setTempAboutBadge('Our Legacy');
+      setTempAboutTitle('About Mahi Creations');
+      setTempAboutSubtitle('Nepal’s premier luxury digital boutique, bridging authentic global formulations and high-end apparel directly to your doorstep.');
+      setTempAboutPara1('Founded with a vision of blending luxury cosmetic formulations, custom-crafted fine jewelry, and premium traditional apparel, Mahi Creations serves as an exclusive gateway to authentic luxury. Operating from Lalitpur, Jhamsikhel, we curate only the finest certified treasures.');
+      setTempAboutPara2('Every cosmetic bottle we carry represents genuine global standards of safety, hydration, and glow. Our traditional apparel lines are hand-stitched by boutique master artisans, preserving timeless cultural heritages while adapting them for the contemporary modern aesthetic.');
+      setTempAboutPara3('Whether you are searching for premium Korean skincare regimes, custom makeup, or bespoke boutique jewelry, Mahi Creations ensures standard compliance, real-time stock levels, and expedited courier delivery across Nepal.');
+      setTempFooterAbout('Mahi Creations is Nepal’s premier digital boutique, bridging authentic global formulations and high-end cosmetics directly from Paris, Seoul, Tokyo, and New York.');
+      setTempHeaderPromo('Monsoon Glow Offer: Automatically save up to 25% + Free delivery inside Kathmandu Valley!');
+    } else if (presetType === 'skincare') {
+      setTempShopName('Mahi Luxury Cosmetics');
+      setTempShopAddress('Authorized Global Skincare Sourcing Hubs');
+      setTempAdminEmail('cosmetics@mahicreations.com');
+      setTempHeroBadge('Authentic Skincare Sourcing');
+      setTempHeroTitle('Premium Certified Dermaceuticals & Glow Formulations');
+      setTempHeroImageCaption('100% Authentic Skincare Sourcing Hub');
+      setTempHeroDescription("Welcome to Mahi Luxury Cosmetics, the ultimate scientific gateway to authentic global skincare. We bypass middlemen to bring you direct, cold-chain compliant clinical skincare regimes, custom hydration fluids, and high-performance makeup certified by leading labs.");
+      setTempCatalogTitle('Dermatologically Safe Cosmetics');
+      setTempCatalogSubtitle('100% authentic global skincare formulas with lab-verified batch certificates');
+      setTempAboutBadge('Skincare Science');
+      setTempAboutTitle('Clinical Skincare Authority');
+      setTempAboutSubtitle('Bringing world-class cosmetic chemistry, anti-aging secrets, and hydrating glow formulas directly to you.');
+      setTempAboutPara1('We believe that skincare is science, not marketing. That is why Mahi Luxury Cosmetics is founded on strict standard compliance. We only partner directly with authorized manufacturing plants and global cosmetic houses in Seoul, Paris, and Tokyo to curate authentic collections.');
+      setTempAboutPara2('Every product in our store undergoes severe visual inspection, batch code checking, and climate-controlled transport to prevent chemical degradation. We offer 100% assurance that what you apply on your skin is pristine, premium, and dermatologically approved.');
+      setTempAboutPara3('With our live skin advisor support, interactive chat consultations, and ultra-fast regional express delivery, maintaining your healthy glass-skin glow has never been safer or more accessible.');
+      setTempFooterAbout('Mahi Luxury Cosmetics is a certified clinical skincare and premium cosmetics boutique. Your health is our priority, delivering 100% authentic glass-skin formulations.');
+      setTempHeaderPromo('🔬 Skincare Science Special: Use code GLOW20 to enjoy 20% OFF our lab-certified skincare sets! 🔬');
+    }
+    setPresetAppliedMessage(`Applied "${presetType === 'dubai' ? 'Dubai Sourcing' : presetType === 'kathmandu' ? 'Kathmandu Showroom' : 'Skincare Science'}" template! Review details and click "SAVE ALL SETTINGS" below.`);
+    setTimeout(() => setPresetAppliedMessage(''), 8000);
+  };
+
   const handleSaveSettings = (e: React.FormEvent) => {
     e.preventDefault();
     if (!tempUser.trim() || !tempPassword.trim() || !tempWhatsapp.trim()) {
@@ -485,6 +549,8 @@ export default function AdminPanel({
       tiktokLink: tempTiktok.trim(),
       instagramLink: tempInsta.trim(),
       linkedinLink: tempLinkedin.trim(),
+      logoUrl: tempLogoUrl.trim(),
+      faviconUrl: tempFaviconUrl.trim(),
       homeProductIds: tempHomeProductIds,
       sliderProductIds: tempSliderProductIds,
       footerBgColor: tempFooterBgColor,
@@ -1318,31 +1384,59 @@ export default function AdminPanel({
   }
 
   return (
-    <div className="w-full max-w-[1700px] mx-auto py-8 px-4 sm:px-8 lg:px-12 font-sans">
+    <div className="w-full max-w-[1700px] mx-auto pt-14 sm:pt-16 pb-8 px-4 sm:px-8 lg:px-12 font-sans animate-fade-in">
       
-      {/* Admin header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-clay pb-5 mb-8 gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] uppercase tracking-[0.2em] text-brand font-bold bg-clay-light px-2.5 py-1 rounded">
-              Secure Admin Console
-            </span>
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping"></span>
+      {/* Premium Admin Header Card */}
+      <div className="bg-white border border-clay rounded-3xl p-6 sm:p-8 mb-8 shadow-md flex flex-col md:flex-row md:items-center md:justify-between gap-6 hover:border-brand/30 hover:shadow-lg transition-all duration-300">
+        
+        {/* Left Side: Profile Photo & Information Block */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
+          {/* Circular User Profile Placeholder Image */}
+          <div className="relative shrink-0">
+            <img 
+              src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=256&h=256&q=80" 
+              alt="Mahi Admin Profile" 
+              className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover border-2 border-brand/25 shadow-md bg-neutral-100"
+              referrerPolicy="no-referrer"
+            />
+            <span className="absolute bottom-0.5 right-0.5 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white shadow-xs"></span>
           </div>
-          <h2 className="font-serif text-3xl font-bold text-dark uppercase tracking-tight mt-1.5">
-            Boutique Control Hub
-          </h2>
-          <p className="text-neutral-500 text-xs font-light">
-            Mahi Creations Inventory, Automated Discounts, Interactive Shares & Public Social Directory Setup
-          </p>
+
+          <div className="space-y-1 text-left">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              {/* Username display */}
+              <h2 className="font-sans text-xl sm:text-2xl font-black text-dark uppercase tracking-tight">
+                {settings.adminUser || 'Mahi Admin'}
+              </h2>
+              {/* Admin Status Badge next to user's name */}
+              <span className="inline-flex items-center gap-1.5 bg-emerald-100 text-emerald-800 border border-emerald-200/60 text-[9px] sm:text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-2xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                Admin
+              </span>
+            </div>
+
+            <p className="text-[10px] sm:text-xs text-neutral-500 font-medium">
+              Mahi Creations Executive Boutique Administrator
+            </p>
+
+            <div className="flex items-center gap-2 pt-1 text-[9px] sm:text-[10px] text-neutral-400 font-bold uppercase tracking-wider">
+              <span>Console: Connected</span>
+              <span className="text-neutral-300">•</span>
+              <span>ID: #MC-2026-ADMIN</span>
+            </div>
+          </div>
         </div>
 
-        <button
-          onClick={onBackToShop}
-          className="inline-flex items-center gap-2 px-5 py-3 bg-brand/10 text-brand hover:bg-brand/20 rounded-xl transition cursor-pointer border border-clay/60 text-xs font-bold tracking-wider uppercase self-start sm:self-center"
-        >
-          Back to Shop &rarr;
-        </button>
+        {/* Right Side: Back to Shop / Admin Button */}
+        <div className="flex items-center gap-3 self-start md:self-center">
+          <button
+            onClick={onBackToShop}
+            className="inline-flex items-center gap-2 px-6 py-3.5 bg-brand hover:bg-brand-hover text-white rounded-xl transition duration-300 shadow-md hover:shadow-lg hover:shadow-brand/20 cursor-pointer border border-brand/10 text-xs font-black tracking-widest uppercase"
+          >
+            <span>Back to Shop &rarr;</span>
+          </button>
+        </div>
+
       </div>
 
       {/* Main Panel grid: Sidebar on left (3 cols), Content on right (9 cols) */}
@@ -1400,7 +1494,7 @@ export default function AdminPanel({
                   { label: '⭐ Customer Comments & Reviews', tab: 'reviews' },
                   { label: '🎟️ Automated Discount Coupons', tab: 'coupons' },
                   { label: '🔐 Security & Admin Credentials', tab: 'settings', subTab: 'credentials' },
-                  { label: '📱 WhatsApp & Social Links', tab: 'settings', subTab: 'socials' },
+                  { label: '📱 WhatsApp, Socials & Branding', tab: 'settings', subTab: 'socials' },
                   { label: '🌟 Homepage Product Showcase', tab: 'settings', subTab: 'showcase' },
                   { label: '📝 Footer Contact & About Details', tab: 'settings', subTab: 'footer' },
                   { label: '🎁 Promo Ads & Banners Slider', tab: 'settings', subTab: 'promo-slides' },
@@ -2734,32 +2828,54 @@ export default function AdminPanel({
                       {/* File Upload & URL Addition Controls */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {/* File Upload Block */}
-                        <div className="border border-dashed border-clay-dark/60 rounded-xl p-3 flex flex-col items-center justify-center bg-white text-center hover:bg-clay-light/30 transition relative cursor-pointer group">
-                          <input
-                            type="file"
-                            multiple
-                            accept="image/*"
-                            onChange={async (e) => {
-                              if (e.target.files) {
-                                const filesArray = Array.from(e.target.files) as File[];
-                                for (const file of filesArray) {
+                        <div className={`border border-dashed rounded-xl p-3 flex flex-col items-center justify-center bg-white text-center transition relative cursor-pointer group ${
+                          isFileUploading 
+                            ? 'border-brand/80 bg-brand/5 pointer-events-none' 
+                            : 'border-clay-dark/60 hover:bg-clay-light/30'
+                        }`}>
+                          {!isFileUploading && (
+                            <input
+                              type="file"
+                              multiple
+                              accept="image/*"
+                              onChange={async (e) => {
+                                if (e.target.files && e.target.files.length > 0) {
+                                  setIsFileUploading(true);
+                                  const filesArray = Array.from(e.target.files) as File[];
                                   try {
-                                    const uploadedUrl = await uploadImageToServer(file);
-                                    setFormImages(prev => {
-                                      if (prev.includes(uploadedUrl)) return prev;
-                                      return [...prev, uploadedUrl];
-                                    });
-                                  } catch (error) {
-                                    alert('Failed to upload image: ' + (error instanceof Error ? error.message : 'Unknown error'));
+                                    for (const file of filesArray) {
+                                      try {
+                                        const uploadedUrl = await uploadImageToServer(file);
+                                        setFormImages(prev => {
+                                          if (prev.includes(uploadedUrl)) return prev;
+                                          return [...prev, uploadedUrl];
+                                        });
+                                      } catch (error) {
+                                        alert('Failed to upload image: ' + (error instanceof Error ? error.message : 'Unknown error'));
+                                      }
+                                    }
+                                  } finally {
+                                    setIsFileUploading(false);
                                   }
                                 }
-                              }
-                            }}
-                            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                          />
-                          <span className="text-xl mb-1 group-hover:scale-110 transition-transform">📸</span>
-                          <span className="text-[10px] font-bold text-dark block">Upload Local Photos</span>
-                          <span className="text-[9px] text-neutral-400 block mt-0.5">Drag & drop or click to select</span>
+                              }}
+                              className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                            />
+                          )}
+                          
+                          {isFileUploading ? (
+                            <>
+                              <RefreshCw className="w-5 h-5 text-brand animate-spin mb-1" />
+                              <span className="text-[10px] font-extrabold text-brand block animate-pulse">Compressing & Saving...</span>
+                              <span className="text-[8px] text-neutral-500 block mt-0.5">Please wait, optimizing photo sizes</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-xl mb-1 group-hover:scale-110 transition-transform">📸</span>
+                              <span className="text-[10px] font-bold text-dark block">Upload Local Photos</span>
+                              <span className="text-[9px] text-neutral-400 block mt-0.5">Drag & drop or click to select</span>
+                            </>
+                          )}
                         </div>
 
                         {/* URL input box */}
@@ -3593,7 +3709,7 @@ export default function AdminPanel({
                   }`}
                 >
                   <MessageSquare className="w-3.5 h-3.5" />
-                  <span>WhatsApp & Socials</span>
+                  <span>WhatsApp, Socials & Branding</span>
                 </button>
                 <button
                   type="button"
@@ -3832,6 +3948,147 @@ export default function AdminPanel({
                             className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white font-medium text-dark focus:ring-1 focus:ring-brand focus:outline-none"
                             placeholder="e.g. https://linkedin.com/in/..."
                           />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Brand Logo & Web Favicon Settings */}
+                    <div className="bg-clay-light/30 border border-clay/70 p-5 rounded-2xl space-y-6">
+                      <h4 className="font-serif text-sm font-bold text-dark uppercase tracking-wider flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-brand" />
+                        Boutique Branding Assets (Logo & Favicon Web Icon)
+                      </h4>
+                      <p className="text-[11px] text-neutral-500 -mt-2 leading-relaxed">
+                        Configure your boutique logo and website favicon tab icon (febction logo). Images are fully <strong>auto-adjusted</strong> to preserve their proportions and display perfectly.
+                      </p>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+                        {/* 1. Logo Customization */}
+                        <div className="bg-white p-4 rounded-xl border border-clay/60 space-y-3">
+                          <div>
+                            <p className="text-[11px] font-bold text-dark uppercase tracking-wider flex items-center gap-1">
+                              <span>Shop Header Logo</span>
+                              <span className="text-[9px] bg-brand/10 text-brand px-1.5 py-0.5 rounded-full normal-case">Auto-Adjusted</span>
+                            </p>
+                            <p className="text-[9px] text-neutral-400 font-light mt-0.5">Upload or paste an image URL to change your store's primary logo.</p>
+                          </div>
+                          
+                          {/* Upload logo */}
+                          <div className="border border-dashed border-clay-dark/50 rounded-xl p-3 flex flex-col items-center justify-center bg-white text-center hover:bg-clay-light/20 transition relative cursor-pointer min-h-[90px] group">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={async (e) => {
+                                if (e.target.files && e.target.files[0]) {
+                                  try {
+                                    const uploadedUrl = await uploadImageToServer(e.target.files[0]);
+                                    setTempLogoUrl(uploadedUrl);
+                                  } catch (err) {
+                                    alert('Failed to upload logo: ' + (err instanceof Error ? err.message : 'Unknown error'));
+                                  }
+                                }
+                              }}
+                              className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                            />
+                            <span className="text-lg mb-1 group-hover:scale-110 transition-transform">📸</span>
+                            <span className="text-[9px] font-bold text-dark block">Upload Shop Logo</span>
+                            <span className="text-[8px] text-neutral-400 block">Click or drag & drop</span>
+                          </div>
+
+                          {/* Paste logo URL */}
+                          <div className="space-y-1">
+                            <label className="text-[8px] uppercase font-bold text-neutral-400">Or Paste Logo Image Link</label>
+                            <input
+                              type="text"
+                              value={tempLogoUrl.startsWith('data:image/') ? '' : tempLogoUrl}
+                              onChange={(e) => setTempLogoUrl(e.target.value)}
+                              className="w-full text-[10px] border border-clay rounded-lg p-2 bg-neutral-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand font-mono text-dark"
+                              placeholder="Paste logo URL"
+                            />
+                          </div>
+
+                          {/* Live logo preview */}
+                          <div className="flex items-center gap-3 p-2 bg-neutral-50 rounded-lg border border-clay-light">
+                            <div className="w-12 h-12 rounded border border-clay-light bg-white flex items-center justify-center overflow-hidden">
+                              <img
+                                src={tempLogoUrl}
+                                alt="Logo Preview"
+                                referrerPolicy="no-referrer"
+                                className="max-w-full max-h-full object-contain"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = '/src/assets/images/mahi_logo_new_1783763329444.jpg';
+                                }}
+                              />
+                            </div>
+                            <div className="text-[9px] text-neutral-500 leading-normal">
+                              <p className="font-bold text-dark">Auto-Fit System Active</p>
+                              <p>Landscape, square, or custom shape logos will fit in the navbar and footer automatically.</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 2. Favicon Customization */}
+                        <div className="bg-white p-4 rounded-xl border border-clay/60 space-y-3">
+                          <div>
+                            <p className="text-[11px] font-bold text-dark uppercase tracking-wider flex items-center gap-1">
+                              <span>Website Favicon (Web Icon)</span>
+                              <span className="text-[9px] bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded-full normal-case">Browser Tab</span>
+                            </p>
+                            <p className="text-[9px] text-neutral-400 font-light mt-0.5">Upload or paste an image URL to change the browser tab favicon icon.</p>
+                          </div>
+                          
+                          {/* Upload favicon */}
+                          <div className="border border-dashed border-clay-dark/50 rounded-xl p-3 flex flex-col items-center justify-center bg-white text-center hover:bg-clay-light/20 transition relative cursor-pointer min-h-[90px] group">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={async (e) => {
+                                if (e.target.files && e.target.files[0]) {
+                                  try {
+                                    const uploadedUrl = await uploadImageToServer(e.target.files[0]);
+                                    setTempFaviconUrl(uploadedUrl);
+                                  } catch (err) {
+                                    alert('Failed to upload favicon: ' + (err instanceof Error ? err.message : 'Unknown error'));
+                                  }
+                                }
+                              }}
+                              className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                            />
+                            <span className="text-lg mb-1 group-hover:scale-110 transition-transform">🌐</span>
+                            <span className="text-[9px] font-bold text-dark block">Upload Favicon Icon</span>
+                            <span className="text-[8px] text-neutral-400 block">Click or drag & drop</span>
+                          </div>
+
+                          {/* Paste favicon URL */}
+                          <div className="space-y-1">
+                            <label className="text-[8px] uppercase font-bold text-neutral-400">Or Paste Favicon Web Link</label>
+                            <input
+                              type="text"
+                              value={tempFaviconUrl.startsWith('data:image/') ? '' : tempFaviconUrl}
+                              onChange={(e) => setTempFaviconUrl(e.target.value)}
+                              className="w-full text-[10px] border border-clay rounded-lg p-2 bg-neutral-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand font-mono text-dark"
+                              placeholder="Paste favicon URL"
+                            />
+                          </div>
+
+                          {/* Live favicon preview */}
+                          <div className="flex items-center gap-3 p-2 bg-neutral-50 rounded-lg border border-clay-light">
+                            <div className="w-12 h-12 rounded border border-clay-light bg-white flex items-center justify-center overflow-hidden">
+                              <img
+                                src={tempFaviconUrl}
+                                alt="Favicon Preview"
+                                referrerPolicy="no-referrer"
+                                className="w-6 h-6 object-contain"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = '/src/assets/images/mahi_logo_new_1783763329444.jpg';
+                                }}
+                              />
+                            </div>
+                            <div className="text-[9px] text-neutral-500 leading-normal">
+                              <p className="font-bold text-dark">Live Browser Injection</p>
+                              <p>Applied dynamically on save, auto-updated in document link elements.</p>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -4579,6 +4836,91 @@ export default function AdminPanel({
                       <p className="text-[10px] text-neutral-400 font-light mt-0.5">
                         Customize titles, descriptions, welcome slogans, and announcements of your boutique front page. Save settings to publish.
                       </p>
+                    </div>
+
+                    {/* INTERACTIVE BRAND PRESETS PANEL */}
+                    <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-orange-200/80 p-5 rounded-2xl space-y-4">
+                      <div>
+                        <h5 className="font-serif text-xs font-black text-orange-900 uppercase tracking-widest flex items-center gap-1.5">
+                          <Sparkles className="w-4 h-4 text-orange-600 animate-pulse" />
+                          Instant Sourcing & Copywriting Presets (द्रुत ब्रान्ड लेखन खाका)
+                        </h5>
+                        <p className="text-[10px] text-orange-700/80 font-medium mt-0.5 leading-relaxed">
+                          Click any of the cards below to instantly load optimized premium copywriting into the fields. You can customize them further before saving!
+                        </p>
+                      </div>
+
+                      {presetAppliedMessage && (
+                        <div className="bg-orange-600 text-white p-3.5 rounded-xl text-[11px] font-black tracking-wide flex items-center gap-2 shadow-md animate-bounce">
+                          <Sparkles className="w-4 h-4 shrink-0 animate-spin" />
+                          <span>{presetAppliedMessage}</span>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                        {/* Preset 1: Dubai Luxury Sourcing (Primary) */}
+                        <button
+                          type="button"
+                          onClick={() => applyHomepagePreset('dubai')}
+                          className="group bg-white p-4 rounded-xl border border-orange-200 hover:border-orange-500 hover:shadow-lg transition-all duration-300 text-left space-y-1.5 focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-[9px] uppercase font-black tracking-widest text-orange-600 bg-orange-100 px-2.5 py-0.5 rounded-full">
+                              🇦🇪 Sourced in Dubai
+                            </span>
+                            <span className="text-xs group-hover:scale-125 transition-transform">💎</span>
+                          </div>
+                          <span className="block font-serif text-xs font-bold text-neutral-900">Dubai Hub & Worldwide Delivery</span>
+                          <span className="block text-[10px] text-neutral-500 font-light leading-normal">
+                            Loads high-end cosmetic formulations, bespoke jewelry, and bridal couture direct from Dubai distributing centers with global tracked delivery.
+                          </span>
+                          <span className="block text-[9px] font-extrabold text-orange-600 uppercase tracking-wider group-hover:translate-x-1 transition-transform">
+                            Apply Dubai Theme &rarr;
+                          </span>
+                        </button>
+
+                        {/* Preset 2: Kathmandu Traditional Boutique */}
+                        <button
+                          type="button"
+                          onClick={() => applyHomepagePreset('kathmandu')}
+                          className="group bg-white p-4 rounded-xl border border-neutral-200 hover:border-brand hover:shadow-lg transition-all duration-300 text-left space-y-1.5 focus:outline-none focus:ring-2 focus:ring-brand cursor-pointer"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-[9px] uppercase font-black tracking-widest text-brand bg-brand/10 px-2.5 py-0.5 rounded-full">
+                              🇳🇵 Jhamsikhel Boutique
+                            </span>
+                            <span className="text-xs group-hover:scale-125 transition-transform">🌸</span>
+                          </div>
+                          <span className="block font-serif text-xs font-bold text-neutral-900">Lalitpur Flagship Showroom</span>
+                          <span className="block text-[10px] text-neutral-500 font-light leading-normal">
+                            Loads standard traditional custom apparel, couture, and global cosmetics with focus on local Kathmandu Valley hand-delivery and regional express.
+                          </span>
+                          <span className="block text-[9px] font-extrabold text-brand uppercase tracking-wider group-hover:translate-x-1 transition-transform">
+                            Apply Kathmandu Theme &rarr;
+                          </span>
+                        </button>
+
+                        {/* Preset 3: Clinical Skincare & Labs */}
+                        <button
+                          type="button"
+                          onClick={() => applyHomepagePreset('skincare')}
+                          className="group bg-white p-4 rounded-xl border border-neutral-200 hover:border-emerald-500 hover:shadow-lg transition-all duration-300 text-left space-y-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-[9px] uppercase font-black tracking-widest text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full">
+                              🔬 Clinical Skincare
+                            </span>
+                            <span className="text-xs group-hover:scale-125 transition-transform">🧪</span>
+                          </div>
+                          <span className="block font-serif text-xs font-bold text-neutral-900">Lab-Certified Science</span>
+                          <span className="block text-[10px] text-neutral-500 font-light leading-normal">
+                            Loads copy focusing strictly on batch verifications, dermaceutical certifications, anti-aging sciences, and medical skincare solutions.
+                          </span>
+                          <span className="block text-[9px] font-extrabold text-emerald-600 uppercase tracking-wider group-hover:translate-x-1 transition-transform">
+                            Apply Skincare Theme &rarr;
+                          </span>
+                        </button>
+                      </div>
                     </div>
 
                     {/* Section 1: General Shop Settings */}

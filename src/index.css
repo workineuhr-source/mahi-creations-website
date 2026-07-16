@@ -7,11 +7,19 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
   --color-brand: #c8a08d;
   --color-brand-hover: #b58c79;
-  --color-dark: #1a1a1a;
+  --color-dark: #111111; /* Even crisper dark color */
   --color-bg-warm: #fff0f1;
   --color-clay: #f5e2e4;
   --color-clay-light: #faf0f1;
   --color-whatsapp: #25D366;
+}
+
+/* Global HD Resolution Rendering & Readability Optimizations */
+html, body {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: #111111;
 }
 
 /* Custom premium scrollbar and design details */
