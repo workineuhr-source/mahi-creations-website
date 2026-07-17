@@ -45,7 +45,7 @@ export default function CheckoutModal({
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'eSewa' | 'Khalti' | 'COD' | 'Bank Transfer' | 'Card Payment' | 'PayPal'>('Card Payment');
+  const [paymentMethod, setPaymentMethod] = useState<'eSewa' | 'Khalti' | 'COD' | 'Bank Transfer' | 'Card Payment' | 'PayPal' | 'IPS'>('Card Payment');
   const [notes, setNotes] = useState('');
   const [addGiftWrap, setAddGiftWrap] = useState(false);
 
@@ -294,23 +294,23 @@ export default function CheckoutModal({
   // Build elegant WhatsApp message link
   const getWhatsAppLink = (order: Order) => {
     const adminNum = whatsappNumber.replace(/[^0-9]/g, '');
-    const header = `🛍️ *${settings?.shopName || 'Mahi Creations'} Boutique - New Order Received!* 🛍️\n\n`;
+    const header = `🛍️ ${settings?.shopName || 'Mahi Creations'} Boutique - New Order Received! 🛍️\n\n`;
     
-    const clientGratitude = `💌 *Customer Note:*\n"Thank you for your purchase! Once your payment is verified, we will dispatch your package to your delivery address."\n\n`;
+    const clientGratitude = `💌 Customer Note:\n"Thank you for your purchase! Once your payment is verified, we will dispatch your package to your delivery address."\n\n`;
     
-    const details = `------------------------------\n*Order ID:* ${order.id}\n*Customer:* ${order.customerName}\n*Phone:* ${order.customerPhone}\n*Address:* ${order.customerAddress}\n*Payment:* ${order.paymentMethod} (Simulated Authorized)\n\n`;
+    const details = `------------------------------\nOrder ID: ${order.id}\nCustomer: ${order.customerName}\nPhone: ${order.customerPhone}\nAddress: ${order.customerAddress}\nPayment Method: ${order.paymentMethod}\n\n`;
     
-    let itemsText = `*Cosmetics Ordered:*\n`;
+    let itemsText = `Cosmetics Ordered:\n`;
     order.items.forEach((item, index) => {
       itemsText += `${index + 1}. ${item.productName} (Qty: ${item.quantity}) - ${formatPrice(item.price, currency)}\n`;
     });
     
-    let photosText = `\n📷 *Product Photos:*\n`;
+    let photosText = `\n📷 Product Photos:\n`;
     order.items.forEach((item) => {
       photosText += `- ${item.productName}:\n${item.image}\n`;
     });
     
-    const finances = `\n*Subtotal:* ${formatPrice(subtotalAfterDiscount, currency)}\n*Discount:* -${formatPrice(discountAmount, currency)}\n*Shipping Fee:* ${deliveryFeeInNpr === 0 ? 'FREE' : formatPrice(deliveryFeeInNpr, currency)}${addGiftWrap ? `\n*Gift Wrapping:* ${formatPrice(50, currency)}` : ''}\n------------------------------\n*Grand Total:* *${formatPrice(grandTotalInNpr, currency)}*\n\n_Boutique team, please pack with care and expedite shipping!_`;
+    const finances = `\nSubtotal: ${formatPrice(subtotalAfterDiscount, currency)}\nDiscount: -${formatPrice(discountAmount, currency)}\nShipping Fee: ${deliveryFeeInNpr === 0 ? 'FREE' : formatPrice(deliveryFeeInNpr, currency)}${addGiftWrap ? `\nGift Wrapping: ${formatPrice(50, currency)}` : ''}\n------------------------------\nGrand Total: ${formatPrice(grandTotalInNpr, currency)}\n\nBoutique team, please pack with care and expedite shipping!`;
     
     const text = encodeURIComponent(header + clientGratitude + details + itemsText + photosText + finances);
     return `https://wa.me/${adminNum}?text=${text}`;
@@ -445,7 +445,7 @@ export default function CheckoutModal({
                 ))}
               </div>
               <div className="border-t border-clay/60 pt-2 flex justify-between text-xs font-bold text-dark">
-                <span>Total Paid via {newOrderResult.paymentMethod}:</span>
+                <span>Grand Total ({newOrderResult.paymentMethod}):</span>
                 <span className="text-brand text-sm">{formatPrice(grandTotalInNpr, currency)}</span>
               </div>
             </div>
@@ -693,7 +693,7 @@ export default function CheckoutModal({
           </div>
         ) : (
           /* Details Form */
-          <form onSubmit={paymentMethod === 'COD' || paymentMethod === 'Bank Transfer' || paymentMethod === 'PayPal' ? handleDirectCODOrderSubmit : (e) => { e.preventDefault(); handleOpenGateway(); }} className="p-6 sm:p-8 space-y-6 max-h-[75vh] overflow-y-auto">
+          <form onSubmit={handleDirectCODOrderSubmit} className="p-6 sm:p-8 space-y-6 max-h-[75vh] overflow-y-auto">
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               
@@ -839,6 +839,30 @@ export default function CheckoutModal({
                           <span className="text-[10px] text-neutral-400 leading-tight font-medium">Instant sandbox OTP Gateway</span>
                         </label>
                       )}
+
+                      {/* Connect IPS */}
+                      {(settings?.enabledPayments ?? ['eSewa', 'Khalti', 'COD', 'Bank Transfer', 'Card Payment', 'PayPal', 'IPS']).includes('IPS') && (
+                        <label
+                          className={`p-3.5 rounded-xl border flex flex-col justify-between h-24 transition-all cursor-pointer ${
+                            paymentMethod === 'IPS'
+                              ? 'border-blue-600 bg-blue-50/40 text-blue-950 shadow-sm ring-1 ring-blue-600'
+                              : 'border-clay bg-white text-neutral-600 hover:bg-clay-light'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="payment"
+                            checked={paymentMethod === 'IPS'}
+                            onChange={() => setPaymentMethod('IPS')}
+                            className="sr-only"
+                          />
+                          <span className="flex items-center gap-1.5 font-serif text-xs font-black text-[#004f80]">
+                            <Landmark className="w-5 h-5 text-[#004f80]" />
+                            <span>Connect IPS</span>
+                          </span>
+                          <span className="text-[10px] text-neutral-400 leading-tight font-medium">Pay via Connect IPS Account</span>
+                        </label>
+                      )}
                     </>
                   ) : (
                     /* Card Payment (Default International) */
@@ -947,12 +971,12 @@ export default function CheckoutModal({
                 {(() => {
                   if (paymentMethod === 'eSewa') {
                     return (
-                      <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl space-y-2 text-left animate-fade-in mt-3">
+                      <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl space-y-3 text-left animate-fade-in mt-3">
                         <div className="flex items-center gap-2">
                           <span className="w-2 h-2 rounded-full bg-emerald-500" />
                           <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800">eSewa Wallet Settlement Details</span>
                         </div>
-                        <div className="text-xs space-y-1 text-emerald-950 font-medium">
+                        <div className="text-xs space-y-2 text-emerald-950 font-medium">
                           <p>Please send the total amount to our verified eSewa account:</p>
                           <div className="bg-white p-3 rounded-xl border border-emerald-100 space-y-1 mt-1 shadow-xs">
                             <div className="flex justify-between">
@@ -964,8 +988,16 @@ export default function CheckoutModal({
                               <span className="font-bold">{settings?.esewaAccountName || 'Mahi Creations'}</span>
                             </div>
                           </div>
+                          
+                          {settings?.esewaQrUrl && (
+                            <div className="flex flex-col items-center justify-center p-3.5 bg-white border border-emerald-100 rounded-xl mt-2.5">
+                              <p className="text-[9px] font-bold uppercase tracking-wider text-neutral-400 mb-2">Scan to Pay via eSewa QR</p>
+                              <img src={settings.esewaQrUrl} alt="eSewa QR Code" className="h-44 w-44 object-contain rounded border border-clay" />
+                            </div>
+                          )}
+
                           <p className="text-[9px] text-neutral-400 mt-1 italic">
-                            * Post-submission, please take a screenshot and share it with us via WhatsApp to complete instant activation.
+                            Post-submission, please take a screenshot and share it with us via WhatsApp to complete instant activation.
                           </p>
                         </div>
                       </div>
@@ -973,12 +1005,12 @@ export default function CheckoutModal({
                   }
                   if (paymentMethod === 'Khalti') {
                     return (
-                      <div className="p-4 bg-purple-50/50 border border-purple-100 rounded-2xl space-y-2 text-left animate-fade-in mt-3">
+                      <div className="p-4 bg-purple-50/50 border border-purple-100 rounded-2xl space-y-3 text-left animate-fade-in mt-3">
                         <div className="flex items-center gap-2">
                           <span className="w-2 h-2 rounded-full bg-purple-500" />
                           <span className="text-[10px] font-black uppercase tracking-wider text-purple-800">Khalti Wallet Settlement Details</span>
                         </div>
-                        <div className="text-xs space-y-1 text-purple-950 font-medium">
+                        <div className="text-xs space-y-2 text-purple-950 font-medium">
                           <p>Please send the total amount to our verified Khalti account:</p>
                           <div className="bg-white p-3 rounded-xl border border-purple-100 space-y-1 mt-1 shadow-xs">
                             <div className="flex justify-between">
@@ -990,8 +1022,54 @@ export default function CheckoutModal({
                               <span className="font-bold">{settings?.khaltiAccountName || 'Mahi Creations'}</span>
                             </div>
                           </div>
+
+                          {settings?.khaltiQrUrl && (
+                            <div className="flex flex-col items-center justify-center p-3.5 bg-white border border-purple-100 rounded-xl mt-2.5">
+                              <p className="text-[9px] font-bold uppercase tracking-wider text-neutral-400 mb-2">Scan to Pay via Khalti QR</p>
+                              <img src={settings.khaltiQrUrl} alt="Khalti QR Code" className="h-44 w-44 object-contain rounded border border-clay" />
+                            </div>
+                          )}
+
                           <p className="text-[9px] text-neutral-400 mt-1 italic">
-                            * Post-submission, please take a screenshot and share it with us via WhatsApp to complete instant activation.
+                            Post-submission, please take a screenshot and share it with us via WhatsApp to complete instant activation.
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+                  if (paymentMethod === 'IPS') {
+                    return (
+                      <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-2xl space-y-3 text-left animate-fade-in mt-3">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-[#004f80]" />
+                          <span className="text-[10px] font-black uppercase tracking-wider text-[#004f80]">Connect IPS Settlement Details</span>
+                        </div>
+                        <div className="text-xs space-y-2 text-blue-950 font-medium">
+                          <p>Please make your Connect IPS transfer to our official merchant account:</p>
+                          <div className="bg-white p-3 rounded-xl border border-blue-100 space-y-1 mt-1 shadow-xs">
+                            <div className="flex justify-between">
+                              <span className="text-neutral-400 text-[10px] uppercase">IPS Phone/ID:</span>
+                              <span className="font-bold select-all">{settings?.ipsAccountPhone || '9802058364'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-neutral-400 text-[10px] uppercase">Account Name:</span>
+                              <span className="font-bold">{settings?.ipsAccountName || 'Mahi Creations'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-neutral-400 text-[10px] uppercase">Settlement Bank:</span>
+                              <span className="font-bold">{settings?.ipsBankName || 'Global IME Bank'}</span>
+                            </div>
+                          </div>
+
+                          {settings?.ipsQrUrl && (
+                            <div className="flex flex-col items-center justify-center p-3.5 bg-white border border-blue-100 rounded-xl mt-2.5">
+                              <p className="text-[9px] font-bold uppercase tracking-wider text-neutral-400 mb-2">Scan to Pay via Connect IPS QR</p>
+                              <img src={settings.ipsQrUrl} alt="Connect IPS QR Code" className="h-44 w-44 object-contain rounded border border-clay" />
+                            </div>
+                          )}
+
+                          <p className="text-[9px] text-neutral-400 mt-1 italic">
+                            Post-submission, please take a screenshot and share it with us via WhatsApp to verify your Connect IPS transaction.
                           </p>
                         </div>
                       </div>
@@ -999,12 +1077,12 @@ export default function CheckoutModal({
                   }
                   if (paymentMethod === 'Bank Transfer') {
                     return (
-                      <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-2xl space-y-2 text-left animate-fade-in mt-3">
+                      <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-2xl space-y-3 text-left animate-fade-in mt-3">
                         <div className="flex items-center gap-2">
                           <span className="w-2 h-2 rounded-full bg-blue-500" />
                           <span className="text-[10px] font-black uppercase tracking-wider text-blue-800">Direct Bank Settlement Details</span>
                         </div>
-                        <div className="text-xs space-y-1.5 text-blue-950 font-medium">
+                        <div className="text-xs space-y-2 text-blue-950 font-medium">
                           <p>Please make a bank transfer or mobile banking deposit to our official account:</p>
                           <div className="bg-white p-3 rounded-xl border border-blue-100 space-y-1 mt-1 shadow-xs font-sans">
                             <div className="flex justify-between">
@@ -1024,8 +1102,16 @@ export default function CheckoutModal({
                               <span className="font-bold text-[11px]">{settings?.bankBranch || 'Jhamsikhel Branch'}</span>
                             </div>
                           </div>
+
+                          {settings?.bankQrUrl && (
+                            <div className="flex flex-col items-center justify-center p-3.5 bg-white border border-blue-100 rounded-xl mt-2.5">
+                              <p className="text-[9px] font-bold uppercase tracking-wider text-neutral-400 mb-2">Scan to Pay via Bank/Fonepay QR</p>
+                              <img src={settings.bankQrUrl} alt="Bank QR Code" className="h-44 w-44 object-contain rounded border border-clay" />
+                            </div>
+                          )}
+
                           <p className="text-[9px] text-neutral-400 mt-1 italic">
-                            * Please upload or message us your deposit receipt with your order name to process warehouse dispatch immediately.
+                            Please upload or message us your deposit receipt with your order name to process warehouse dispatch immediately.
                           </p>
                         </div>
                       </div>
@@ -1051,7 +1137,7 @@ export default function CheckoutModal({
                             </div>
                           </div>
                           <p className="text-[9px] text-neutral-400 mt-1 italic">
-                            * Note: Make sure to transfer in USD equivalent or your regional currency. Send payment receipt for rapid dispatch.
+                            Note: Make sure to transfer in USD equivalent or your regional currency. Send payment receipt for rapid dispatch.
                           </p>
                         </div>
                       </div>
@@ -1207,7 +1293,7 @@ export default function CheckoutModal({
                     Processing...
                   </span>
                 ) : (
-                  paymentMethod === 'COD' || paymentMethod === 'Bank Transfer' || paymentMethod === 'PayPal' ? 'Place Boutique Order' : 'Proceed to Payment Gateway'
+                  'Place Boutique Order & Confirm on WhatsApp'
                 )}
               </button>
             </div>

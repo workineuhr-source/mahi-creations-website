@@ -6,7 +6,7 @@ import {
   Instagram, Linkedin, MessageSquare, Copy, CheckCircle2, Eye, EyeOff, User, Phone, 
   Sparkles, ExternalLink, Globe, Key, ChevronRight, HelpCircle, ShieldCheck, Zap, Star, MapPin, Search, Home, Mail, Users, Truck, Printer, Ticket, CreditCard, Wallet, UploadCloud
 } from 'lucide-react';
-import { formatPrice, CurrencyCode, CURRENCIES, CountryConfig, ShippingLocation } from '../utils/currency';
+import { formatPrice, convertPrice, CurrencyCode, CURRENCIES, CountryConfig, ShippingLocation } from '../utils/currency';
 import { uploadImageToServer } from '../utils/upload';
 
 interface AdminPanelProps {
@@ -215,7 +215,7 @@ export default function AdminPanel({
   }, [isAdminLoggedIn]);
 
   // Sidebar Tab state: dashboard, products, orders, reviews, settings, shipping, subscribers, future
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'orders' | 'reviews' | 'settings' | 'shipping' | 'subscribers' | 'future'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'orders' | 'reviews' | 'settings' | 'shipping' | 'subscribers' | 'future' | 'payments'>('dashboard');
 
   // Sub-tabs inside Boutique Settings tab to reduce scrolling
   const [settingsSubTab, setSettingsSubTab] = useState<'credentials' | 'socials' | 'showcase' | 'footer' | 'promo-slides' | 'homepage' | 'sourcing' | 'payments'>('credentials');
@@ -299,7 +299,14 @@ export default function AdminPanel({
   const [tempPaypalEmail, setTempPaypalEmail] = useState(settings.paypalEmail || 'mahicreations369@gmail.com');
   const [tempPaypalName, setTempPaypalName] = useState(settings.paypalAccountName || 'Mahi Creations Luxury');
   const [tempCodInstructions, setTempCodInstructions] = useState(settings.codInstructions || 'Pay cash or scan dynamic Fonepay QR upon home delivery by courier.');
-  const [tempEnabledPayments, setTempEnabledPayments] = useState<string[]>(settings.enabledPayments || ['eSewa', 'Khalti', 'COD', 'Bank Transfer', 'Card Payment', 'PayPal']);
+  const [tempEsewaQr, setTempEsewaQr] = useState(settings.esewaQrUrl || '');
+  const [tempKhaltiQr, setTempKhaltiQr] = useState(settings.khaltiQrUrl || '');
+  const [tempIpsQr, setTempIpsQr] = useState(settings.ipsQrUrl || '');
+  const [tempBankQr, setTempBankQr] = useState(settings.bankQrUrl || '');
+  const [tempIpsPhone, setTempIpsPhone] = useState(settings.ipsAccountPhone || '9802058364');
+  const [tempIpsName, setTempIpsName] = useState(settings.ipsAccountName || 'Mahi Creations');
+  const [tempIpsBankName, setTempIpsBankName] = useState(settings.ipsBankName || 'Nabil Bank Limited');
+  const [tempEnabledPayments, setTempEnabledPayments] = useState<string[]>(settings.enabledPayments || ['eSewa', 'Khalti', 'COD', 'Bank Transfer', 'Card Payment', 'PayPal', 'IPS']);
 
   // Promo Slides Form states
   const [editingSlideId, setEditingSlideId] = useState<string | null>(null);
@@ -338,7 +345,7 @@ export default function AdminPanel({
   const [formInStock, setFormInStock] = useState(true);
   const [formIsVisible, setFormIsVisible] = useState(true);
   const [formStockCount, setFormStockCount] = useState<number>(10);
-  const [formPriceCurrency, setFormPriceCurrency] = useState<CurrencyCode>('NPR');
+  const [formPriceCurrency, setFormPriceCurrency] = useState<CurrencyCode>('AED');
   const [formImages, setFormImages] = useState<string[]>([]);
   const [isFileUploading, setIsFileUploading] = useState(false);
   const [formBrand, setFormBrand] = useState('Mahi Creations');
@@ -592,6 +599,13 @@ export default function AdminPanel({
       paypalEmail: tempPaypalEmail.trim(),
       paypalAccountName: tempPaypalName.trim(),
       codInstructions: tempCodInstructions.trim(),
+      esewaQrUrl: tempEsewaQr.trim(),
+      khaltiQrUrl: tempKhaltiQr.trim(),
+      ipsQrUrl: tempIpsQr.trim(),
+      bankQrUrl: tempBankQr.trim(),
+      ipsAccountPhone: tempIpsPhone.trim(),
+      ipsAccountName: tempIpsName.trim(),
+      ipsBankName: tempIpsBankName.trim(),
       enabledPayments: tempEnabledPayments,
     });
     setSettingsSuccess('Boutique Settings updated successfully!');
@@ -603,14 +617,14 @@ export default function AdminPanel({
     setFormName('');
     setFormCategory('Cosmetics');
     setFormDescription('');
-    setFormPrice(1000);
-    setFormCostPrice(600);
+    setFormPrice(100);
+    setFormCostPrice(60);
     setFormDiscountPercent(0);
     setFormImage('');
     setFormInStock(true);
     setFormIsVisible(true);
     setFormStockCount(10);
-    setFormPriceCurrency('NPR');
+    setFormPriceCurrency('AED');
     setFormImages([]);
     setFormBrand('Mahi Creations');
     setIsEditing(null);
@@ -630,17 +644,21 @@ export default function AdminPanel({
     setFormDescription(prod.description);
     setFormBrand(prod.brand || 'Mahi Creations');
     
-    // Load entered currency and price if saved, otherwise load default NPR
-    if (prod.enteredPrice && prod.enteredCurrency) {
-      setFormPrice(prod.enteredPrice);
-      setFormPriceCurrency(prod.enteredCurrency as CurrencyCode);
-      const rate = CURRENCIES.find(c => c.code === prod.enteredCurrency)?.rate || 1.0;
-      setFormCostPrice(Math.round((prod.costPrice || Math.round(prod.price * 0.6)) * rate));
-    } else {
-      setFormPrice(prod.price);
-      setFormPriceCurrency('NPR');
-      setFormCostPrice(prod.costPrice || Math.round(prod.price * 0.6));
-    }
+    // Force editing to AED currency only
+    setFormPriceCurrency('AED');
+    
+    // Load or convert price & cost to AED
+    const aedPrice = prod.enteredCurrency === 'AED' && prod.enteredPrice
+      ? prod.enteredPrice
+      : Math.round(prod.price * 0.0275);
+      
+    const costNpr = prod.costPrice || Math.round(prod.price * 0.6);
+    const aedCost = prod.enteredCurrency === 'AED' && prod.enteredPrice
+      ? Math.round((prod.costPrice || Math.round(prod.price * 0.6)) * 0.0275)
+      : Math.round(costNpr * 0.0275);
+      
+    setFormPrice(aedPrice);
+    setFormCostPrice(aedCost);
 
     setFormDiscountPercent(prod.discountPercent);
     setFormImage(prod.image);
@@ -1258,7 +1276,7 @@ export default function AdminPanel({
   // Build Copyable Caption for Products
   const getProductShareText = (p: Product) => {
     const discountedPrice = p.price - (p.price * p.discountPercent / 100);
-    return `✨ Discover the premium cosmetics luxury of Mahi Creations! ✨\n\n💄 *Product:* ${p.name}\n🌸 *Category:* ${p.category}\n🏷️ *Special Price:* Rs. ${discountedPrice.toLocaleString('en-IN')}${p.discountPercent > 0 ? ` (${p.discountPercent}% OFF!)` : ''}\n✨ *Details:* ${p.description}\n\n📱 Order directly via WhatsApp at https://wa.me/${settings.whatsappNumber.replace(/[^0-9]/g, '')}\n🛍️ View more on our website!\n\n#MahiCreations #BoutiqueLuxury #CosmeticsNP`;
+    return `✨ Discover the premium cosmetics luxury of Mahi Creations! ✨\n\n💄 Product: ${p.name}\n🌸 Category: ${p.category}\n🏷️ Special Price: Rs. ${discountedPrice.toLocaleString('en-IN')}${p.discountPercent > 0 ? ` (${p.discountPercent}% OFF!)` : ''}\n✨ Details: ${p.description}\n\n📱 Order directly via WhatsApp at https://wa.me/${settings.whatsappNumber.replace(/[^0-9]/g, '')}\n🛍️ View more on our website!\n\n#MahiCreations #BoutiqueLuxury #CosmeticsNP`;
   };
 
   const handleCopyShareText = (p: Product) => {
@@ -1286,8 +1304,8 @@ export default function AdminPanel({
     });
   };
 
-  const productCols = is2Xl ? 2 : 1;
-  const productRowHeight = is2Xl ? 250 : (isMobile ? 395 : 250);
+  const productCols = 1;
+  const productRowHeight = isMobile ? 260 : 70;
   const topFilteredProducts = getFilteredProducts();
   const productRows = chunkArray(topFilteredProducts, productCols);
 
@@ -1684,6 +1702,18 @@ export default function AdminPanel({
               </button>
 
               <button
+                onClick={() => { setActiveTab('payments'); resetForm(); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition text-xs font-bold uppercase tracking-wider cursor-pointer ${
+                  activeTab === 'payments'
+                    ? 'bg-dark text-white shadow-md'
+                    : 'bg-transparent text-neutral-600 hover:bg-clay-light hover:text-dark'
+                }`}
+              >
+                <CreditCard className="w-4.5 h-4.5 stroke-[1.8] text-brand" />
+                Payment Settings
+              </button>
+
+              <button
                 onClick={() => { setActiveTab('shipping'); resetForm(); }}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition text-xs font-bold uppercase tracking-wider cursor-pointer ${
                   activeTab === 'shipping'
@@ -1805,7 +1835,7 @@ export default function AdminPanel({
                   </div>
                   <div>
                     <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider">Gross Revenue</p>
-                    <p className="text-lg font-black text-dark mt-1">Rs. {totalRevenue.toLocaleString('en-IN')}</p>
+                    <p className="text-lg font-black text-dark mt-1">AED {convertPrice(totalRevenue, 'AED').toLocaleString()}</p>
                   </div>
                 </div>
 
@@ -1835,7 +1865,7 @@ export default function AdminPanel({
                   </div>
                   <div>
                     <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider">Total Saved</p>
-                    <p className="text-lg font-black text-dark mt-1">Rs. {totalDiscountDistributed.toLocaleString('en-IN')}</p>
+                    <p className="text-lg font-black text-dark mt-1">AED {convertPrice(totalDiscountDistributed, 'AED').toLocaleString()}</p>
                   </div>
                 </div>
 
@@ -1863,7 +1893,7 @@ export default function AdminPanel({
                     </div>
                     <div>
                       <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider">Total Buying Cost (हामीलाई परेको कुल रकम)</p>
-                      <p className="text-base font-black text-dark mt-0.5">Rs. {totalCostOfGoodsSold.toLocaleString('en-IN')}</p>
+                      <p className="text-base font-black text-dark mt-0.5">AED {convertPrice(totalCostOfGoodsSold, 'AED').toLocaleString()}</p>
                     </div>
                   </div>
 
@@ -1873,7 +1903,7 @@ export default function AdminPanel({
                     </div>
                     <div>
                       <p className="text-[9px] text-emerald-500 font-bold uppercase tracking-wider">Total Net Profit (हामीलाई आएको खुद नाफा)</p>
-                      <p className="text-base font-black text-emerald-800 mt-0.5">Rs. {totalNetProfit.toLocaleString('en-IN')}</p>
+                      <p className="text-base font-black text-emerald-800 mt-0.5 font-mono">AED {convertPrice(totalNetProfit, 'AED').toLocaleString()}</p>
                     </div>
                   </div>
 
@@ -1906,14 +1936,14 @@ export default function AdminPanel({
                         <p className="text-neutral-400 text-[10px] font-light">Real-time cumulative earnings mapped dynamically over the last seven calendar days.</p>
                       </div>
                       <span className="text-[9px] bg-brand/10 text-brand px-2.5 py-1 rounded-md font-bold uppercase tracking-wider font-mono">
-                        NPR Valuation
+                        AED Valuation
                       </span>
                     </div>
 
                     {/* Chart Generator */}
                     {(() => {
-                      const chartData = getLast7DaysSales();
-                      const maxVal = Math.max(...chartData.map(d => d.sales), 10000);
+                      const chartData = getLast7DaysSales().map(d => ({ ...d, sales: convertPrice(d.sales, 'AED') }));
+                      const maxVal = Math.max(...chartData.map(d => d.sales), 300);
                       
                       // Chart Dimensions
                       const w = 600;
@@ -1972,7 +2002,7 @@ export default function AdminPanel({
                                     textAnchor="end" 
                                     className="fill-neutral-400 font-mono text-[9px] font-bold"
                                   >
-                                    Rs. {labelVal >= 1000 ? (labelVal / 1000) + 'k' : labelVal}
+                                    AED {labelVal >= 1000 ? (labelVal / 1000).toFixed(1) + 'k' : labelVal}
                                   </text>
                                 </g>
                               );
@@ -2013,7 +2043,7 @@ export default function AdminPanel({
                                     textAnchor="middle" 
                                     className="fill-white font-mono font-bold text-[9px]"
                                   >
-                                    Rs. {p.data.sales.toLocaleString('en-IN')}
+                                    AED {p.data.sales.toLocaleString()}
                                   </text>
                                 </g>
                                 
@@ -2185,7 +2215,7 @@ export default function AdminPanel({
                           } else {
                             orders.push(vipOrder);
                           }
-                          setSimulationToast(`👑 Generated Simulated VIP Order: Rs. ${vipOrder.total.toLocaleString('en-IN')}!`);
+                          setSimulationToast(`👑 Generated Simulated VIP Order: AED ${convertPrice(vipOrder.total, 'AED').toLocaleString()}!`);
                           setTimeout(() => setSimulationToast(''), 3000);
                         }}
                         className="w-full bg-neutral-800 hover:bg-neutral-700 text-left text-[11px] font-bold p-3 rounded-2xl transition border border-white/5 flex items-center justify-between group cursor-pointer"
@@ -2195,7 +2225,7 @@ export default function AdminPanel({
                           <ShoppingCart className="w-4 h-4 text-brand" />
                           <div>
                             <p className="text-white">Simulate VIP Purchase</p>
-                            <p className="text-[9px] text-neutral-400 font-light">Generate sample order worth &gt; Rs. 15,000</p>
+                            <p className="text-[9px] text-neutral-400 font-light">Generate sample order worth &gt; AED 400</p>
                           </div>
                         </div>
                         <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:translate-x-1 transition-transform" />
@@ -2312,9 +2342,9 @@ export default function AdminPanel({
 
                       <div className="space-y-1 font-sans">
                         <p className="text-[11px] text-neutral-400 font-bold uppercase tracking-wider">Current Achievement</p>
-                        <p className="text-lg font-black text-dark">Rs. {totalRevenue.toLocaleString('en-IN')}</p>
+                        <p className="text-lg font-black text-dark">AED {convertPrice(totalRevenue, 'AED').toLocaleString()}</p>
                         <p className="text-xs text-neutral-500 font-light">
-                          Target Goal: <span className="font-bold text-neutral-700">Rs. {monthlyGoal.toLocaleString('en-IN')}</span>
+                          Target Goal: <span className="font-bold text-neutral-700">AED {convertPrice(monthlyGoal, 'AED').toLocaleString()}</span>
                         </p>
                       </div>
                     </div>
@@ -2324,7 +2354,7 @@ export default function AdminPanel({
                     <p className="text-[10px] text-neutral-500 leading-relaxed font-light">
                       {totalRevenue >= monthlyGoal 
                         ? '🎉 Amazing! The boutique has fully surpassed this month\'s target. Excellent marketing coordination!' 
-                        : `We are Rs. ${(monthlyGoal - totalRevenue).toLocaleString('en-IN')} away from our monthly threshold.`}
+                        : `We are AED ${convertPrice(Math.max(0, monthlyGoal - totalRevenue), 'AED').toLocaleString()} away from our monthly threshold.`}
                     </p>
                   </div>
                 </div>
@@ -2333,7 +2363,7 @@ export default function AdminPanel({
                 <div className="bg-white p-6 rounded-3xl border border-clay shadow-sm flex flex-col justify-between">
                   <div>
                     <h4 className="font-serif text-base font-bold text-dark uppercase tracking-wide">Sales Contribution by Category</h4>
-                    <p className="text-neutral-400 text-[10px] font-light mt-0.5">NPR subtotal values mapped directly from active retail customer checkouts.</p>
+                    <p className="text-neutral-400 text-[10px] font-light mt-0.5">AED subtotal values mapped directly from active retail customer checkouts.</p>
                     
                     <div className="mt-4.5 space-y-3.5">
                       {Array.from(new Set(products.map(p => p.category))).map((cat) => {
@@ -2646,44 +2676,26 @@ export default function AdminPanel({
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-6 gap-4">
-                      {/* Price and Currency Selection */}
+                      {/* Price input strictly in AED */}
                       <div className="space-y-1 col-span-1">
                         <label className="text-[10px] uppercase tracking-wider font-bold text-neutral-600 block mb-1">
-                          Price & Currency
+                          Price (AED)
                         </label>
-                        <div className="flex gap-1.5">
-                          <input
-                            type="number"
-                            required
-                            min={1}
-                            value={formPrice}
-                            onChange={(e) => setFormPrice(Number(e.target.value))}
-                            className="w-2/3 text-xs border border-clay rounded-lg p-2.5 bg-white focus:outline-none focus:border-brand font-medium text-dark"
-                            placeholder="Price"
-                          />
-                          <select
-                            value={formPriceCurrency}
-                            onChange={(e) => setFormPriceCurrency(e.target.value as CurrencyCode)}
-                            className="w-1/3 text-xs border border-clay rounded-lg p-2.5 bg-white focus:outline-none focus:border-brand cursor-pointer font-bold text-dark"
-                          >
-                            {CURRENCIES.map(curr => (
-                              <option key={curr.code} value={curr.code}>
-                                {curr.code}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        {formPriceCurrency !== 'NPR' && (
-                          <p className="text-[9px] text-neutral-400 mt-0.5">
-                            Approx: Rs. {Math.round(formPrice / (CURRENCIES.find(c => c.code === formPriceCurrency)?.rate || 1.0)).toLocaleString('en-NP')} (NPR Base)
-                          </p>
-                        )}
+                        <input
+                          type="number"
+                          required
+                          min={1}
+                          value={formPrice}
+                          onChange={(e) => setFormPrice(Number(e.target.value))}
+                          className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white focus:outline-none focus:border-brand font-medium text-dark"
+                          placeholder="Price in AED"
+                        />
                       </div>
 
-                      {/* Buying Cost (NPR or entered currency) */}
+                      {/* Buying Cost strictly in AED */}
                       <div className="space-y-1 col-span-1">
                         <label className="text-[10px] uppercase tracking-wider font-bold text-neutral-600 block mb-1">
-                          Buying Cost ({formPriceCurrency})
+                          Buying Cost (AED)
                         </label>
                         <input
                           type="number"
@@ -2692,13 +2704,8 @@ export default function AdminPanel({
                           value={formCostPrice}
                           onChange={(e) => setFormCostPrice(Number(e.target.value))}
                           className="w-full text-xs border border-clay rounded-lg p-2.5 bg-white focus:outline-none focus:border-brand font-medium text-dark"
-                          placeholder="Cost Price"
+                          placeholder="Cost in AED"
                         />
-                        {formPriceCurrency !== 'NPR' && (
-                          <p className="text-[9px] text-neutral-400 mt-0.5">
-                            Approx Cost: Rs. {Math.round(formCostPrice / (CURRENCIES.find(c => c.code === formPriceCurrency)?.rate || 1.0)).toLocaleString('en-NP')} (NPR Base)
-                          </p>
-                        )}
                       </div>
 
                       {/* Discount percent */}
@@ -3089,190 +3096,149 @@ export default function AdminPanel({
                         className="max-h-[680px] overflow-y-auto border border-clay rounded-3xl bg-neutral-50/55 p-4.5 scrollbar-thin"
                       >
                         <div style={{ paddingTop: productsTopPadding, paddingBottom: productsBottomPadding }}>
-                          <div className="grid grid-cols-1 2xl:grid-cols-2 gap-5">
+                          <div className="space-y-3">
                             {visibleProductRows.flatMap(row => row).map((p) => {
                               const discountedPrice = p.price - (p.price * p.discountPercent / 100);
-                              const enteredPrice = p.enteredPrice || p.price;
-                              const enteredCurrency = p.enteredCurrency || 'NPR';
-                              const baseVis = getCurrencyVisual('NPR');
-                              const entVis = getCurrencyVisual(enteredCurrency);
                               const prodBrand = p.brand || 'Mahi Creations';
 
                               return (
                                 <div
                                   key={p.id}
-                                  className="bg-white p-5 rounded-2xl border border-clay hover:border-brand transition-all relative shadow-sm hover:shadow-md flex flex-col sm:flex-row gap-5 justify-between"
+                                  className="bg-white p-3.5 rounded-2xl border border-clay hover:border-brand hover:shadow-md transition-all flex flex-col md:flex-row items-center justify-between gap-4 animate-fade-in"
                                 >
-                                  {/* Image and Primary Information */}
-                                  <div className="flex gap-4 items-start flex-grow min-w-0">
-                                    {/* Product Image */}
-                                    <div className="w-16 h-20 bg-clay-light/50 border border-clay rounded-lg overflow-hidden flex-shrink-0 relative">
+                                  {/* Left: Thumbnail & Info (Image, ID, Title, Brand, Category) */}
+                                  <div className="flex items-center gap-3.5 flex-grow min-w-0 w-full md:w-auto">
+                                    <div className="w-11 h-14 bg-clay-light/45 border border-clay rounded-xl overflow-hidden flex-shrink-0 relative shadow-xs">
                                       <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
-                                      <span className="absolute bottom-1 left-1 text-[8px] bg-dark/75 text-white px-1 py-0.5 rounded font-mono font-black">
+                                      <span className="absolute bottom-0.5 left-0.5 text-[7px] bg-black/75 text-white px-1 rounded font-mono font-black">
                                         {p.id}
                                       </span>
                                     </div>
-
-                                    {/* Details layout */}
-                                    <div className="space-y-1.5 min-w-0 flex-grow">
-                                      <div className="flex flex-wrap gap-1.5 items-center">
-                                        <span className="text-[8px] uppercase tracking-wider font-bold text-brand bg-clay-light px-1.5 py-0.5 rounded">
-                                          {p.category}
-                                        </span>
-                                        <span className="text-[8px] uppercase tracking-wider font-bold text-dark bg-neutral-100 border border-clay px-1.5 py-0.5 rounded">
-                                          🏷️ {prodBrand}
-                                        </span>
-                                      </div>
-                                      <h5 className="font-serif text-sm font-black text-dark tracking-tight leading-snug truncate" title={p.name}>
+                                    <div className="min-w-0 flex-grow">
+                                      <h5 className="font-serif text-[12.5px] font-black text-dark tracking-tight leading-tight truncate" title={p.name}>
                                         {p.name}
                                       </h5>
-                                      <p className="text-[11px] text-neutral-500 font-light line-clamp-2 leading-relaxed" title={p.description}>
-                                        {p.description}
-                                      </p>
+                                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                        <span className="text-[7.5px] uppercase tracking-wider font-extrabold text-brand bg-brand/5 border border-brand/10 px-1 rounded-md">
+                                          {p.category}
+                                        </span>
+                                        <span className="text-[7.5px] uppercase tracking-wider font-extrabold text-neutral-500 bg-neutral-50 border border-clay px-1 rounded-md">
+                                          {prodBrand}
+                                        </span>
+                                      </div>
                                     </div>
                                   </div>
 
-                                  {/* Inventory / Price / Actions Column with Rigid Alignment */}
-                                  <div className="w-full sm:w-52 flex flex-col justify-between items-stretch gap-3 border-t sm:border-t-0 sm:border-l border-clay-light pt-3.5 sm:pt-0 sm:pl-4.5 flex-shrink-0 animate-fade-in">
-                                    {/* Stock status & Stock Count */}
-                                    <div className="flex items-center justify-between text-[10px]">
-                                      <span className={`inline-flex items-center gap-1 font-bold uppercase tracking-wider ${
-                                        p.inStock ? 'text-emerald-700' : 'text-rose-700'
-                                      }`}>
-                                        <span className={`w-1.5 h-1.5 rounded-full ${p.inStock ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
-                                        {p.inStock ? 'In Stock' : 'Sold Out'}
+                                  {/* Middle-Left: Stock availability */}
+                                  <div className="flex items-center gap-3.5 justify-between w-full md:w-32 flex-shrink-0 border-t md:border-t-0 pt-2 md:pt-0 border-dashed border-clay-light">
+                                    <span className={`inline-flex items-center gap-1.5 text-[9.5px] font-bold uppercase tracking-wider ${
+                                      p.inStock ? 'text-emerald-700' : 'text-rose-700'
+                                    }`}>
+                                      <span className={`w-1.5 h-1.5 rounded-full ${p.inStock ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                                      {p.inStock ? 'In Stock' : 'Sold Out'}
+                                    </span>
+                                    {p.stockCount !== undefined && (
+                                      <span className="font-mono font-bold text-[9.5px] text-neutral-400">
+                                        Stock: {p.stockCount}
                                       </span>
-                                      {p.stockCount !== undefined && (
-                                        <span className={`font-mono font-bold ${
-                                          p.stockCount < 5 ? 'text-rose-600' : 'text-neutral-500'
-                                        }`}>
-                                          Count: {p.stockCount}
-                                        </span>
-                                      )}
-                                    </div>
+                                    )}
+                                  </div>
 
-                                    {/* Aligned Currency Logos & Pricing */}
-                                    <div className="space-y-1 bg-neutral-50 p-2 rounded-xl border border-clay-light">
-                                      {/* Entered Price Currency Logo & Value */}
-                                      <div className="flex items-center justify-between text-[11px] font-bold">
-                                        <span className="text-neutral-400 flex items-center gap-1 text-[9px]">
-                                          <span className="text-xs">{entVis.flag}</span> {entVis.symbol} Price
-                                        </span>
-                                        <span className="text-dark font-black">
-                                          {entVis.symbol === 'Rs.' ? 'Rs. ' : `${entVis.symbol} `}
-                                          {(enteredPrice - (enteredPrice * p.discountPercent / 100)).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-                                        </span>
+                                  {/* Middle: AED Price & Discount info */}
+                                  <div className="flex flex-col items-start md:items-end w-full md:w-32 flex-shrink-0 border-t md:border-t-0 pt-2 md:pt-0 border-dashed border-clay-light">
+                                    <div className="text-[11.5px] font-black text-dark font-mono">
+                                      AED {convertPrice(discountedPrice, 'AED').toLocaleString()}
+                                    </div>
+                                    {p.discountPercent > 0 ? (
+                                      <div className="text-[8px] font-bold text-rose-600 line-through font-mono">
+                                        AED {convertPrice(p.price, 'AED').toLocaleString()} (-{p.discountPercent}%)
                                       </div>
+                                    ) : (
+                                      <div className="text-[8px] text-neutral-400 font-medium tracking-wide uppercase">Standard Price</div>
+                                    )}
+                                  </div>
 
-                                      {/* Base Price (NPR) with Nepal Flag Logo */}
-                                      {enteredCurrency !== 'NPR' && (
-                                        <div className="flex items-center justify-between text-[9px] border-t border-dashed border-clay-dark/30 pt-1 text-neutral-500 font-medium">
-                                          <span className="flex items-center gap-1">
-                                            <span>{baseVis.flag}</span> NPR (Base)
+                                  {/* Middle-Right: Cost & Profit analysis in AED only */}
+                                  {(() => {
+                                    const costNpr = p.costPrice || Math.round(p.price * 0.6);
+                                    const profitNpr = discountedPrice - costNpr;
+                                    const markup = costNpr > 0 ? (profitNpr / costNpr) * 100 : 0;
+                                    
+                                    // AED conversions directly
+                                    const costAed = convertPrice(costNpr, 'AED');
+                                    const saleAed = convertPrice(discountedPrice, 'AED');
+                                    const profitAed = saleAed - costAed;
+
+                                    return (
+                                      <div className="flex items-center gap-4 justify-between w-full md:w-56 flex-shrink-0 bg-emerald-50/50 border border-emerald-100/60 px-3 py-1.5 rounded-xl text-[10px] border-t md:border-t-0 pt-2 md:pt-0">
+                                        <div className="text-left">
+                                          <span className="text-[7.5px] text-neutral-400 block uppercase tracking-wider font-extrabold">Cost (AED)</span>
+                                          <span className="font-bold text-neutral-600 font-mono">
+                                            {costAed.toLocaleString()}
                                           </span>
-                                          <span>
-                                            Rs. {Math.round(discountedPrice).toLocaleString('en-NP')}
+                                        </div>
+                                        <div className="text-right">
+                                          <span className="text-[7.5px] text-emerald-600 block uppercase tracking-wider font-extrabold">Net Profit (नाफा)</span>
+                                          <span className="font-mono font-black text-emerald-700">
+                                            AED {profitAed.toLocaleString()} ({markup.toFixed(0)}%)
                                           </span>
                                         </div>
+                                      </div>
+                                    );
+                                  })()}
+
+                                  {/* Right: Actions */}
+                                  <div className="flex items-center gap-3 justify-end w-full md:w-52 flex-shrink-0 border-t md:border-t-0 pt-2 md:pt-0 border-dashed border-clay-light">
+                                    <button
+                                      onClick={() => handleOpenEditForm(p)}
+                                      className="text-brand hover:text-dark inline-flex items-center gap-1 cursor-pointer transition-colors font-bold text-[9px] uppercase tracking-wider"
+                                    >
+                                      <Edit className="w-3 h-3" />
+                                      Edit
+                                    </button>
+
+                                    <button
+                                      onClick={() => {
+                                        onUpdateProduct({
+                                          ...p,
+                                          isVisible: p.isVisible !== false ? false : true
+                                        });
+                                      }}
+                                      className={`inline-flex items-center gap-1 cursor-pointer transition-colors font-bold text-[9px] uppercase tracking-wider ${
+                                        p.isVisible !== false ? 'text-emerald-600 hover:text-emerald-800' : 'text-neutral-400 hover:text-neutral-600'
+                                      }`}
+                                      title={p.isVisible !== false ? "Visible on shop. Click to Hide" : "Hidden from shop. Click to Show"}
+                                    >
+                                      {p.isVisible !== false ? (
+                                        <>
+                                          <Eye className="w-3 h-3" />
+                                          Show
+                                        </>
+                                      ) : (
+                                        <>
+                                          <EyeOff className="w-3 h-3" />
+                                          Hide
+                                        </>
                                       )}
-                                      
-                                      {p.discountPercent > 0 && (
-                                        <div className="text-[8px] text-right font-bold text-rose-600">
-                                          {p.discountPercent}% Discount Applied
-                                        </div>
-                                      )}
-                                    </div>
+                                    </button>
+                                    
+                                    <button
+                                      onClick={() => setSharingProduct(p)}
+                                      className="text-neutral-500 hover:text-dark inline-flex items-center gap-1 cursor-pointer transition-colors font-bold text-[9px] uppercase tracking-wider"
+                                      title="Social Sharing"
+                                    >
+                                      <Share2 className="w-3 h-3 text-brand" />
+                                      Share
+                                    </button>
 
-                                    {/* Profit & Cost Analysis Section */}
-                                    {(() => {
-                                      const costNpr = p.costPrice || Math.round(p.price * 0.6);
-                                      const profitNpr = discountedPrice - costNpr;
-                                      const markup = costNpr > 0 ? (profitNpr / costNpr) * 100 : 0;
-                                      const rate = CURRENCIES.find(c => c.code === enteredCurrency)?.rate || 1.0;
-                                      const costInEnteredVal = Math.round(costNpr * rate);
-                                      
-                                      return (
-                                        <div className="bg-emerald-50/60 border border-emerald-100 p-2 rounded-xl text-[10px] space-y-1 animate-fade-in">
-                                          <div className="flex items-center justify-between text-neutral-500 font-medium">
-                                            <span>📥 Cost Price (क्रय मूल्य):</span>
-                                            <span className="font-semibold text-dark">
-                                              Rs. {costNpr.toLocaleString('en-NP')}
-                                              {enteredCurrency !== 'NPR' && (
-                                                <span className="text-[8px] text-neutral-400 font-normal ml-1">
-                                                  ({entVis.symbol}{costInEnteredVal.toLocaleString()})
-                                                </span>
-                                              )}
-                                            </span>
-                                          </div>
-                                          <div className="flex items-center justify-between font-bold text-emerald-800">
-                                            <span>💰 Net Profit (खुद नाफा):</span>
-                                            <span className="font-mono">
-                                              Rs. {Math.round(profitNpr).toLocaleString('en-NP')}
-                                            </span>
-                                          </div>
-                                          <div className="flex items-center justify-between text-[9px] text-emerald-700/80 font-semibold border-t border-dashed border-emerald-200/50 pt-1">
-                                            <span>📈 Profit Margin / Markup:</span>
-                                            <span>
-                                              {markup.toFixed(1)}% Profit
-                                            </span>
-                                          </div>
-                                        </div>
-                                      );
-                                    })()}
-
-                                    {/* Aligned Control Buttons */}
-                                    <div className="flex items-center justify-between pt-1 border-t border-clay-light text-[10px] font-bold gap-2">
-                                      <button
-                                        onClick={() => handleOpenEditForm(p)}
-                                        className="text-brand hover:text-dark inline-flex items-center gap-1 cursor-pointer transition-colors"
-                                      >
-                                        <Edit className="w-3.5 h-3.5" />
-                                        Edit
-                                      </button>
-
-                                      <button
-                                        onClick={() => {
-                                          onUpdateProduct({
-                                            ...p,
-                                            isVisible: p.isVisible !== false ? false : true
-                                          });
-                                        }}
-                                        className={`inline-flex items-center gap-1 cursor-pointer transition-colors ${
-                                          p.isVisible !== false ? 'text-emerald-600 hover:text-emerald-800' : 'text-neutral-400 hover:text-neutral-600'
-                                        }`}
-                                        title={p.isVisible !== false ? "Visible on shop. Click to Hide" : "Hidden from shop. Click to Show"}
-                                      >
-                                        {p.isVisible !== false ? (
-                                          <>
-                                            <Eye className="w-3.5 h-3.5" />
-                                            Show
-                                          </>
-                                        ) : (
-                                          <>
-                                            <EyeOff className="w-3.5 h-3.5" />
-                                            Hide
-                                          </>
-                                        )}
-                                      </button>
-                                      
-                                      <button
-                                        onClick={() => setSharingProduct(p)}
-                                        className="text-neutral-500 hover:text-dark inline-flex items-center gap-1 cursor-pointer transition-colors"
-                                        title="Social Sharing"
-                                      >
-                                        <Share2 className="w-3.5 h-3.5 text-brand" />
-                                        Share
-                                      </button>
-
-                                      <button
-                                        onClick={() => onDeleteProduct(p.id)}
-                                        className="text-red-600 hover:text-red-800 inline-flex items-center gap-1 cursor-pointer transition-colors"
-                                        title="Delete Product"
-                                      >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                        Delete
-                                      </button>
-                                    </div>
+                                    <button
+                                      onClick={() => onDeleteProduct(p.id)}
+                                      className="text-red-600 hover:text-red-800 inline-flex items-center gap-1 cursor-pointer transition-colors font-bold text-[9px] uppercase tracking-wider"
+                                      title="Delete Product"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                      Del
+                                    </button>
                                   </div>
                                 </div>
                               );
@@ -6259,6 +6225,640 @@ export default function AdminPanel({
               </div>
             );
           })()}
+
+          {/* PAYMENT SETTINGS & MERCHANT ACCOUNT INTEGRATIONS TAB */}
+          {activeTab === 'payments' && (
+            <div className="space-y-8 animate-fade-in text-left">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-clay-light pb-5">
+                <div>
+                  <h3 className="font-serif text-2xl font-black text-dark uppercase tracking-wide">Nepal Gateway & Payment Configurations</h3>
+                  <p className="text-neutral-500 text-xs mt-1.5 font-light">
+                    Manage active payment gateways, upload scan-to-pay merchant QR codes, configure account details, and integrate API credentials.
+                  </p>
+                </div>
+                <div>
+                  <button
+                    type="button"
+                    onClick={handleSaveSettings}
+                    className="inline-flex items-center gap-2 bg-brand hover:bg-brand-dark text-white text-xs font-bold uppercase tracking-wider px-6 py-3.5 rounded-xl shadow-md transition cursor-pointer"
+                  >
+                    <Check className="w-4 h-4" />
+                    Save Payment Configurations
+                  </button>
+                </div>
+              </div>
+
+              {settingsSuccess && (
+                <div className="bg-emerald-500 text-white p-4 rounded-2xl text-xs font-bold flex items-center gap-2.5 shadow-md animate-fade-in">
+                  <CheckCircle2 className="w-5 h-5 shrink-0" />
+                  <span>{settingsSuccess}</span>
+                </div>
+              )}
+
+              {/* Toggles for payment methods */}
+              <div className="bg-white p-6 rounded-3xl border border-clay space-y-4">
+                <h4 className="font-serif text-sm font-bold text-dark uppercase tracking-wider flex items-center gap-2 border-b border-clay-light pb-2">
+                  <CreditCard className="w-4.5 h-4.5 text-brand" />
+                  1. Active Storefront Payment Methods
+                </h4>
+                <p className="text-[11px] text-neutral-400 font-light mt-1">
+                  Toggle which payment options are displayed to customers during checkout. Enabled methods will request appropriate verification details.
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 pt-2">
+                  {[
+                    { id: 'COD', label: 'Cash on Delivery (COD)' },
+                    { id: 'eSewa', label: 'eSewa' },
+                    { id: 'Khalti', label: 'Khalti' },
+                    { id: 'IPS', label: 'Connect IPS' },
+                    { id: 'Bank Transfer', label: 'Bank Transfer' },
+                    { id: 'Card Payment', label: 'Card Payment' },
+                    { id: 'PayPal', label: 'PayPal' },
+                  ].map((method) => {
+                    const isEnabled = tempEnabledPayments.includes(method.id);
+                    return (
+                      <button
+                        key={method.id}
+                        type="button"
+                        onClick={() => {
+                          if (isEnabled) {
+                            setTempEnabledPayments(tempEnabledPayments.filter((m) => m !== method.id));
+                          } else {
+                            setTempEnabledPayments([...tempEnabledPayments, method.id]);
+                          }
+                        }}
+                        className={`p-4 rounded-2xl border text-center transition flex flex-col items-center justify-center gap-2 cursor-pointer ${
+                          isEnabled
+                            ? 'border-brand bg-brand/5 text-brand font-extrabold shadow-sm'
+                            : 'border-clay hover:bg-neutral-50 text-neutral-500'
+                        }`}
+                      >
+                        <span className="text-[10px] font-bold uppercase tracking-wide leading-tight">{method.label}</span>
+                        <span
+                          className={`text-[8px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest ${
+                            isEnabled ? 'bg-brand/20 text-brand' : 'bg-neutral-100 text-neutral-400'
+                          }`}
+                        >
+                          {isEnabled ? 'Active' : 'Disabled'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* QR Upload and Account Details Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* eSewa Configuration */}
+                {tempEnabledPayments.includes('eSewa') && (
+                  <div className="bg-white p-6 rounded-3xl border border-clay space-y-4">
+                    <div className="flex items-center justify-between border-b border-clay-light pb-2">
+                      <h4 className="font-serif text-sm font-bold text-neutral-900 uppercase tracking-wider flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#60bb46] shrink-0" />
+                        eSewa Wallet Setup
+                      </h4>
+                      <span className="text-[9px] text-[#60bb46] bg-[#60bb46]/10 px-2 py-0.5 rounded font-black uppercase">eSewa Active</span>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[9px] uppercase font-bold text-neutral-500">eSewa ID / Phone</label>
+                          <input
+                            type="text"
+                            value={tempEsewaPhone}
+                            onChange={(e) => setTempEsewaPhone(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-xl p-3 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none font-semibold"
+                            placeholder="e.g. 9802058364"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] uppercase font-bold text-neutral-500">Registered Name</label>
+                          <input
+                            type="text"
+                            value={tempEsewaName}
+                            onChange={(e) => setTempEsewaName(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-xl p-3 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none font-semibold"
+                            placeholder="e.g. Mahi Creations"
+                          />
+                        </div>
+                      </div>
+
+                      {/* eSewa QR File Upload Area */}
+                      <div className="space-y-2">
+                        <label className="text-[9px] uppercase font-bold text-neutral-500">Merchant eSewa Scan-to-Pay QR</label>
+                        <div
+                          className="border-2 border-dashed border-clay rounded-2xl p-4 text-center cursor-pointer hover:border-brand transition bg-clay-light/10 flex flex-col items-center justify-center relative overflow-hidden min-h-[140px]"
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            const file = e.dataTransfer.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = () => {
+                                if (typeof reader.result === 'string') setTempEsewaQr(reader.result);
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        >
+                          {tempEsewaQr ? (
+                            <div className="space-y-3 w-full flex flex-col items-center">
+                              <img src={tempEsewaQr} alt="eSewa QR Code" className="h-28 w-28 object-contain rounded border border-clay" />
+                              <button
+                                type="button"
+                                onClick={() => setTempEsewaQr('')}
+                                className="text-[9px] bg-red-50 text-red-600 hover:bg-red-100 font-extrabold uppercase px-2.5 py-1.5 rounded-lg transition"
+                              >
+                                Remove QR Photo
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="space-y-2 flex flex-col items-center">
+                              <UploadCloud className="w-8 h-8 text-neutral-400 stroke-[1.5]" />
+                              <span className="text-[10px] text-neutral-500 font-semibold">Drag & drop eSewa QR code image here</span>
+                              <span className="text-[9px] text-neutral-400 font-light">or click to browse from computer</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="absolute inset-0 opacity-0 cursor-pointer"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    const reader = new FileReader();
+                                    reader.onload = () => {
+                                      if (typeof reader.result === 'string') setTempEsewaQr(reader.result);
+                                    };
+                                    reader.readAsDataURL(file);
+                                  }
+                                }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Khalti Configuration */}
+                {tempEnabledPayments.includes('Khalti') && (
+                  <div className="bg-white p-6 rounded-3xl border border-clay space-y-4">
+                    <div className="flex items-center justify-between border-b border-clay-light pb-2">
+                      <h4 className="font-serif text-sm font-bold text-neutral-900 uppercase tracking-wider flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#5c2d91] shrink-0" />
+                        Khalti Wallet Setup
+                      </h4>
+                      <span className="text-[9px] text-[#5c2d91] bg-[#5c2d91]/10 px-2 py-0.5 rounded font-black uppercase">Khalti Active</span>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[9px] uppercase font-bold text-neutral-500">Khalti ID / Phone</label>
+                          <input
+                            type="text"
+                            value={tempKhaltiPhone}
+                            onChange={(e) => setTempKhaltiPhone(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-xl p-3 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none font-semibold"
+                            placeholder="e.g. 9802058364"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] uppercase font-bold text-neutral-500">Registered Name</label>
+                          <input
+                            type="text"
+                            value={tempKhaltiName}
+                            onChange={(e) => setTempKhaltiName(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-xl p-3 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none font-semibold"
+                            placeholder="e.g. Mahi Creations"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Khalti QR File Upload Area */}
+                      <div className="space-y-2">
+                        <label className="text-[9px] uppercase font-bold text-neutral-500">Merchant Khalti Scan-to-Pay QR</label>
+                        <div
+                          className="border-2 border-dashed border-clay rounded-2xl p-4 text-center cursor-pointer hover:border-brand transition bg-clay-light/10 flex flex-col items-center justify-center relative overflow-hidden min-h-[140px]"
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            const file = e.dataTransfer.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = () => {
+                                if (typeof reader.result === 'string') setTempKhaltiQr(reader.result);
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        >
+                          {tempKhaltiQr ? (
+                            <div className="space-y-3 w-full flex flex-col items-center">
+                              <img src={tempKhaltiQr} alt="Khalti QR Code" className="h-28 w-28 object-contain rounded border border-clay" />
+                              <button
+                                type="button"
+                                onClick={() => setTempKhaltiQr('')}
+                                className="text-[9px] bg-red-50 text-red-600 hover:bg-red-100 font-extrabold uppercase px-2.5 py-1.5 rounded-lg transition"
+                              >
+                                Remove QR Photo
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="space-y-2 flex flex-col items-center">
+                              <UploadCloud className="w-8 h-8 text-neutral-400 stroke-[1.5]" />
+                              <span className="text-[10px] text-neutral-500 font-semibold">Drag & drop Khalti QR code image here</span>
+                              <span className="text-[9px] text-neutral-400 font-light">or click to browse from computer</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="absolute inset-0 opacity-0 cursor-pointer"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    const reader = new FileReader();
+                                    reader.onload = () => {
+                                      if (typeof reader.result === 'string') setTempKhaltiQr(reader.result);
+                                    };
+                                    reader.readAsDataURL(file);
+                                  }
+                                }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Connect IPS Configuration */}
+                {tempEnabledPayments.includes('IPS') && (
+                  <div className="bg-white p-6 rounded-3xl border border-clay space-y-4">
+                    <div className="flex items-center justify-between border-b border-clay-light pb-2">
+                      <h4 className="font-serif text-sm font-bold text-neutral-900 uppercase tracking-wider flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#004f80] shrink-0" />
+                        Connect IPS Setup
+                      </h4>
+                      <span className="text-[9px] text-[#004f80] bg-[#004f80]/10 px-2 py-0.5 rounded font-black uppercase">IPS Active</span>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[9px] uppercase font-bold text-neutral-500">IPS Account ID/Phone</label>
+                          <input
+                            type="text"
+                            value={tempIpsPhone}
+                            onChange={(e) => setTempIpsPhone(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-xl p-3 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none font-semibold"
+                            placeholder="e.g. 9802058364"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] uppercase font-bold text-neutral-500">Account Name</label>
+                          <input
+                            type="text"
+                            value={tempIpsName}
+                            onChange={(e) => setTempIpsName(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-xl p-3 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none font-semibold"
+                            placeholder="e.g. Mahi Creations"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] uppercase font-bold text-neutral-500">IPS Settlement Bank</label>
+                          <input
+                            type="text"
+                            value={tempIpsBankName}
+                            onChange={(e) => setTempIpsBankName(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-xl p-3 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none font-semibold"
+                            placeholder="e.g. Global IME Bank"
+                          />
+                        </div>
+                      </div>
+
+                      {/* IPS QR File Upload Area */}
+                      <div className="space-y-2">
+                        <label className="text-[9px] uppercase font-bold text-neutral-500">Connect IPS Scan-to-Pay QR</label>
+                        <div
+                          className="border-2 border-dashed border-clay rounded-2xl p-4 text-center cursor-pointer hover:border-brand transition bg-clay-light/10 flex flex-col items-center justify-center relative overflow-hidden min-h-[140px]"
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            const file = e.dataTransfer.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = () => {
+                                if (typeof reader.result === 'string') setTempIpsQr(reader.result);
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        >
+                          {tempIpsQr ? (
+                            <div className="space-y-3 w-full flex flex-col items-center">
+                              <img src={tempIpsQr} alt="IPS QR Code" className="h-28 w-28 object-contain rounded border border-clay" />
+                              <button
+                                type="button"
+                                onClick={() => setTempIpsQr('')}
+                                className="text-[9px] bg-red-50 text-red-600 hover:bg-red-100 font-extrabold uppercase px-2.5 py-1.5 rounded-lg transition"
+                              >
+                                Remove QR Photo
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="space-y-2 flex flex-col items-center">
+                              <UploadCloud className="w-8 h-8 text-neutral-400 stroke-[1.5]" />
+                              <span className="text-[10px] text-neutral-500 font-semibold">Drag & drop IPS QR code image here</span>
+                              <span className="text-[9px] text-neutral-400 font-light">or click to browse from computer</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="absolute inset-0 opacity-0 cursor-pointer"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    const reader = new FileReader();
+                                    reader.onload = () => {
+                                      if (typeof reader.result === 'string') setTempIpsQr(reader.result);
+                                    };
+                                    reader.readAsDataURL(file);
+                                  }
+                                }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Bank Transfer Configuration */}
+                {tempEnabledPayments.includes('Bank Transfer') && (
+                  <div className="bg-white p-6 rounded-3xl border border-clay space-y-4">
+                    <div className="flex items-center justify-between border-b border-clay-light pb-2">
+                      <h4 className="font-serif text-sm font-bold text-neutral-900 uppercase tracking-wider flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#0a2540] shrink-0" />
+                        Bank Account setup
+                      </h4>
+                      <span className="text-[9px] text-[#0a2540] bg-[#0a2540]/10 px-2 py-0.5 rounded font-black uppercase">Bank Active</span>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[9px] uppercase font-bold text-neutral-500">Bank Name</label>
+                          <input
+                            type="text"
+                            value={tempBankName}
+                            onChange={(e) => setTempBankName(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-xl p-3 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none font-semibold"
+                            placeholder="e.g. Nabil Bank"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] uppercase font-bold text-neutral-500">Account Number</label>
+                          <input
+                            type="text"
+                            value={tempBankAccountNumber}
+                            onChange={(e) => setTempBankAccountNumber(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-xl p-3 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none font-semibold font-mono"
+                            placeholder="e.g. 0110017500369"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] uppercase font-bold text-neutral-500">Account Holder Name</label>
+                          <input
+                            type="text"
+                            value={tempBankAccountName}
+                            onChange={(e) => setTempBankAccountName(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-xl p-3 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none font-semibold"
+                            placeholder="e.g. Mahi Creations Pvt Ltd"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] uppercase font-bold text-neutral-500">Branch Location</label>
+                          <input
+                            type="text"
+                            value={tempBankBranch}
+                            onChange={(e) => setTempBankBranch(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-xl p-3 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none font-semibold"
+                            placeholder="e.g. Jhamsikhel"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Bank QR File Upload Area */}
+                      <div className="space-y-2">
+                        <label className="text-[9px] uppercase font-bold text-neutral-500">Bank QR Code (e.g. Fonepay QR)</label>
+                        <div
+                          className="border-2 border-dashed border-clay rounded-2xl p-4 text-center cursor-pointer hover:border-brand transition bg-clay-light/10 flex flex-col items-center justify-center relative overflow-hidden min-h-[140px]"
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            const file = e.dataTransfer.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = () => {
+                                if (typeof reader.result === 'string') setTempBankQr(reader.result);
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        >
+                          {tempBankQr ? (
+                            <div className="space-y-3 w-full flex flex-col items-center">
+                              <img src={tempBankQr} alt="Bank QR Code" className="h-28 w-28 object-contain rounded border border-clay" />
+                              <button
+                                type="button"
+                                onClick={() => setTempBankQr('')}
+                                className="text-[9px] bg-red-50 text-red-600 hover:bg-red-100 font-extrabold uppercase px-2.5 py-1.5 rounded-lg transition"
+                              >
+                                Remove QR Photo
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="space-y-2 flex flex-col items-center">
+                              <UploadCloud className="w-8 h-8 text-neutral-400 stroke-[1.5]" />
+                              <span className="text-[10px] text-neutral-500 font-semibold">Drag & drop Bank/Fonepay QR here</span>
+                              <span className="text-[9px] text-neutral-400 font-light">or click to browse from computer</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="absolute inset-0 opacity-0 cursor-pointer"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    const reader = new FileReader();
+                                    reader.onload = () => {
+                                      if (typeof reader.result === 'string') setTempBankQr(reader.result);
+                                    };
+                                    reader.readAsDataURL(file);
+                                  }
+                                }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* PayPal Configuration */}
+                {tempEnabledPayments.includes('PayPal') && (
+                  <div className="bg-white p-6 rounded-3xl border border-clay space-y-4">
+                    <div className="flex items-center justify-between border-b border-clay-light pb-2">
+                      <h4 className="font-serif text-sm font-bold text-neutral-900 uppercase tracking-wider flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#003087] shrink-0" />
+                        PayPal setup
+                      </h4>
+                      <span className="text-[9px] text-[#003087] bg-[#003087]/10 px-2 py-0.5 rounded font-black uppercase">PayPal Active</span>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[9px] uppercase font-bold text-neutral-500">PayPal Email Address</label>
+                          <input
+                            type="email"
+                            value={tempPaypalEmail}
+                            onChange={(e) => setTempPaypalEmail(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-xl p-3 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none font-semibold"
+                            placeholder="e.g. paypal@mahicreations.com"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] uppercase font-bold text-neutral-500">Registered Name</label>
+                          <input
+                            type="text"
+                            value={tempPaypalName}
+                            onChange={(e) => setTempPaypalName(e.target.value)}
+                            className="w-full text-xs border border-clay rounded-xl p-3 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none font-semibold"
+                            placeholder="e.g. Mahi Creations"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* COD Configuration */}
+                {tempEnabledPayments.includes('COD') && (
+                  <div className="bg-white p-6 rounded-3xl border border-clay space-y-4">
+                    <div className="flex items-center justify-between border-b border-clay-light pb-2">
+                      <h4 className="font-serif text-sm font-bold text-neutral-900 uppercase tracking-wider flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-neutral-800 shrink-0" />
+                        Cash on Delivery (COD) Instructions
+                      </h4>
+                      <span className="text-[9px] text-neutral-800 bg-neutral-100 px-2 py-0.5 rounded font-black uppercase">COD Active</span>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="space-y-1">
+                        <label className="text-[9px] uppercase font-bold text-neutral-500">Instructions for customer upon delivery</label>
+                        <textarea
+                          rows={4}
+                          value={tempCodInstructions}
+                          onChange={(e) => setTempCodInstructions(e.target.value)}
+                          className="w-full text-xs border border-clay rounded-xl p-3 bg-white text-dark focus:ring-1 focus:ring-brand focus:outline-none font-medium leading-relaxed"
+                          placeholder="Instructions displayed to customers when choosing Cash on Delivery..."
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Advanced Online Payment Integrations Panel */}
+              <div className="bg-white p-6 rounded-3xl border border-clay space-y-6">
+                <div>
+                  <h4 className="font-serif text-sm font-bold text-dark uppercase tracking-wider flex items-center gap-2 border-b border-clay-light pb-2">
+                    <Zap className="w-4.5 h-4.5 text-brand animate-pulse" />
+                    2. Online Payment Gateway API Integrations (अनलाइन भुक्तानी एकीकरण)
+                  </h4>
+                  <p className="text-[11px] text-neutral-400 font-light mt-1.5 leading-relaxed">
+                    Integrate live online payment gateways with real-time settlement APIs. Turn on Sandbox mode to test eSewa/Khalti SDK simulations.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* eSewa API Integration Card */}
+                  <div className="bg-neutral-50/50 p-5 rounded-2xl border border-clay/70 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="font-serif text-xs font-bold text-[#60bb46] uppercase tracking-wider">eSewa Merchant SDK Integration</span>
+                      <span className="text-[8px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-black uppercase tracking-widest border border-emerald-100">SIMULATED READY</span>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-neutral-500 uppercase">Enable Automated API Redirection</span>
+                        <input type="checkbox" defaultChecked className="accent-brand cursor-pointer h-3.5 w-3.5" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] uppercase font-bold text-neutral-400">Merchant Service Code</label>
+                        <input
+                          type="text"
+                          defaultValue="EPAYTEST"
+                          className="w-full text-xs border border-clay rounded-lg p-2 bg-white text-dark font-mono font-semibold"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] uppercase font-bold text-neutral-400">Callback / Success URL</label>
+                        <input
+                          type="text"
+                          defaultValue="https://mahicreations.com/api/payment/esewa/success"
+                          className="w-full text-xs border border-clay rounded-lg p-2 bg-white text-dark font-mono"
+                          disabled
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Khalti API Integration Card */}
+                  <div className="bg-neutral-50/50 p-5 rounded-2xl border border-clay/70 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="font-serif text-xs font-bold text-[#5c2d91] uppercase tracking-wider">Khalti Merchant SDK Integration</span>
+                      <span className="text-[8px] bg-[#5c2d91]/10 text-[#5c2d91] px-2 py-0.5 rounded-full font-black uppercase tracking-widest border border-[#5c2d91]/20">SIMULATED READY</span>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-neutral-500 uppercase">Enable Automated API Checkout Widget</span>
+                        <input type="checkbox" defaultChecked className="accent-brand cursor-pointer h-3.5 w-3.5" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] uppercase font-bold text-neutral-400">Live Public Key</label>
+                        <input
+                          type="password"
+                          defaultValue="Key_Live_Public_Mahi_7c8a1b2d"
+                          className="w-full text-xs border border-clay rounded-lg p-2 bg-white text-dark font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] uppercase font-bold text-neutral-400">Webhook Secret Key</label>
+                        <input
+                          type="password"
+                          defaultValue="whsec_khalti_1a2b3c4d5e"
+                          className="w-full text-xs border border-clay rounded-lg p-2 bg-white text-dark font-mono"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* General API Integrations Checklist */}
+                <div className="bg-brand/5 border border-brand/15 p-4 rounded-2xl flex items-start gap-3 text-brand">
+                  <ShieldCheck className="w-5 h-5 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <span className="text-[11px] font-bold uppercase tracking-wide block">Real-Time Gateway Webhooks & Sandboxes</span>
+                    <p className="text-[10px] text-brand/85 leading-relaxed font-light">
+                      The boutique is fully configured with an automated checkout fallback system. If direct online API redirects are disabled or failure occurs, clients are routed cleanly onto WhatsApp with their order summaries and scan-to-pay QRs for instant offline validation.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
         </div>
 

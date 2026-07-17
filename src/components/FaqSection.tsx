@@ -97,6 +97,7 @@ export default function FaqSection({ compact = false }: { compact?: boolean }) {
               <AnimatePresence initial={false}>
                 {isOpen && (
                   <motion.div
+                    key="faq-section-content"
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}

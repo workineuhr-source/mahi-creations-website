@@ -41,7 +41,7 @@ export interface Order {
   deliveryLocationId: string;
   deliveryLocationName: string;
   deliveryFee: number;
-  paymentMethod: 'eSewa' | 'Khalti' | 'COD' | 'Bank Transfer' | 'Card Payment' | 'PayPal';
+  paymentMethod: 'eSewa' | 'Khalti' | 'COD' | 'Bank Transfer' | 'Card Payment' | 'PayPal' | 'IPS';
   items: {
     productId: string;
     productName: string;
@@ -119,6 +119,13 @@ export interface BoutiqueSettings {
   paypalEmail?: string;
   paypalAccountName?: string;
   codInstructions?: string;
+  esewaQrUrl?: string;
+  khaltiQrUrl?: string;
+  ipsQrUrl?: string;
+  bankQrUrl?: string;
+  ipsAccountPhone?: string;
+  ipsAccountName?: string;
+  ipsBankName?: string;
   promoSlides?: PromoSlide[];
   aboutImageUrl?: string;
   heroBadge?: string;

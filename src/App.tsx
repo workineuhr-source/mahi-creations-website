@@ -19,7 +19,7 @@ import CompareBar from './components/CompareBar';
 import CompareModal from './components/CompareModal';
 import ToastContainer, { ToastItem } from './components/Toast';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, Filter, ArrowUpDown, CheckCircle2, Heart, ShieldAlert, ShoppingBag, Eye, HelpCircle, Globe, Mail, ShieldCheck, Send, CreditCard, Check, Facebook, Instagram, Linkedin, RefreshCw, FileText, X, Truck, Info, Lock, ChevronDown, MapPin, Phone, Clock, ChevronLeft, ChevronRight, ArrowUp, Flame } from 'lucide-react';
+import { Sparkles, Filter, ArrowUpDown, CheckCircle2, Heart, ShieldAlert, ShoppingBag, Eye, HelpCircle, Globe, Mail, ShieldCheck, Send, CreditCard, Check, Facebook, Instagram, Linkedin, RefreshCw, FileText, X, Truck, Info, Lock, ChevronDown, MapPin, Phone, Clock, ChevronLeft, ChevronRight, ArrowUp, Flame, Landmark } from 'lucide-react';
 import { CurrencyCode, CountryConfig, getCustomCountries, saveCustomCountries } from './utils/currency';
 import { ESewaLogo, KhaltiLogo, VisaLogo, MasterCardLogo, CODLogo, BankTransferLogo, PayPalLogo, FacebookLogo, InstagramLogo, TikTokLogo, WhatsAppLogo } from './components/BrandLogos';
 import SmartRoutineQuiz from './components/SmartRoutineQuiz';
@@ -853,7 +853,7 @@ export default function App() {
       const currencyCode = order.currency || 'NPR';
       const itemsList = order.items.map(it => `- ${it.productName} (x${it.quantity})`).join('\n');
 
-      const messageText = `Hello *${shopName}*!\n\nI have successfully placed a boutique order. Please find my pre-filled confirmation details below:\n\n🛍️ *Order ID:* ${orderId}\n💰 *Grand Total:* ${currencyCode} ${totalAmount}\n👤 *Customer Name:* ${order.customerName}\n📞 *Contact Phone:* ${order.customerPhone}\n📍 *Delivery Address:* ${order.customerAddress}\n📦 *Items Ordered:*\n${itemsList}\n\nPlease confirm my package verification. Thank you!`;
+      const messageText = `Hello ${shopName}!\n\nI have successfully placed a boutique order. Please find my pre-filled confirmation details below:\n\n🛍️ Order ID: ${orderId}\n💰 Grand Total: ${currencyCode} ${totalAmount}\n👤 Customer Name: ${order.customerName}\n📞 Contact Phone: ${order.customerPhone}\n📍 Delivery Address: ${order.customerAddress}\n📦 Items Ordered:\n${itemsList}\n\nPlease confirm my package verification. Thank you!`;
 
       return `https://wa.me/${cleanNumber}?text=${encodeURIComponent(messageText)}`;
     };
@@ -1162,39 +1162,36 @@ export default function App() {
                 {/* DYNAMIC TRENDING / MOST REQUESTED SECTION (Real-Time Best Sellers Feed) */}
                 {mostOrderedProducts.length > 0 && (
                   <section className={`mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8 transition-all duration-300 ${isHDMode ? 'max-w-[1440px]' : 'max-w-7xl'}`}>
-                    <div className="bg-gradient-to-br from-[#0c0c0f] via-[#141419] to-[#1c1611] rounded-3xl p-6 sm:p-8 md:p-10 border border-amber-500/15 shadow-[0_25px_60px_rgba(0,0,0,0.85)] relative overflow-hidden">
-                      {/* Ambient Golden Background Orbs */}
-                      <div className="absolute top-0 right-0 w-80 h-80 bg-amber-500/5 rounded-full blur-[100px] pointer-events-none" />
-                      <div className="absolute -bottom-20 -left-20 w-96 h-96 bg-orange-600/5 rounded-full blur-[120px] pointer-events-none" />
+                    <div className="bg-gradient-to-br from-white via-clay-light/95 to-bg-warm/70 rounded-3xl p-6 sm:p-8 md:p-10 border border-clay shadow-xl relative overflow-hidden">
+                      {/* Ambient Soft Rose/Gold Background Orbs */}
+                      <div className="absolute top-0 right-0 w-80 h-80 bg-brand/5 rounded-full blur-[100px] pointer-events-none" />
+                      <div className="absolute -bottom-20 -left-20 w-96 h-96 bg-brand/5 rounded-full blur-[120px] pointer-events-none" />
                       
-                      {/* Golden top neon accent line */}
-                      <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-transparent via-amber-500/80 to-transparent" />
+                      {/* Rose Gold top elegant line */}
+                      <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-transparent via-brand/60 to-transparent" />
 
-                      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 relative z-10 border-b border-white/5 pb-6">
+                      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 relative z-10 border-b border-clay/60 pb-6">
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
-                            <span className="inline-flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full shadow-[0_0_15px_rgba(245,158,11,0.15)]">
+                            <span className="inline-flex items-center gap-1.5 bg-brand/10 border border-brand/30 text-brand-hover text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full shadow-2xs">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
                               🔴 Real-Time Demand Feed
                             </span>
-                            <span className="text-[9px] uppercase tracking-wider text-neutral-400 font-bold hidden sm:inline">
+                            <span className="text-[9px] uppercase tracking-wider text-neutral-500 font-bold hidden sm:inline">
                               Fast Demand Tracking System
                             </span>
                           </div>
                           
-                          <h3 
-                            className="font-sans text-xl sm:text-2xl md:text-3xl font-black text-transparent bg-gradient-to-r from-yellow-100 via-amber-300 to-yellow-200 bg-clip-text leading-tight uppercase tracking-tight"
-                            style={{ textShadow: '0 2px 10px rgba(245,158,11,0.15)' }}
-                          >
+                          <h3 className="font-serif text-xl sm:text-2xl md:text-3xl font-extrabold text-dark leading-tight uppercase tracking-tight">
                             🔥 Best Sellers & High Demand
                           </h3>
-                          <p className="text-neutral-400 text-xs font-light max-w-2xl leading-relaxed">
+                          <p className="text-neutral-500 text-xs font-light max-w-2xl leading-relaxed">
                             These premier items are automatically ranked and loaded in real-time according to recent purchase volumes, customer requests, and live checkout demands from our sourcing hubs.
                           </p>
                         </div>
                         
-                        <div className="flex items-center gap-2 text-amber-400 text-xs font-black shrink-0">
-                          <Flame className="w-4 h-4 text-orange-500 animate-bounce" />
+                        <div className="flex items-center gap-2 text-brand-hover text-xs font-black shrink-0">
+                          <Flame className="w-4 h-4 text-rose-500 animate-bounce" />
                           <span>UPDATED LIVE SECONDS AGO</span>
                         </div>
                       </div>
@@ -1245,11 +1242,11 @@ export default function App() {
                               </div>
 
                               {/* Live Demand Stats Ribbon under card */}
-                              <div className="mt-2.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/5 flex items-center justify-between text-[9px] text-neutral-400 font-medium">
-                                <span className="flex items-center gap-1 text-amber-500/90 font-bold">
+                              <div className="mt-2.5 px-3 py-1.5 rounded-xl bg-bg-warm/40 border border-clay/60 flex items-center justify-between text-[9px] text-neutral-600 font-medium">
+                                <span className="flex items-center gap-1 text-brand font-bold">
                                   <Sparkles className="w-2.5 h-2.5 shrink-0" /> Live Demand
                                 </span>
-                                <span>
+                                <span className="text-neutral-500 font-bold">
                                   {index === 0 ? '🔥 High Stock-Out Risk' : index === 1 ? '✨ Sells Fast' : 'Verified Dubai Quality'}
                                 </span>
                               </div>
@@ -1837,6 +1834,7 @@ export default function App() {
       <AnimatePresence>
         {showBackToTop && (
           <motion.button
+            key="back-to-top-button"
             id="back-to-top-btn"
             initial={{ opacity: 0, scale: 0.8, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -2209,24 +2207,44 @@ export default function App() {
               
               {/* Payment Gateways structured into an elegant responsive grid layout */}
               <div className="grid grid-cols-3 gap-2.5 pt-1">
-                <div className="bg-white p-2 rounded-xl border border-clay hover:border-brand/50 hover:shadow-sm transition-all duration-300 flex items-center justify-center h-10" title="eSewa">
-                  <ESewaLogo className="h-4.5 object-contain" />
-                </div>
-                <div className="bg-white p-2 rounded-xl border border-clay hover:border-brand/50 hover:shadow-sm transition-all duration-300 flex items-center justify-center h-10" title="Khalti">
-                  <KhaltiLogo className="h-4.5 object-contain" />
-                </div>
-                <div className="bg-white p-2 rounded-xl border border-clay hover:border-brand/50 hover:shadow-sm transition-all duration-300 flex items-center justify-center h-10" title="MasterCard">
-                  <MasterCardLogo className="h-3.5 w-auto object-contain" />
-                </div>
-                <div className="bg-white p-2 rounded-xl border border-clay hover:border-brand/50 hover:shadow-sm transition-all duration-300 flex items-center justify-center h-10" title="Bank Transfer">
-                  <BankTransferLogo className="h-4.5 object-contain" />
-                </div>
-                <div className="bg-white p-2 rounded-xl border border-clay hover:border-brand/50 hover:shadow-sm transition-all duration-300 flex items-center justify-center h-10" title="Cash on Delivery">
-                  <CODLogo className="h-4.5 object-contain" />
-                </div>
-                <div className="bg-white p-2 rounded-xl border border-clay hover:border-brand/50 hover:shadow-sm transition-all duration-300 flex items-center justify-center h-10" title="PayPal">
-                  <PayPalLogo className="h-4.5 object-contain" />
-                </div>
+                {(settings?.enabledPayments ?? ['eSewa', 'Khalti', 'COD', 'Bank Transfer', 'Card Payment', 'PayPal', 'IPS']).includes('eSewa') && (
+                  <div className="bg-white p-2 rounded-xl border border-clay hover:border-brand/50 hover:shadow-sm transition-all duration-300 flex items-center justify-center h-10" title="eSewa">
+                    <ESewaLogo className="h-4.5 object-contain" />
+                  </div>
+                )}
+                {(settings?.enabledPayments ?? ['eSewa', 'Khalti', 'COD', 'Bank Transfer', 'Card Payment', 'PayPal', 'IPS']).includes('Khalti') && (
+                  <div className="bg-white p-2 rounded-xl border border-clay hover:border-brand/50 hover:shadow-sm transition-all duration-300 flex items-center justify-center h-10" title="Khalti">
+                    <KhaltiLogo className="h-4.5 object-contain" />
+                  </div>
+                )}
+                {(settings?.enabledPayments ?? ['eSewa', 'Khalti', 'COD', 'Bank Transfer', 'Card Payment', 'PayPal', 'IPS']).includes('Card Payment') && (
+                  <div className="bg-white p-2 rounded-xl border border-clay hover:border-brand/50 hover:shadow-sm transition-all duration-300 flex items-center justify-center h-10" title="Card Payment / MasterCard">
+                    <MasterCardLogo className="h-3.5 w-auto object-contain" />
+                  </div>
+                )}
+                {(settings?.enabledPayments ?? ['eSewa', 'Khalti', 'COD', 'Bank Transfer', 'Card Payment', 'PayPal', 'IPS']).includes('Bank Transfer') && (
+                  <div className="bg-white p-2 rounded-xl border border-clay hover:border-brand/50 hover:shadow-sm transition-all duration-300 flex items-center justify-center h-10" title="Bank Transfer">
+                    <BankTransferLogo className="h-4.5 object-contain" />
+                  </div>
+                )}
+                {(settings?.enabledPayments ?? ['eSewa', 'Khalti', 'COD', 'Bank Transfer', 'Card Payment', 'PayPal', 'IPS']).includes('COD') && (
+                  <div className="bg-white p-2 rounded-xl border border-clay hover:border-brand/50 hover:shadow-sm transition-all duration-300 flex items-center justify-center h-10" title="Cash on Delivery">
+                    <CODLogo className="h-4.5 object-contain" />
+                  </div>
+                )}
+                {(settings?.enabledPayments ?? ['eSewa', 'Khalti', 'COD', 'Bank Transfer', 'Card Payment', 'PayPal', 'IPS']).includes('PayPal') && (
+                  <div className="bg-white p-2 rounded-xl border border-clay hover:border-brand/50 hover:shadow-sm transition-all duration-300 flex items-center justify-center h-10" title="PayPal">
+                    <PayPalLogo className="h-4.5 object-contain" />
+                  </div>
+                )}
+                {(settings?.enabledPayments ?? ['eSewa', 'Khalti', 'COD', 'Bank Transfer', 'Card Payment', 'PayPal', 'IPS']).includes('IPS') && (
+                  <div className="bg-white p-2 rounded-xl border border-clay hover:border-brand/50 hover:shadow-sm transition-all duration-300 flex items-center justify-center h-10" title="Connect IPS">
+                    <span className="flex items-center gap-1 font-serif text-[10px] font-black text-[#004f80]">
+                      <Landmark className="w-3.5 h-3.5" />
+                      <span>IPS</span>
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center gap-1.5 text-[9px] text-neutral-400 font-bold uppercase tracking-wider">

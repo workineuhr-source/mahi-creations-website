@@ -59,7 +59,10 @@ ${product.description}
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <motion.div
+          key="share-modal-portal"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        >
           {/* Backdrop overlay */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -226,7 +229,7 @@ ${product.description}
           </div>
 
         </motion.div>
-        </div>
+        </motion.div>
       )}
     </AnimatePresence>
   );
