@@ -91,12 +91,12 @@ export default function ContactUsLocation({ settings }: ContactUsLocationProps) 
                 <div>
                   <h4 className="text-[10px] uppercase font-bold tracking-wider text-neutral-400">WhatsApp & Direct Line</h4>
                   <a 
-                    href={`https://wa.me/${settings.whatsappNumber || '9779802058364'}`}
+                    href={`https://wa.me/${settings.whatsappNumber || '971501942989'}`}
                     target="_blank"
                     rel="noreferrer"
                     className="text-xs sm:text-sm text-emerald-600 hover:underline font-extrabold flex items-center gap-1.5 mt-0.5"
                   >
-                    <span>+{settings.whatsappNumber || '9779802058364'}</span>
+                    <span>+{settings.whatsappNumber || '971501942989'}</span>
                     <span className="text-[8px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded font-black uppercase">Active Now</span>
                   </a>
                 </div>

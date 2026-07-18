@@ -402,7 +402,7 @@ export default function OrderTracker({ orders, onBackToShop, initialSearchId = '
   };
 
   const getWhatsAppChatLink = (order: Order) => {
-    const adminNum = '9779802058364';
+    const adminNum = settings?.whatsappNumber || '971501942989';
     const text = encodeURIComponent(`Hello Mahi Creations! I would like to inquire about my Order ID *${order.id}*. Status is currently: *${order.status}*. Please let me know the update!`);
     return `https://wa.me/${adminNum}?text=${text}`;
   };
@@ -454,7 +454,7 @@ export default function OrderTracker({ orders, onBackToShop, initialSearchId = '
                 Premium Luxury Cosmetics & Boutique
               </p>
               <div className="text-[11px] text-neutral-600 mt-3 space-y-0.5">
-                <p>WhatsApp: +{settings?.whatsappNumber || '9779802058364'}</p>
+                <p>WhatsApp: +{settings?.whatsappNumber || '971501942989'}</p>
                 <p>Email: orders@mahicreations.com</p>
                 <p>Web: www.mahicreations.com</p>
               </div>

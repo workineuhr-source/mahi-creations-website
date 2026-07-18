@@ -5,7 +5,7 @@ interface WhatsAppChatProps {
   whatsappNumber?: string;
 }
 
-export default function WhatsAppChat({ whatsappNumber = '9779802058364' }: WhatsAppChatProps) {
+export default function WhatsAppChat({ whatsappNumber = '971501942989' }: WhatsAppChatProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [customMsg, setCustomMsg] = useState('');
 

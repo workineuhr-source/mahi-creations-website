@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { Order, Product, ProductReview, UserSession, OrderStatus } from '../types';
 import { 
   User, Phone, MapPin, Search, Star, MessageSquare, LogOut, CheckCircle2, 
-  ShoppingBag, Truck, Calendar, Clock, CreditCard, ChevronRight, Sparkles, Printer, AlertCircle, Check, Download, Camera, X, Heart, Trash2
+  ShoppingBag, Truck, Calendar, Clock, CreditCard, ChevronRight, ChevronLeft, Sparkles, Printer, AlertCircle, Check, Download, Camera, X, Heart, Trash2,
+  Mail, Lock, ShieldAlert, ExternalLink
 } from 'lucide-react';
 import { formatPrice, CurrencyCode, getProductDisplayPrices } from '../utils/currency';
 import { generateOrderReceiptPDF } from '../utils/pdfGenerator';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 interface CustomerPortalProps {
   orders: Order[];
@@ -82,6 +84,160 @@ export default function CustomerPortal({
   const [location, setLocation] = useState('');
   const [loginError, setLoginError] = useState('');
 
+  // Supabase Auth States
+  const [authTab, setAuthTab] = useState<'signin' | 'signup' | 'forgot' | 'guest'>('signin');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authMessage, setAuthMessage] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [authSuccess, setAuthSuccess] = useState(false);
+
+  // Handle Supabase Google OAuth Sign-In
+  const handleGoogleSignIn = async () => {
+    setAuthError('');
+    setAuthMessage('');
+    setAuthLoading(true);
+    try {
+      if (!isSupabaseConfigured) {
+        const mockSession: UserSession = {
+          fullName: "Google VIP Guest",
+          phone: "9800000000",
+          address: "Kathmandu, Nepal",
+          country: "Nepal",
+          whatsapp: "9800000000",
+          location: "Kathmandu"
+        };
+        onLogin(mockSession);
+        setAuthMessage("Demo Google Login Successful!");
+        return;
+      }
+      
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin + '/auth/callback'
+        }
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      setAuthError(err.message || 'Google Sign-In failed');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  // Handle Supabase Email & Password Sign-In
+  const handleEmailSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+    setAuthMessage('');
+    setAuthLoading(true);
+    try {
+      if (!isSupabaseConfigured) {
+        const mockSession: UserSession = {
+          fullName: email.split('@')[0].toUpperCase(),
+          phone: "9801234567",
+          address: "Boutique Road",
+          country: "Nepal",
+          whatsapp: "9801234567",
+          location: "Kathmandu"
+        };
+        onLogin(mockSession);
+        setAuthMessage("Demo Email Login Successful!");
+        return;
+      }
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      if (error) throw error;
+
+      if (data.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+        
+        const session: UserSession = {
+          fullName: profile?.full_name || data.user.user_metadata?.full_name || data.user.email?.split('@')[0] || 'User',
+          phone: profile?.phone || data.user.user_metadata?.phone || '',
+          address: 'Nepal',
+          country: 'Nepal',
+          whatsapp: profile?.phone || data.user.user_metadata?.phone || '',
+          location: 'Kathmandu'
+        };
+        onLogin(session);
+      }
+    } catch (err: any) {
+      setAuthError(err.message || 'Email Sign-In failed');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  // Handle Supabase Email & Password Sign-Up
+  const handleEmailSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+    setAuthMessage('');
+    setAuthLoading(true);
+    try {
+      if (!isSupabaseConfigured) {
+        setAuthSuccess(true);
+        setAuthMessage("Demo Sign-Up Successful! In production, a verification email is dispatched.");
+        return;
+      }
+
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+            phone: phone
+          }
+        }
+      });
+      if (error) throw error;
+
+      if (data.user) {
+        setAuthSuccess(true);
+        setAuthMessage("Account created successfully! Please check your inbox for verification instructions.");
+      }
+    } catch (err: any) {
+      setAuthError(err.message || 'Email Sign-Up failed');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  // Handle Password Reset Request
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+    setAuthMessage('');
+    setAuthLoading(true);
+    try {
+      if (!isSupabaseConfigured) {
+        setAuthMessage("Demo password reset instructions dispatched to your email!");
+        return;
+      }
+
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + '/auth/reset-password'
+      });
+      if (error) throw error;
+      setAuthMessage("Password reset instructions have been dispatched to your email address!");
+    } catch (err: any) {
+      setAuthError(err.message || 'Password reset request failed');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
   // Write Review form states
   const [reviewProduct, setReviewProduct] = useState<Product | { id: string; name: string; image: string } | null>(null);
   const [rating, setRating] = useState(5);
@@ -103,6 +259,51 @@ export default function CustomerPortal({
         return phoneMatch || nameMatch;
       })
     : [];
+
+  // Pagination & Re-ordering for Past Orders Table
+  const [ordersPage, setOrdersPage] = useState(1);
+  const ordersPerPage = 4;
+
+  const handleReorderOrder = (order: Order) => {
+    let addedCount = 0;
+    order.items.forEach(item => {
+      const product = products.find(p => p.id === item.productId);
+      if (product) {
+        for (let i = 0; i < item.quantity; i++) {
+          onAddToCart(product);
+        }
+        addedCount++;
+      }
+    });
+    if (addedCount > 0) {
+      alert(`Added items from Order ${order.id} to your shopping bag!`);
+    } else {
+      alert('The items in this order are no longer available in the catalogue.');
+    }
+  };
+
+  const handleReorderSingleItem = (productId: string, quantity: number = 1) => {
+    const product = products.find(p => p.id === productId);
+    if (product) {
+      for (let i = 0; i < quantity; i++) {
+        onAddToCart(product);
+      }
+      alert(`Added ${product.name} (x${quantity}) to your shopping bag!`);
+    } else {
+      alert('This product is no longer available in the catalogue.');
+    }
+  };
+
+  const totalOrdersPages = Math.ceil(matchedOrders.length / ordersPerPage) || 1;
+  const currentOrdersPage = React.useMemo(() => {
+    const startIndex = (ordersPage - 1) * ordersPerPage;
+    return matchedOrders.slice(startIndex, startIndex + ordersPerPage);
+  }, [matchedOrders, ordersPage, ordersPerPage]);
+
+  // Reset page if user session shifts or orders change
+  React.useEffect(() => {
+    setOrdersPage(1);
+  }, [userSession?.phone, matchedOrders.length]);
 
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -234,7 +435,7 @@ export default function CustomerPortal({
                 Premium Luxury Cosmetics & Boutique
               </p>
               <div className="text-[11px] text-neutral-600 mt-3 space-y-0.5">
-                <p>WhatsApp Support: +{settings?.whatsappNumber || '9779802058364'}</p>
+                <p>WhatsApp Support: +{settings?.whatsappNumber || '971501942989'}</p>
                 <p>Email: orders@mahicreations.com</p>
                 <p>Web: www.mahicreations.com</p>
               </div>
@@ -375,42 +576,191 @@ export default function CustomerPortal({
         {/* LOGGED OUT STATE: SHOW BEAUTIFUL REGISTRATION/LOGIN FORM */}
         {!userSession ? (
           <div className="max-w-md mx-auto bg-white p-8 rounded-3xl border border-clay shadow-xl space-y-6">
-            <div className="text-center space-y-1 pb-4 border-b border-clay-light">
-              <div className="w-12 h-12 bg-clay-light rounded-full flex items-center justify-center text-brand mx-auto mb-2">
-                <User className="w-6 h-6" />
-              </div>
-              <h3 className="font-serif text-lg font-bold text-dark uppercase tracking-wide">Enter Guest Details</h3>
-              <p className="text-[11px] text-neutral-400 font-light">
-                We'll match your details with your active cosmetic bookings inside Nepal/UAE!
-              </p>
+            {/* Supabase Status Banner */}
+            <div className={`p-4 rounded-2xl border text-xs flex flex-col gap-2.5 ${
+              isSupabaseConfigured 
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
+                : 'bg-amber-50 text-amber-800 border-amber-200'
+            }`}>
+              {isSupabaseConfigured ? (
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  <span className="font-bold">Supabase Auth Connected Successfully!</span>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1.5 font-bold">
+                    <ShieldAlert className="w-4.5 h-4.5 text-amber-600" />
+                    <span>How to link automatically with Supabase:</span>
+                  </div>
+                  
+                  <div className="space-y-1.5 pl-1 text-[10.5px] text-neutral-600">
+                    <p className="font-semibold text-neutral-800">1. Set API Keys in AI Studio:</p>
+                    <p className="leading-relaxed">
+                      Go to the **Settings icon (bottom-left) &gt; Secrets / API Keys** inside your AI Studio builder panel. 
+                      Set your public token as <code className="font-mono bg-amber-100/80 px-1 py-0.5 rounded text-amber-900 font-bold">VITE_SUPABASE_ANON_KEY</code>.
+                    </p>
+
+                    <p className="font-semibold text-neutral-800 mt-2">2. Enable Redirect URLs on Supabase Dashboard:</p>
+                    <p className="leading-relaxed">
+                      To enable Google Login, open your Supabase URL Configuration page:
+                      <a 
+                        href="https://supabase.com/dashboard/project/rhtatjgmiancxyjtamou/auth/url-configuration" 
+                        target="_blank" 
+                        rel="noreferrer" 
+                        className="inline-flex items-center gap-1 text-brand hover:underline font-bold ml-1"
+                      >
+                        Open Supabase Config <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </p>
+                    <p className="leading-relaxed">
+                      Under **Redirect URLs**, click **Add URL** and paste these two application domains so Google Auth links back automatically:
+                    </p>
+                    <div className="bg-white/80 p-1.5 rounded-lg border border-clay-light font-mono text-[9.5px] text-neutral-700 space-y-1 block select-all">
+                      <div className="flex justify-between items-center gap-2">
+                        <span>https://ais-dev-cofmkg2o22ur6pskj6dlel-732445577245.europe-west2.run.app</span>
+                      </div>
+                      <div className="flex justify-between items-center gap-2 border-t border-neutral-100 pt-1">
+                        <span>https://ais-pre-cofmkg2o22ur6pskj6dlel-732445577245.europe-west2.run.app</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
-             <form onSubmit={handleLoginSubmit} className="space-y-4 text-xs">
-              
-              <div className="space-y-1.5">
-                <label className="font-bold text-neutral-600 uppercase tracking-wider block">Full Name</label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-neutral-400" />
-                  <input
-                    type="text"
-                    required
-                    placeholder="Enter your name (e.g. Alisha Shrestha)"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className="w-full text-xs pl-10 pr-4 py-3 bg-bg-warm/45 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium"
-                  />
-                </div>
-              </div>
+            {/* Auth Tab Selectors */}
+            <div className="flex border-b border-clay pb-1">
+              {[
+                { id: 'signin', label: 'Sign In' },
+                { id: 'signup', label: 'Register' },
+                { id: 'guest', label: 'Guest Access' }
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    setAuthTab(tab.id as any);
+                    setAuthError('');
+                    setAuthMessage('');
+                  }}
+                  className={`flex-1 pb-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${
+                    authTab === tab.id 
+                      ? 'border-brand text-brand font-black' 
+                      : 'border-transparent text-neutral-400 hover:text-dark'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* ERROR AND SUCCESS MESSAGES */}
+            {authError && (
+              <div className="flex items-center gap-2 text-red-600 text-[11px] bg-red-50 p-3 rounded-xl border border-red-150">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{authError}</span>
+              </div>
+            )}
+            {authMessage && (
+              <div className="flex items-center gap-2 text-emerald-800 text-[11px] bg-emerald-50 p-3 rounded-xl border border-emerald-150">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                <span>{authMessage}</span>
+              </div>
+            )}
+
+            {/* EMAIL & PASSWORD SIGN IN VIEW */}
+            {authTab === 'signin' && (
+              <form onSubmit={handleEmailSignIn} className="space-y-4 text-xs">
                 <div className="space-y-1.5">
-                  <label className="font-bold text-neutral-600 uppercase tracking-wider block">Phone Number</label>
+                  <label className="font-bold text-neutral-600 uppercase tracking-wider block">Email Address</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-neutral-400" />
+                    <input
+                      type="email"
+                      required
+                      placeholder="e.g. customer@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full text-xs pl-10 pr-4 py-3 bg-bg-warm/45 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-center">
+                    <label className="font-bold text-neutral-600 uppercase tracking-wider">Password</label>
+                    <button
+                      type="button"
+                      onClick={() => setAuthTab('forgot')}
+                      className="text-[10px] text-brand hover:underline font-bold"
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-neutral-400" />
+                    <input
+                      type="password"
+                      required
+                      placeholder="Enter password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full text-xs pl-10 pr-4 py-3 bg-bg-warm/45 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={authLoading}
+                  className="w-full py-3.5 bg-dark hover:bg-brand disabled:opacity-50 text-white text-xs font-bold uppercase tracking-widest rounded-xl shadow-md transition cursor-pointer"
+                >
+                  {authLoading ? 'Signing in...' : 'Sign In with Email'}
+                </button>
+              </form>
+            )}
+
+            {/* EMAIL & PASSWORD SIGN UP VIEW */}
+            {authTab === 'signup' && (
+              <form onSubmit={handleEmailSignUp} className="space-y-4 text-xs">
+                <div className="space-y-1.5">
+                  <label className="font-bold text-neutral-600 uppercase tracking-wider block">Full Name</label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-neutral-400" />
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Alisha Shrestha"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      className="w-full text-xs pl-10 pr-4 py-3 bg-bg-warm/45 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-bold text-neutral-600 uppercase tracking-wider block">Email Address</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-neutral-400" />
+                    <input
+                      type="email"
+                      required
+                      placeholder="e.g. customer@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full text-xs pl-10 pr-4 py-3 bg-bg-warm/45 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-bold text-neutral-600 uppercase tracking-wider block">Contact Phone Number</label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-neutral-400" />
                     <input
                       type="tel"
                       required
-                      placeholder="e.g. 9802058364"
+                      placeholder="e.g. 9801234567"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       className="w-full text-xs pl-10 pr-4 py-3 bg-bg-warm/45 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium font-mono"
@@ -419,84 +769,203 @@ export default function CustomerPortal({
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="font-bold text-neutral-600 uppercase tracking-wider block">WhatsApp Number</label>
+                  <label className="font-bold text-neutral-600 uppercase tracking-wider block">Secure Password</label>
                   <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-emerald-500" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-neutral-400" />
                     <input
-                      type="tel"
-                      placeholder="Same as phone if empty"
-                      value={whatsapp}
-                      onChange={(e) => setWhatsapp(e.target.value)}
-                      className="w-full text-xs pl-10 pr-4 py-3 bg-bg-warm/45 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium font-mono"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="font-bold text-neutral-600 uppercase tracking-wider block">Country</label>
-                  <select
-                    value={country}
-                    onChange={(e) => setCountry(e.target.value)}
-                    className="w-full text-xs px-4 py-3 bg-bg-warm/45 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium cursor-pointer"
-                  >
-                    <option value="Nepal">🇳🇵 Nepal</option>
-                    <option value="United Arab Emirates">🇦🇪 United Arab Emirates (UAE)</option>
-                    <option value="India">🇮🇳 India</option>
-                    <option value="Qatar">🇶🇦 Qatar</option>
-                    <option value="Saudi Arabia">🇸🇦 Saudi Arabia</option>
-                    <option value="United States">🇺🇸 United States (USA)</option>
-                    <option value="Australia">🇦🇺 Australia</option>
-                    <option value="Other">🌍 Other Country</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="font-bold text-neutral-600 uppercase tracking-wider block">City / Location Area</label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-neutral-400" />
-                    <input
-                      type="text"
+                      type="password"
                       required
-                      placeholder="e.g. Kathmandu / Dubai"
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
+                      minLength={6}
+                      placeholder="Minimum 6 characters"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
                       className="w-full text-xs pl-10 pr-4 py-3 bg-bg-warm/45 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium"
                     />
                   </div>
                 </div>
-              </div>
 
-              <div className="space-y-1.5">
-                <label className="font-bold text-neutral-600 uppercase tracking-wider block">Full Delivery Address</label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-3 w-4.5 h-4.5 text-neutral-400" />
-                  <textarea
-                    required
-                    rows={2}
-                    placeholder="Exact landmark, area, ward number (e.g. New Baneshwor, Marg-10, near Civil Hospital)"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    className="w-full text-xs pl-10 pr-4 py-3 bg-bg-warm/45 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium"
-                  />
+                <button
+                  type="submit"
+                  disabled={authLoading}
+                  className="w-full py-3.5 bg-dark hover:bg-brand disabled:opacity-50 text-white text-xs font-bold uppercase tracking-widest rounded-xl shadow-md transition cursor-pointer"
+                >
+                  {authLoading ? 'Creating VIP profile...' : 'Register as VIP Cardholder'}
+                </button>
+              </form>
+            )}
+
+            {/* FORGOT PASSWORD VIEW */}
+            {authTab === 'forgot' && (
+              <form onSubmit={handleForgotPassword} className="space-y-4 text-xs">
+                <div className="space-y-2 text-center">
+                  <h4 className="font-bold uppercase tracking-wider text-neutral-700">Reset VIP Password</h4>
+                  <p className="text-[11px] text-neutral-400">Enter your registered email and we'll send password recovery credentials.</p>
                 </div>
-              </div>
 
-              {loginError && (
-                <div className="flex items-center gap-2 text-red-600 text-[11px] bg-red-50 p-2.5 rounded-lg border border-red-150">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                  <span>{loginError}</span>
+                <div className="space-y-1.5">
+                  <label className="font-bold text-neutral-600 uppercase tracking-wider block">Email Address</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-neutral-400" />
+                    <input
+                      type="email"
+                      required
+                      placeholder="e.g. customer@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full text-xs pl-10 pr-4 py-3 bg-bg-warm/45 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium"
+                    />
+                  </div>
                 </div>
-              )}
 
-              <button
-                type="submit"
-                className="w-full py-3.5 bg-dark hover:bg-brand text-white text-xs font-bold uppercase tracking-widest rounded-xl shadow-md transition cursor-pointer"
-              >
-                Access My Lounge Portal
-              </button>
-            </form>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAuthTab('signin')}
+                    className="flex-1 py-3 bg-clay-light hover:bg-clay text-neutral-700 text-xs font-bold uppercase tracking-wider rounded-xl transition cursor-pointer text-center"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={authLoading}
+                    className="flex-1 py-3 bg-brand text-white text-xs font-bold uppercase tracking-wider rounded-xl shadow-sm transition cursor-pointer text-center"
+                  >
+                    {authLoading ? 'Dispatched...' : 'Send Recovery'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* REVERSIBLE GUEST ACCESS FORM (BACKWARD COMPATIBLE) */}
+            {authTab === 'guest' && (
+              <form onSubmit={handleLoginSubmit} className="space-y-4 text-xs">
+                <div className="space-y-1.5">
+                  <label className="font-bold text-neutral-600 uppercase tracking-wider block">Full Name</label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-neutral-400" />
+                    <input
+                      type="text"
+                      required
+                      placeholder="Enter your name (e.g. Alisha Shrestha)"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      className="w-full text-xs pl-10 pr-4 py-3 bg-bg-warm/45 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-neutral-600 uppercase tracking-wider block">Phone Number</label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-neutral-400" />
+                      <input
+                        type="tel"
+                        required
+                        placeholder="e.g. 9802058364"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        className="w-full text-xs pl-10 pr-4 py-3 bg-bg-warm/45 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-neutral-600 uppercase tracking-wider block">WhatsApp Number</label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-emerald-500" />
+                      <input
+                        type="tel"
+                        placeholder="Same as phone if empty"
+                        value={whatsapp}
+                        onChange={(e) => setWhatsapp(e.target.value)}
+                        className="w-full text-xs pl-10 pr-4 py-3 bg-bg-warm/45 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-neutral-600 uppercase tracking-wider block">Country</label>
+                    <select
+                      value={country}
+                      onChange={(e) => setCountry(e.target.value)}
+                      className="w-full text-xs px-4 py-3 bg-bg-warm/45 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium cursor-pointer"
+                    >
+                      <option value="Nepal">🇳🇵 Nepal</option>
+                      <option value="United Arab Emirates">🇦🇪 United Arab Emirates (UAE)</option>
+                      <option value="India">🇮🇳 India</option>
+                      <option value="Qatar">🇶🇦 Qatar</option>
+                      <option value="Saudi Arabia">🇸🇦 Saudi Arabia</option>
+                      <option value="United States">🇺🇸 United States (USA)</option>
+                      <option value="Australia">🇦🇺 Australia</option>
+                      <option value="Other">🌍 Other Country</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-neutral-600 uppercase tracking-wider block">City / Location Area</label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-neutral-400" />
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Kathmandu / Dubai"
+                        value={location}
+                        onChange={(e) => setLocation(e.target.value)}
+                        className="w-full text-xs pl-10 pr-4 py-3 bg-bg-warm/45 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-bold text-neutral-600 uppercase tracking-wider block">Full Delivery Address</label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-3 w-4.5 h-4.5 text-neutral-400" />
+                    <textarea
+                      required
+                      rows={2}
+                      placeholder="Exact landmark, area, ward number (e.g. New Baneshwor, Marg-10, near Civil Hospital)"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      className="w-full text-xs pl-10 pr-4 py-3 bg-bg-warm/45 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3.5 bg-dark hover:bg-brand text-white text-xs font-bold uppercase tracking-widest rounded-xl shadow-md transition cursor-pointer"
+                >
+                  Access My Lounge Portal
+                </button>
+              </form>
+            )}
+
+            {/* GOOGLE SIGN IN CONTAINER (GLOBAL BUTTON FOR BOTH MODES) */}
+            {authTab !== 'forgot' && (
+              <div className="space-y-4 pt-4 border-t border-clay/60">
+                <div className="relative flex py-1 items-center">
+                  <div className="flex-grow border-t border-clay/50"></div>
+                  <span className="flex-shrink mx-4 text-[10px] font-bold text-neutral-400 uppercase tracking-widest">or continue with</span>
+                  <div className="flex-grow border-t border-clay/50"></div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleGoogleSignIn}
+                  disabled={authLoading}
+                  className="w-full py-3 px-4 bg-white hover:bg-neutral-50 active:bg-neutral-100 text-neutral-700 text-xs font-bold uppercase tracking-wider border border-clay rounded-xl transition flex items-center justify-center gap-3 cursor-pointer shadow-sm"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
+                    <path fill="#EA4335" d="M12.24 10.285V14.4h6.887c-.275 1.565-1.88 4.6-6.887 4.6-4.33 0-7.859-3.579-7.859-7.985s3.53-7.986 7.86-7.986c2.46 0 4.11 1.025 5.05 1.927l3.255-3.13C18.25 1.916 15.485 1 12.24 1c-6.075 0-11 4.925-11 11s4.925 11 11 11c6.345 0 10.56-4.46 10.56-10.74 0-.72-.08-1.275-.175-1.985H12.24z" />
+                  </svg>
+                  <span>Connect with Google Account</span>
+                </button>
+              </div>
+            )}
 
             <div className="text-center pt-2">
               <button
@@ -688,7 +1157,7 @@ export default function CustomerPortal({
                               Receipt
                             </button>
                             <a
-                              href={`https://wa.me/${settings?.whatsappNumber || '9779802058364'}?text=Hi Mahi, I am inquiring about my Order ${order.id}`}
+                              href={`https://wa.me/${settings?.whatsappNumber || '971501942989'}?text=Hi Mahi, I am inquiring about my Order ${order.id}`}
                               target="_blank"
                               rel="noreferrer"
                               className="inline-flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold uppercase tracking-wider px-4 py-2.5 rounded-xl transition cursor-pointer"
@@ -784,6 +1253,152 @@ export default function CustomerPortal({
                     );
                   })
                 )}
+
+                {/* PAST ORDERS PAGINATED TABLE SECTION */}
+                <div className="bg-white p-6 sm:p-8 rounded-3xl border border-clay shadow-md space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-clay-light pb-4">
+                    <div className="space-y-1 text-left">
+                      <h4 className="font-serif text-xl font-bold text-dark uppercase tracking-wider flex items-center gap-2">
+                        <ShoppingBag className="w-5 h-5 text-brand" />
+                        Order History Ledger
+                      </h4>
+                      <p className="text-neutral-400 text-[11px] font-light">
+                        A quick, paginated overview of all your bookings with quick re-order links.
+                      </p>
+                    </div>
+                    {matchedOrders.length > 0 && (
+                      <span className="bg-clay-light text-neutral-600 text-xs font-bold px-3 py-1 rounded-full uppercase self-start sm:self-center">
+                        Page {ordersPage} of {totalOrdersPages} ({matchedOrders.length} total)
+                      </span>
+                    )}
+                  </div>
+
+                  {matchedOrders.length === 0 ? (
+                    <div className="p-10 text-center text-neutral-400 space-y-3">
+                      <ShoppingBag className="w-10 h-10 mx-auto text-neutral-300 animate-pulse" />
+                      <p className="text-xs font-bold uppercase text-neutral-500 tracking-wider">No Order History Found</p>
+                      <p className="text-[11px] text-neutral-400 font-light max-w-xs mx-auto">
+                        Once you make checkout transactions at Mahi Creations, your official ledger records will be populated here.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Responsive Table Wrapper */}
+                      <div className="overflow-x-auto rounded-2xl border border-clay-light">
+                        <table className="w-full text-left text-xs border-collapse">
+                          <thead>
+                            <tr className="border-b border-clay bg-bg-warm/40 text-neutral-600 font-bold uppercase text-[10px] tracking-wider">
+                              <th className="p-4 font-bold">Order ID</th>
+                              <th className="p-4 font-bold">Date</th>
+                              <th className="p-4 font-bold">Items Summary</th>
+                              <th className="p-4 font-bold">Total Amount</th>
+                              <th className="p-4 font-bold text-center">Status</th>
+                              <th className="p-4 font-bold text-right">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-clay-light text-neutral-700">
+                            {currentOrdersPage.map((order) => (
+                              <tr key={order.id} className="hover:bg-bg-warm/10 transition-colors">
+                                <td className="p-4 font-mono font-bold text-dark">
+                                  {order.id}
+                                </td>
+                                <td className="p-4 whitespace-nowrap text-neutral-500">
+                                  {new Date(order.createdAt).toLocaleDateString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric'
+                                  })}
+                                </td>
+                                <td className="p-4 min-w-[200px]">
+                                  <div className="space-y-1.5">
+                                    {order.items.map((it) => (
+                                      <div key={it.productId} className="flex items-center justify-between gap-3 text-[11px] text-left">
+                                        <span className="font-semibold text-dark truncate max-w-[150px]" title={it.productName}>
+                                          {it.productName} <span className="text-neutral-400 font-mono font-normal">x{it.quantity}</span>
+                                        </span>
+                                        <button
+                                          onClick={() => handleReorderSingleItem(it.productId, it.quantity)}
+                                          className="text-[10px] text-brand hover:text-dark font-bold hover:underline flex items-center gap-0.5 whitespace-nowrap cursor-pointer"
+                                          title={`Re-order only ${it.productName}`}
+                                        >
+                                          <ShoppingBag className="w-3 h-3" /> Re-order
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </td>
+                                <td className="p-4 font-bold text-dark whitespace-nowrap">
+                                  {formatPrice(order.total, (order.currency as CurrencyCode) || currency)}
+                                </td>
+                                <td className="p-4 text-center whitespace-nowrap">
+                                  <span className={`text-[9px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full inline-block ${
+                                    order.status === 'Delivered'
+                                      ? 'bg-emerald-100 text-emerald-800'
+                                      : order.status === 'Cancelled'
+                                      ? 'bg-red-100 text-red-800'
+                                      : 'bg-amber-100 text-amber-800'
+                                  }`}>
+                                    {order.status}
+                                  </span>
+                                </td>
+                                <td className="p-4 text-right whitespace-nowrap space-x-2">
+                                  <button
+                                    onClick={() => handleReorderOrder(order)}
+                                    className="inline-flex items-center gap-1 bg-dark hover:bg-brand text-white text-[10px] font-bold uppercase tracking-wider px-3 py-2 rounded-xl transition cursor-pointer shadow-sm"
+                                    title="Re-order all items from this purchase"
+                                  >
+                                    <ShoppingBag className="w-3 h-3" />
+                                    Re-order All
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Pagination Controls */}
+                      {totalOrdersPages > 1 && (
+                        <div className="flex items-center justify-between pt-4 border-t border-clay-light text-xs">
+                          <button
+                            onClick={() => setOrdersPage(p => Math.max(1, p - 1))}
+                            disabled={ordersPage === 1}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 bg-clay-light hover:bg-clay text-neutral-700 rounded-xl disabled:opacity-40 disabled:hover:bg-clay-light transition-all font-bold cursor-pointer"
+                          >
+                            <ChevronLeft className="w-4 h-4" />
+                            Prev
+                          </button>
+                          <div className="flex items-center gap-1.5 font-bold text-neutral-500">
+                            {[...Array(totalOrdersPages)].map((_, i) => {
+                              const pageNum = i + 1;
+                              return (
+                                <button
+                                  key={pageNum}
+                                  onClick={() => setOrdersPage(pageNum)}
+                                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                                    ordersPage === pageNum
+                                      ? 'bg-brand text-white'
+                                      : 'hover:bg-clay-light text-neutral-700'
+                                  }`}
+                                >
+                                  {pageNum}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <button
+                            onClick={() => setOrdersPage(p => Math.min(totalOrdersPages, p + 1))}
+                            disabled={ordersPage === totalOrdersPages}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 bg-clay-light hover:bg-clay text-neutral-700 rounded-xl disabled:opacity-40 disabled:hover:bg-clay-light transition-all font-bold cursor-pointer"
+                          >
+                            Next
+                            <ChevronRight className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 {/* DEDICATED WISHLIST SECTION */}
                 <div className="bg-white p-6 sm:p-8 rounded-3xl border border-clay shadow-md space-y-6">

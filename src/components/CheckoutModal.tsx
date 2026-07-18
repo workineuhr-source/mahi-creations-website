@@ -25,7 +25,7 @@ export default function CheckoutModal({
   currency,
   onCurrencyChange,
   onOrderCompleted,
-  whatsappNumber = '9779802058364',
+  whatsappNumber = '971501942989',
   countries,
   settings,
   products,

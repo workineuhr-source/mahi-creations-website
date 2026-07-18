@@ -21,9 +21,9 @@ export function generateOrderReceiptPDF(order: Order, settings?: any) {
   const currency = (order.currency as CurrencyCode) || 'NPR';
   const shopNameStr = settings?.shopName || 'Mahi Creations';
   const shopEmailStr = settings?.adminEmail || 'orders@mahicreations.com';
-  const rawPhone = settings?.whatsappNumber || '9779802058364';
+  const rawPhone = settings?.whatsappNumber || '971501942989';
   const shopPhoneStr = rawPhone.startsWith('+') ? rawPhone : `+${rawPhone}`;
-  const shopAddressStr = settings?.shopAddress || 'Lalitpur, Jhamsikhel, Nepal';
+  const shopAddressStr = settings?.shopAddress || 'Mai Tower, 4th Floor, Al Nahda 1, Dubai, United Arab Emirates';
 
   // --- BRAND COLORS & PALETTE ---
   // Luxury Dark: Charcoal (26, 26, 26)

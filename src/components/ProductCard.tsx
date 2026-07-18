@@ -99,36 +99,36 @@ export default function ProductCard({
         }`}
       >
         
-        {/* Floating Share Button (Top Left) */}
+        {/* Floating Share Button (Top Left) - Hidden on Mobile */}
         <button
           onClick={handleOpenShare}
-          className="absolute top-4 left-4 z-10 bg-white/95 hover:bg-brand hover:text-white text-dark p-2.5 rounded-full shadow-md cursor-pointer transition-all duration-300 hover:scale-105 active:scale-95 border border-clay/60"
+          className="hidden sm:block absolute top-4 left-4 z-10 bg-white/95 hover:bg-brand hover:text-white text-dark p-2.5 rounded-full shadow-md cursor-pointer transition-all duration-300 hover:scale-105 active:scale-95 border border-clay/60"
           title="Share to Facebook & Instagram"
         >
           <Share2 className="w-3.5 h-3.5" />
         </button>
 
-        {/* Floating Wishlist Button (Top Right) */}
+        {/* Floating Wishlist Button (Top Right) - Compact on Mobile */}
         <button
           onClick={(e) => {
             e.stopPropagation();
             e.preventDefault();
             onToggleWishlist(product.id);
           }}
-          className="absolute top-4 right-4 z-10 bg-white/95 hover:bg-rose-50 text-dark p-2.5 rounded-full shadow-md cursor-pointer transition-all duration-300 hover:scale-105 active:scale-95 border border-clay/60"
+          className="absolute top-2 right-2 sm:top-4 sm:right-4 z-10 bg-white/95 hover:bg-rose-50 text-dark p-1.5 sm:p-2.5 rounded-full shadow-md cursor-pointer transition-all duration-300 hover:scale-105 active:scale-95 border border-clay/60"
           title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
         >
-          <Heart className={`w-3.5 h-3.5 transition-colors ${isWishlisted ? "fill-rose-500 text-rose-500" : "text-neutral-600"}`} />
+          <Heart className={`w-3 h-3 sm:w-3.5 sm:h-3.5 transition-colors ${isWishlisted ? "fill-rose-500 text-rose-500" : "text-neutral-600"}`} />
         </button>
 
-        {/* Floating Compare Button (Top Right, styled beautifully next to Wishlist) */}
+        {/* Floating Compare Button (Top Right, styled beautifully next to Wishlist) - Hidden on Mobile */}
         <button
           onClick={(e) => {
             e.stopPropagation();
             e.preventDefault();
             onToggleCompare(product.id);
           }}
-          className={`absolute top-4 right-[48px] z-10 p-2.5 rounded-full shadow-md cursor-pointer transition-all duration-300 hover:scale-105 active:scale-95 border border-clay/60 ${
+          className={`hidden sm:block absolute top-4 right-[48px] z-10 p-2.5 rounded-full shadow-md cursor-pointer transition-all duration-300 hover:scale-105 active:scale-95 border border-clay/60 ${
             isCompared
               ? 'bg-brand text-white border-brand'
               : 'bg-white/95 text-neutral-600 hover:bg-clay-light'
@@ -138,45 +138,45 @@ export default function ProductCard({
           <GitCompare className="w-3.5 h-3.5" />
         </button>
 
-        {/* Floating Badges Stack */}
-        <div className="absolute top-16 left-4 z-10 flex flex-col gap-1.5 items-start pointer-events-none">
+        {/* Floating Badges Stack - Scaled Down on Mobile */}
+        <div className="absolute top-10 left-2 sm:top-16 sm:left-4 z-10 flex flex-col gap-1 items-start pointer-events-none">
           {/* Out of Stock Badge */}
           {isOutOfStock && (
-            <div key="out-of-stock-badge" className="bg-neutral-900/95 text-white text-[8px] font-black tracking-widest uppercase py-1 px-2.5 rounded-full shadow-lg flex items-center gap-1.5 border border-white/10 backdrop-blur-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+            <div key="out-of-stock-badge" className="bg-neutral-900/95 text-white text-[7px] sm:text-[8px] font-black tracking-widest uppercase py-0.5 px-1.5 sm:py-1 sm:px-2.5 rounded-full shadow-lg flex items-center gap-1 sm:gap-1.5 border border-white/10 backdrop-blur-sm">
+              <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
               Out of Stock
             </div>
           )}
 
           {/* Low Stock Badge */}
           {!isOutOfStock && product.stockCount !== undefined && product.stockCount < 5 && product.stockCount > 0 && (
-            <div key="low-stock-badge" className="bg-rose-600 text-white text-[8px] font-black tracking-widest uppercase py-1 px-2.5 rounded-full shadow-lg flex items-center gap-1.5 border border-rose-500 animate-pulse">
-              <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
+            <div key="low-stock-badge" className="bg-rose-600 text-white text-[7px] sm:text-[8px] font-black tracking-widest uppercase py-0.5 px-1.5 sm:py-1 sm:px-2.5 rounded-full shadow-lg flex items-center gap-1 sm:gap-1.5 border border-rose-500 animate-pulse">
+              <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-white"></span>
               Only {product.stockCount} Left!
             </div>
           )}
 
           {/* Best Seller Badge (if reviews count is > 50) */}
           {!isOutOfStock && product.reviewsCount !== undefined && product.reviewsCount > 50 && (
-            <div key="best-seller-badge" className="bg-amber-500 text-white text-[8px] font-black tracking-widest uppercase py-1 px-2.5 rounded-full shadow-lg flex items-center gap-1 border border-amber-400">
-              <Flame className="w-2.5 h-2.5 fill-current text-white animate-pulse" />
+            <div key="best-seller-badge" className="bg-amber-500 text-white text-[7px] sm:text-[8px] font-black tracking-widest uppercase py-0.5 px-1.5 sm:py-1 sm:px-2.5 rounded-full shadow-lg flex items-center gap-0.5 sm:gap-1 border border-amber-400">
+              <Flame className="w-2 h-2 sm:w-2.5 sm:h-2.5 fill-current text-white animate-pulse" />
               Best Seller
             </div>
           )}
 
           {/* Limited Deal Badge (if discount is high, e.g. >= 15%) */}
           {!isOutOfStock && product.discountPercent !== undefined && product.discountPercent >= 15 && (
-            <div key="limited-deal-badge" className="bg-gradient-to-r from-rose-500 to-pink-600 text-white text-[8px] font-black tracking-widest uppercase py-1 px-2.5 rounded-full shadow-lg flex items-center gap-1 border border-rose-400">
-              <Sparkles className="w-2.5 h-2.5 text-white" />
+            <div key="limited-deal-badge" className="bg-gradient-to-r from-rose-500 to-pink-600 text-white text-[7px] sm:text-[8px] font-black tracking-widest uppercase py-0.5 px-1.5 sm:py-1 sm:px-2.5 rounded-full shadow-lg flex items-center gap-0.5 sm:gap-1 border border-rose-400">
+              <Sparkles className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-white" />
               Limited Deal
             </div>
           )}
         </div>
 
-        {/* Discount Tag (Artistic Black Block Style - shifted slightly to the left of Wishlist button) */}
+        {/* Discount Tag (Artistic Black Block Style) - Positioned and Scaled for Mobile */}
         {product.discountPercent > 0 && (
-          <div key="discount-tag" className="absolute top-5 right-14 z-10 bg-dark text-white text-[9px] font-bold tracking-widest uppercase py-1 px-2 rounded shadow-md">
-            -{product.discountPercent}% OFF
+          <div key="discount-tag" className="absolute top-2 right-10 sm:top-5 sm:right-14 z-10 bg-dark text-white text-[7px] sm:text-[9px] font-bold tracking-widest uppercase py-0.5 px-1 sm:py-1 sm:px-2 shadow-md">
+            -{product.discountPercent}%
           </div>
         )}
 
@@ -297,40 +297,40 @@ export default function ProductCard({
         </div>
 
         {/* Content wrapper */}
-        <div className="p-4 sm:p-5 flex flex-col flex-grow">
+        <div className="p-2 sm:p-5 flex flex-col flex-grow min-w-0">
           {/* Category & Star Rating row */}
-          <div className="flex items-center justify-between text-xs mb-2">
-            <span className="text-[10px] tracking-[0.25em] uppercase text-brand font-bold bg-clay-light px-2.5 py-1 rounded">
+          <div className="flex items-center justify-between gap-1 text-xs mb-1.5 sm:mb-2 min-w-0">
+            <span className="text-[7.5px] sm:text-[10px] tracking-normal sm:tracking-[0.25em] uppercase text-brand font-bold bg-clay-light px-1 sm:px-2.5 py-0.5 sm:py-1 rounded truncate max-w-[50%]">
               {product.category}
             </span>
-            <div className="flex items-center gap-1 text-brand text-sm">
-              <Star className="w-4 h-4 fill-current" />
-              <span className="font-bold text-neutral-700">{product.rating}</span>
-              <span className="text-neutral-400">({product.reviewsCount})</span>
+            <div className="flex items-center gap-0.5 sm:gap-1 text-brand text-[9px] sm:text-sm shrink-0 min-w-0">
+              <Star className="w-2.5 h-2.5 sm:w-4 sm:h-4 fill-current shrink-0" />
+              <span className="font-bold text-neutral-700 text-[8px] sm:text-xs">{product.rating}</span>
+              <span className="text-neutral-400 text-[8px] sm:text-xs">({product.reviewsCount})</span>
             </div>
           </div>
 
           {/* Title */}
-          <h3 className="font-serif text-base sm:text-lg font-bold text-dark leading-snug mb-1.5 group-hover:text-brand transition-colors duration-200 line-clamp-1">
+          <h3 className="font-serif text-[10px] sm:text-base font-bold text-dark leading-snug mb-1 sm:mb-1.5 group-hover:text-brand transition-colors duration-200 line-clamp-1">
             {product.name}
           </h3>
 
           {/* Description summary */}
-          <p className="text-neutral-500 text-xs sm:text-sm font-light line-clamp-2 mb-3 flex-grow leading-relaxed">
+          <p className="text-neutral-500 text-[9px] sm:text-sm font-light line-clamp-1 sm:line-clamp-2 mb-2 sm:mb-3 flex-grow leading-relaxed">
             {product.description}
           </p>
 
           {/* Pricing & Add to Cart section */}
-          <div className="border-t border-clay-light pt-3 mt-auto">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider">Price</p>
-                <div className="flex items-center gap-1.5">
-                  <span className="font-sans text-sm sm:text-base font-bold text-dark">
+          <div className="border-t border-clay-light pt-1.5 sm:pt-3 mt-auto min-w-0">
+            <div className="flex items-center justify-between gap-1 sm:gap-4 min-w-0">
+              <div className="min-w-0 flex-grow">
+                <p className="hidden sm:block text-[9px] text-neutral-400 font-bold uppercase tracking-wider">Price</p>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:gap-1.5 min-w-0">
+                  <span className="font-sans text-[10px] sm:text-base font-bold text-dark block truncate">
                     {formattedSale}
                   </span>
                   {product.discountPercent > 0 && (
-                    <span className="text-xs text-neutral-400 line-through">
+                    <span className="text-[8px] sm:text-xs text-neutral-400 line-through block truncate">
                       {formattedOriginal}
                     </span>
                   )}
@@ -339,16 +339,20 @@ export default function ProductCard({
 
               {/* CTA Bag trigger */}
               <button
-                onClick={() => !isOutOfStock && onAddToCart(product)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  if (!isOutOfStock) onAddToCart(product);
+                }}
                 disabled={isOutOfStock}
-                className={`inline-flex items-center justify-center p-2 rounded-lg transition-all duration-300 ${
+                className={`inline-flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 p-1 sm:p-2 rounded-md sm:rounded-lg transition-all duration-300 shrink-0 ${
                   !isOutOfStock
                     ? 'bg-dark hover:bg-brand text-white hover:scale-105 active:scale-95 cursor-pointer shadow-md'
                     : 'bg-clay-light text-neutral-400 cursor-not-allowed'
                 }`}
                 title={!isOutOfStock ? 'Add to bag' : 'Sold Out'}
               >
-                <ShoppingBag className="w-3.5 h-3.5 stroke-[2]" />
+                <ShoppingBag className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 stroke-[2]" />
               </button>
             </div>
           </div>

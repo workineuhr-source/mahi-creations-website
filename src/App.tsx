@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Product, CartItem, Order, OrderStatus, BoutiqueSettings, ProductReview, UserSession } from './types';
 import { INITIAL_PRODUCTS, DELIVERY_LOCATIONS, DEFAULT_PROMO_SLIDES } from './data';
+import { supabase, isSupabaseConfigured } from './lib/supabase';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import AuthModal from './components/AuthModal';
@@ -87,7 +88,7 @@ const itemVariants = {
     opacity: 1, 
     y: 0, 
     transition: { 
-      type: "spring", 
+      type: "spring" as const, 
       stiffness: 100, 
       damping: 15 
     } 
@@ -257,13 +258,19 @@ export default function App() {
             { id: 'c3', code: 'GLOW20', discountPercent: 20, applicableProductId: 'p2', isActive: true, usedByPhones: [] }
           ];
         }
+        if (parsed.whatsappNumber === '9779802058364') {
+          parsed.whatsappNumber = '971501942989';
+        }
+        if (parsed.shopAddress === 'Lalitpur, Jhamsikhel, Nepal') {
+          parsed.shopAddress = 'Mai Tower, 4th Floor, Al Nahda 1, Dubai, United Arab Emirates';
+        }
         // Ensure new settings fields exist on load
         return {
           adminUser: 'Mahi123@',
           adminPassword: 'Mahi1234567@',
           adminEmail: 'mahicreations369@gmail.com',
           shopName: 'Mahi Creations',
-          shopAddress: 'Lalitpur, Jhamsikhel, Nepal',
+          shopAddress: 'Mai Tower, 4th Floor, Al Nahda 1, Dubai, United Arab Emirates',
           logoUrl: '/src/assets/images/mahi_logo_new_1783763329444.jpg',
           faviconUrl: '/src/assets/images/mahi_logo_new_1783763329444.jpg',
           headerPromo: 'Monsoon Glow Offer: Automatically save up to 25% + Free delivery inside Kathmandu Valley!',
@@ -280,7 +287,7 @@ export default function App() {
           paypalEmail: 'mahicreations369@gmail.com',
           paypalAccountName: 'Mahi Creations Luxury',
           codInstructions: 'Pay cash or scan dynamic Fonepay QR upon home delivery by courier.',
-          whatsappNumber: '9779802058364',
+          whatsappNumber: '971501942989',
           facebookLink: 'https://facebook.com/mahicreations',
           tiktokLink: 'https://tiktok.com/@mahicreations',
           instagramLink: 'https://instagram.com/mahicreations_nepal',
@@ -322,7 +329,7 @@ export default function App() {
       adminPassword: 'Mahi1234567@',
       adminEmail: 'mahicreations369@gmail.com',
       shopName: 'Mahi Creations',
-      shopAddress: 'Lalitpur, Jhamsikhel, Nepal',
+      shopAddress: 'Mai Tower, 4th Floor, Al Nahda 1, Dubai, United Arab Emirates',
       logoUrl: '/src/assets/images/mahi_logo_new_1783763329444.jpg',
       faviconUrl: '/src/assets/images/mahi_logo_new_1783763329444.jpg',
       headerPromo: 'Monsoon Glow Offer: Automatically save up to 25% + Free delivery inside Kathmandu Valley!',
@@ -339,7 +346,7 @@ export default function App() {
       paypalEmail: 'mahicreations369@gmail.com',
       paypalAccountName: 'Mahi Creations Luxury',
       codInstructions: 'Pay cash or scan dynamic Fonepay QR upon home delivery by courier.',
-      whatsappNumber: '9779802058364',
+      whatsappNumber: '971501942989',
       facebookLink: 'https://facebook.com/mahicreations',
       tiktokLink: 'https://tiktok.com/@mahicreations',
       instagramLink: 'https://instagram.com/mahicreations_nepal',
@@ -692,9 +699,75 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    if (isSupabaseConfigured) {
+      supabase.auth.signOut().catch(err => console.error("Error signing out from Supabase:", err));
+    }
     setUserSession(null);
+    setIsAdminLoggedIn(false);
     localStorage.removeItem('mahi_session_v1');
+    localStorage.removeItem('mahi_admin_logged_in');
   };
+
+  // Listen for Supabase Authentication State Changes
+  useEffect(() => {
+    if (isSupabaseConfigured) {
+      const syncSessionProfile = async (user: any) => {
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .maybeSingle();
+
+          const isAdmin = 
+            profile?.is_admin === true || 
+            profile?.role === 'admin' || 
+            user.email === 'admin@mahiboutique.com';
+
+          const mappedSession: UserSession = {
+            fullName: profile?.full_name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'VIP Member',
+            phone: profile?.phone || user.user_metadata?.phone || '9801234567',
+            address: profile?.address || 'Kathmandu, Nepal',
+            country: 'Nepal',
+            whatsapp: profile?.phone || user.user_metadata?.phone || '9801234567',
+            location: 'Kathmandu'
+          };
+
+          setUserSession(mappedSession);
+          localStorage.setItem('mahi_session_v1', JSON.stringify(mappedSession));
+
+          if (isAdmin) {
+            setIsAdminLoggedIn(true);
+          }
+        } catch (err) {
+          console.error("Error loading profile from Supabase:", err);
+        }
+      };
+
+      // Check initial session
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user) {
+          syncSessionProfile(session.user);
+        }
+      });
+
+      // Setup active subscription listener
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (session?.user) {
+          syncSessionProfile(session.user);
+        } else if (event === 'SIGNED_OUT') {
+          setUserSession(null);
+          setIsAdminLoggedIn(false);
+          localStorage.removeItem('mahi_session_v1');
+          localStorage.removeItem('mahi_admin_logged_in');
+        }
+      });
+
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
+  }, []);
 
   const handleAddReview = (newReview: ProductReview) => {
     const reviewWithStatus = { ...newReview, approved: false };
@@ -835,16 +908,20 @@ export default function App() {
   const handleOrderCompleted = (newOrder: Order) => {
     // Automatically format a deep-link to WhatsApp with order ID, total, and customer info
     const formatWhatsAppLink = (order: Order): string => {
-      const rawNumber = settings.whatsappNumber || '9801122334';
-      // Normalize phone number (ensure international prefix for Nepal or keep digits only)
+      const rawNumber = settings.whatsappNumber || '971501942989';
+      // Normalize phone number (ensure international prefix for Nepal/UAE or keep digits only)
       let cleanNumber = rawNumber.replace(/[^0-9]/g, '');
       if (cleanNumber.length === 10 && cleanNumber.startsWith('9')) {
         cleanNumber = '977' + cleanNumber;
       } else if (cleanNumber.length === 9 && cleanNumber.startsWith('1')) {
         cleanNumber = '977' + cleanNumber;
+      } else if (cleanNumber.length === 9 && cleanNumber.startsWith('5')) {
+        cleanNumber = '971' + cleanNumber;
+      } else if (cleanNumber.length === 10 && cleanNumber.startsWith('05')) {
+        cleanNumber = '971' + cleanNumber.substring(1);
       }
       if (!cleanNumber) {
-        cleanNumber = '9779802058364';
+        cleanNumber = '971501942989';
       }
 
       const shopName = settings.shopName || 'Mahi Creations';
@@ -1117,7 +1194,7 @@ export default function App() {
       />
 
       {/* Primary Views Route dispatcher */}
-      <main className="flex-grow overflow-hidden relative">
+      <main className="flex-grow overflow-hidden relative pb-16 md:pb-0">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeView}
@@ -1196,7 +1273,7 @@ export default function App() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 pt-8">
+                      <div className="grid grid-cols-3 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-8 pt-8">
                         {mostOrderedProducts.slice(0, 4).map((prod, index) => {
                           // Define prestigious tags for the rankings
                           const ranks = [
@@ -1292,7 +1369,7 @@ export default function App() {
                         variants={containerVariants}
                         initial="hidden"
                         animate="show"
-                        className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 sm:gap-8 mx-auto transition-all duration-300 ${
+                        className={`grid grid-cols-3 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-8 mx-auto transition-all duration-300 ${
                           isHDMode ? 'max-w-[1440px]' : 'max-w-7xl'
                         }`}
                       >
@@ -1441,13 +1518,13 @@ export default function App() {
                       <div className="lg:col-span-6 space-y-6 sm:space-y-8">
                         <div className="space-y-4 font-sans text-neutral-600 text-xs sm:text-sm leading-relaxed font-light">
                           <p className="whitespace-pre-line">
-                            {settings.aboutPara1 || "Founded with a vision of blending luxury cosmetic formulations, custom-crafted fine jewelry, and premium traditional apparel, Mahi Creations serves as an exclusive gateway to authentic luxury. Operating from Lalitpur, Jhamsikhel, we curate only the finest certified treasures."}
+                            {settings.aboutPara1 || "Established as a premier luxury digital hub in Dubai, Mahi Creations is built on the philosophy of global accessibility and authentic quality. Every piece of exquisite couture, hand-crafted jewelry, and certified cosmetic formulation is personally sourced from exclusive international distributors right here in the luxury fashion hubs of Dubai."}
                           </p>
                           <p className="whitespace-pre-line">
-                            {settings.aboutPara2 || "Every cosmetic bottle we carry represents genuine global standards of safety, hydration, and glow. Our traditional apparel lines are hand-stitched by boutique master artisans, preserving timeless cultural heritages while adapting them for the contemporary modern aesthetic."}
+                            {settings.aboutPara2 || "While our primary sourcing and authentication hub is based in Dubai, we are deeply committed to bridging premium luxury directly to Nepal and worldwide. With reliable delivery partnerships in Nepal and secure air cargo networks, your luxury curations reach you in perfect condition, no matter where you are in the world."}
                           </p>
                           <p className="whitespace-pre-line">
-                            {settings.aboutPara3 || "Whether you are searching for premium Korean skincare regimes, custom makeup, or bespoke boutique jewelry, Mahi Creations ensures standard compliance, real-time stock levels, and expedited courier delivery across Nepal."}
+                            {settings.aboutPara3 || "All cosmetics are guaranteed 100% authentic, verified, and direct from authorized brand houses. Pair that with our personalized bridal couture fittings, certified high-end jewelry, and round-the-clock concierge support, and Mahi Creations offers a truly global standard of boutique excellence."}
                           </p>
                         </div>
 
@@ -1897,7 +1974,7 @@ export default function App() {
       />
 
       {/* Smart AI Beauty Routine Finder Quiz - SMART AI CURATION */}
-      {activeView !== 'admin' && (
+      {activeView === 'shop' && selectedCategory === 'All' && searchQuery === '' && (
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12 pt-8">
           <SmartRoutineQuiz 
             products={products}
@@ -1911,7 +1988,7 @@ export default function App() {
       )}
 
       {/* VIP Newsletter Section (Mahi Privilege List) - Exclusive Sourcing Access */}
-      {activeView !== 'admin' && (
+      {activeView === 'shop' && selectedCategory === 'All' && searchQuery === '' && (
         <section 
           className="w-full border-t border-b border-clay/50 py-10 sm:py-12 md:py-14 animate-fade-in relative z-10 overflow-hidden"
           style={{ backgroundColor: settings.sourcingBgColor || '#fff0f1' }}

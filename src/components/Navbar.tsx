@@ -198,70 +198,90 @@ export default function Navbar({
         </div>
       </div>
 
-      {/* Mobile Sub-Navigation Sticky Bar - Responsive and Compact */}
+      {/* Mobile Sub-Navigation Sticky Bar - Responsive Fixed Bottom Navigation (App-like Design) */}
       {activeView !== 'admin' && (
-        <div className="md:hidden flex items-center justify-around border-t border-clay-light py-2 bg-white/95 font-sans text-[9px] font-bold tracking-wider text-neutral-500">
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-clay-light py-2.5 px-2 flex items-center justify-around shadow-[0_-4px_16px_rgba(0,0,0,0.06)] font-sans text-[9px] font-bold tracking-wider text-neutral-500">
+          {/* Home Tab */}
           <button
             onClick={onShopClick}
-            className={`flex flex-col items-center gap-0.5 py-1 px-1.5 cursor-pointer ${
-              activeView === 'shop' ? 'text-brand' : 'text-neutral-500'
+            className={`flex flex-col items-center gap-1 py-0.5 px-2 transition-all duration-300 relative cursor-pointer ${
+              activeView === 'shop' ? 'text-brand scale-105' : 'text-neutral-500 hover:text-dark'
             }`}
           >
-            <Sparkles className={`w-4 h-4 ${activeView === 'shop' ? 'text-brand' : 'text-neutral-400'}`} />
-            <span>HOME</span>
+            <Sparkles className={`w-5 h-5 transition-all ${activeView === 'shop' ? 'text-brand stroke-[2.2]' : 'text-neutral-400'}`} />
+            <span className="text-[9px] font-black uppercase">HOME</span>
+            {activeView === 'shop' && (
+              <span className="absolute bottom-0 w-1 h-1 rounded-full bg-brand" />
+            )}
           </button>
           
-          <div className="h-4 w-[1px] bg-clay/50"></div>
-          
+          {/* Track Tab */}
           <button
             onClick={onTrackOrderClick}
-            className={`flex flex-col items-center gap-0.5 py-1 px-1.5 cursor-pointer ${
-              activeView === 'tracker' ? 'text-brand' : 'text-neutral-500'
+            className={`flex flex-col items-center gap-1 py-0.5 px-2 transition-all duration-300 relative cursor-pointer ${
+              activeView === 'tracker' ? 'text-brand scale-105' : 'text-neutral-500 hover:text-dark'
             }`}
           >
-            <Truck className={`w-4 h-4 ${activeView === 'tracker' ? 'text-brand' : 'text-neutral-400'}`} />
-            <span>TRACK</span>
+            <Truck className={`w-5 h-5 transition-all ${activeView === 'tracker' ? 'text-brand stroke-[2.2]' : 'text-neutral-400'}`} />
+            <span className="text-[9px] font-black uppercase">TRACK</span>
+            {activeView === 'tracker' && (
+              <span className="absolute bottom-0 w-1 h-1 rounded-full bg-brand" />
+            )}
           </button>
           
-          <div className="h-4 w-[1px] bg-clay/50"></div>
+          {/* Cart Tab (with real-time Badge) */}
+          <button
+            onClick={onCartClick}
+            className="flex flex-col items-center gap-1 py-0.5 px-2 transition-all duration-300 relative cursor-pointer text-neutral-500 hover:text-dark"
+          >
+            <div className="relative">
+              <ShoppingBag className="w-5 h-5 text-neutral-400 hover:text-brand transition-all" />
+              {cartCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-brand text-[8px] font-bold text-white ring-2 ring-white animate-pulse">
+                  {cartCount}
+                </span>
+              )}
+            </div>
+            <span className="text-[9px] font-black uppercase">BAG</span>
+          </button>
 
+          {/* Account/VIP/Portal Tab */}
+          {userSession ? (
+            <button
+              onClick={onPortalClick}
+              className={`flex flex-col items-center gap-1 py-0.5 px-2 transition-all duration-300 relative cursor-pointer ${
+                activeView === 'portal' ? 'text-brand scale-105' : 'text-neutral-500 hover:text-dark'
+              }`}
+            >
+              <User className={`w-5 h-5 transition-all ${activeView === 'portal' ? 'text-brand stroke-[2.2]' : 'text-neutral-400'}`} />
+              <span className="text-[9px] font-black uppercase">PORTAL</span>
+              {activeView === 'portal' && (
+                <span className="absolute bottom-0 w-1 h-1 rounded-full bg-brand" />
+              )}
+            </button>
+          ) : (
+            <button
+              onClick={onAuthClick}
+              className="flex flex-col items-center gap-1 py-0.5 px-2 transition-all duration-300 relative cursor-pointer text-neutral-500 hover:text-dark"
+            >
+              <User className="w-5 h-5 text-neutral-400" />
+              <span className="text-[9px] font-black uppercase">LOGIN</span>
+            </button>
+          )}
+
+          {/* Contact Tab */}
           <button
             onClick={onContactClick}
-            className="flex flex-col items-center gap-0.5 py-1 px-1.5 cursor-pointer text-neutral-500 hover:text-brand"
+            className={`flex flex-col items-center gap-1 py-0.5 px-2 transition-all duration-300 relative cursor-pointer ${
+              activeView === 'contact' ? 'text-brand scale-105' : 'text-neutral-500 hover:text-dark'
+            }`}
           >
-            <PhoneCall className="w-4 h-4 text-neutral-400 hover:text-brand" />
-            <span>CONTACT</span>
+            <PhoneCall className={`w-5 h-5 transition-all ${activeView === 'contact' ? 'text-brand stroke-[2.2]' : 'text-neutral-400'}`} />
+            <span className="text-[9px] font-black uppercase">CONTACT</span>
+            {activeView === 'contact' && (
+              <span className="absolute bottom-0 w-1 h-1 rounded-full bg-brand" />
+            )}
           </button>
-          
-          {isAdminLoggedIn && (
-            <>
-              <div className="h-4 w-[1px] bg-clay/50"></div>
-              <button
-                onClick={onAdminClick}
-                className={`flex flex-col items-center gap-0.5 py-1 px-1.5 cursor-pointer ${
-                  activeView === 'admin' ? 'text-brand font-bold' : 'text-neutral-500'
-                }`}
-              >
-                <Settings className={`w-4 h-4 ${activeView === 'admin' ? 'text-brand' : 'text-neutral-400'}`} />
-                <span>ADMIN</span>
-              </button>
-            </>
-          )}
-
-          {userSession && (
-            <>
-              <div className="h-4 w-[1px] bg-clay/50"></div>
-              <button
-                onClick={onPortalClick}
-                className={`flex flex-col items-center gap-0.5 py-1 px-1.5 cursor-pointer ${
-                  activeView === 'portal' ? 'text-brand font-bold' : 'text-neutral-500'
-                }`}
-              >
-                <User className={`w-4 h-4 ${activeView === 'portal' ? 'text-brand' : 'text-neutral-400'}`} />
-                <span>PORTAL</span>
-              </button>
-            </>
-          )}
         </div>
       )}
     </nav>
