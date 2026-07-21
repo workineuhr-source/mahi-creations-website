@@ -7,7 +7,9 @@ import {
 } from 'lucide-react';
 import { formatPrice, CurrencyCode, getProductDisplayPrices } from '../utils/currency';
 import { generateOrderReceiptPDF } from '../utils/pdfGenerator';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { auth, db, googleProvider, isFirebaseConfigured } from '../lib/firebase';
+import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 interface CustomerPortalProps {
   orders: Order[];
@@ -93,13 +95,13 @@ export default function CustomerPortal({
   const [authError, setAuthError] = useState('');
   const [authSuccess, setAuthSuccess] = useState(false);
 
-  // Handle Supabase Google OAuth Sign-In
+  // Handle Firebase Google OAuth Sign-In
   const handleGoogleSignIn = async () => {
     setAuthError('');
     setAuthMessage('');
     setAuthLoading(true);
     try {
-      if (!isSupabaseConfigured) {
+      if (!isFirebaseConfigured) {
         const mockSession: UserSession = {
           fullName: "Google VIP Guest",
           phone: "9800000000",
@@ -113,13 +115,37 @@ export default function CustomerPortal({
         return;
       }
       
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.origin + '/auth/callback'
+      const credentials = await signInWithPopup(auth, googleProvider);
+      if (credentials.user) {
+        const docRef = doc(db, 'profiles', credentials.user.uid);
+        const docSnap = await getDoc(docRef);
+        let profile = docSnap.exists() ? docSnap.data() : null;
+
+        if (!profile) {
+          profile = {
+            id: credentials.user.uid,
+            email: credentials.user.email || `${credentials.user.uid}@mahiboutique.com`,
+            fullName: credentials.user.displayName || 'Google VIP Guest',
+            phone: credentials.user.phoneNumber || '',
+            avatarUrl: credentials.user.photoURL || '',
+            address: 'Kathmandu, Nepal',
+            is_admin: credentials.user.email === 'admin@mahiboutique.com' || credentials.user.email === 'workineuhr@gmail.com',
+            role: (credentials.user.email === 'admin@mahiboutique.com' || credentials.user.email === 'workineuhr@gmail.com') ? 'admin' : 'customer'
+          };
+          await setDoc(docRef, profile);
         }
-      });
-      if (error) throw error;
+
+        const session: UserSession = {
+          fullName: profile.fullName || profile.full_name || credentials.user.displayName || 'Google VIP Guest',
+          phone: profile.phone || credentials.user.phoneNumber || '9800000000',
+          address: profile.address || 'Kathmandu, Nepal',
+          country: 'Nepal',
+          whatsapp: profile.phone || credentials.user.phoneNumber || '9800000000',
+          location: 'Kathmandu'
+        };
+        onLogin(session);
+        setAuthMessage("Google Login Successful!");
+      }
     } catch (err: any) {
       setAuthError(err.message || 'Google Sign-In failed');
     } finally {
@@ -127,14 +153,14 @@ export default function CustomerPortal({
     }
   };
 
-  // Handle Supabase Email & Password Sign-In
+  // Handle Firebase Email & Password Sign-In
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError('');
     setAuthMessage('');
     setAuthLoading(true);
     try {
-      if (!isSupabaseConfigured) {
+      if (!isFirebaseConfigured) {
         const mockSession: UserSession = {
           fullName: email.split('@')[0].toUpperCase(),
           phone: "9801234567",
@@ -148,25 +174,18 @@ export default function CustomerPortal({
         return;
       }
 
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-      if (error) throw error;
-
-      if (data.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', data.user.id)
-          .single();
+      const credentials = await signInWithEmailAndPassword(auth, email, password);
+      if (credentials.user) {
+        const docRef = doc(db, 'profiles', credentials.user.uid);
+        const docSnap = await getDoc(docRef);
+        const profile = docSnap.exists() ? docSnap.data() : null;
         
         const session: UserSession = {
-          fullName: profile?.full_name || data.user.user_metadata?.full_name || data.user.email?.split('@')[0] || 'User',
-          phone: profile?.phone || data.user.user_metadata?.phone || '',
-          address: 'Nepal',
+          fullName: profile?.fullName || profile?.full_name || credentials.user.displayName || credentials.user.email?.split('@')[0] || 'User',
+          phone: profile?.phone || credentials.user.phoneNumber || '',
+          address: profile?.address || 'Nepal',
           country: 'Nepal',
-          whatsapp: profile?.phone || data.user.user_metadata?.phone || '',
+          whatsapp: profile?.phone || credentials.user.phoneNumber || '',
           location: 'Kathmandu'
         };
         onLogin(session);
@@ -178,34 +197,46 @@ export default function CustomerPortal({
     }
   };
 
-  // Handle Supabase Email & Password Sign-Up
+  // Handle Firebase Email & Password Sign-Up
   const handleEmailSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError('');
     setAuthMessage('');
     setAuthLoading(true);
     try {
-      if (!isSupabaseConfigured) {
+      if (!isFirebaseConfigured) {
         setAuthSuccess(true);
-        setAuthMessage("Demo Sign-Up Successful! In production, a verification email is dispatched.");
+        setAuthMessage("Demo Sign-Up Successful!");
         return;
       }
 
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-            phone: phone
-          }
-        }
-      });
-      if (error) throw error;
+      const credentials = await createUserWithEmailAndPassword(auth, email, password);
+      if (credentials.user) {
+        const docRef = doc(db, 'profiles', credentials.user.uid);
+        const profile = {
+          id: credentials.user.uid,
+          email: email,
+          fullName: fullName.trim(),
+          phone: phone.trim(),
+          avatarUrl: '',
+          address: 'Kathmandu, Nepal',
+          is_admin: false,
+          role: 'customer'
+        };
+        await setDoc(docRef, profile);
 
-      if (data.user) {
         setAuthSuccess(true);
-        setAuthMessage("Account created successfully! Please check your inbox for verification instructions.");
+        setAuthMessage("Account created successfully!");
+        
+        const session: UserSession = {
+          fullName: fullName.trim(),
+          phone: phone.trim(),
+          address: 'Kathmandu, Nepal',
+          country: 'Nepal',
+          whatsapp: phone.trim(),
+          location: 'Kathmandu'
+        };
+        onLogin(session);
       }
     } catch (err: any) {
       setAuthError(err.message || 'Email Sign-Up failed');
@@ -221,15 +252,12 @@ export default function CustomerPortal({
     setAuthMessage('');
     setAuthLoading(true);
     try {
-      if (!isSupabaseConfigured) {
+      if (!isFirebaseConfigured) {
         setAuthMessage("Demo password reset instructions dispatched to your email!");
         return;
       }
 
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin + '/auth/reset-password'
-      });
-      if (error) throw error;
+      await sendPasswordResetEmail(auth, email);
       setAuthMessage("Password reset instructions have been dispatched to your email address!");
     } catch (err: any) {
       setAuthError(err.message || 'Password reset request failed');
@@ -576,54 +604,29 @@ export default function CustomerPortal({
         {/* LOGGED OUT STATE: SHOW BEAUTIFUL REGISTRATION/LOGIN FORM */}
         {!userSession ? (
           <div className="max-w-md mx-auto bg-white p-8 rounded-3xl border border-clay shadow-xl space-y-6">
-            {/* Supabase Status Banner */}
+            {/* Firebase Status Banner */}
             <div className={`p-4 rounded-2xl border text-xs flex flex-col gap-2.5 ${
-              isSupabaseConfigured 
+              isFirebaseConfigured 
                 ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
                 : 'bg-amber-50 text-amber-800 border-amber-200'
             }`}>
-              {isSupabaseConfigured ? (
+              {isFirebaseConfigured ? (
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                  <span className="font-bold">Supabase Auth Connected Successfully!</span>
+                  <span className="font-bold">Firebase Auth & Firestore connected successfully!</span>
                 </div>
               ) : (
                 <div className="space-y-2">
                   <div className="flex items-center gap-1.5 font-bold">
                     <ShieldAlert className="w-4.5 h-4.5 text-amber-600" />
-                    <span>How to link automatically with Supabase:</span>
+                    <span>How to link automatically with Firebase:</span>
                   </div>
                   
                   <div className="space-y-1.5 pl-1 text-[10.5px] text-neutral-600">
-                    <p className="font-semibold text-neutral-800">1. Set API Keys in AI Studio:</p>
+                    <p className="font-semibold text-neutral-800">1. Run Firebase setup:</p>
                     <p className="leading-relaxed">
-                      Go to the **Settings icon (bottom-left) &gt; Secrets / API Keys** inside your AI Studio builder panel. 
-                      Set your public token as <code className="font-mono bg-amber-100/80 px-1 py-0.5 rounded text-amber-900 font-bold">VITE_SUPABASE_ANON_KEY</code>.
+                      Make sure your Firebase credentials are correctly deployed via the `set_up_firebase` action on your workspace.
                     </p>
-
-                    <p className="font-semibold text-neutral-800 mt-2">2. Enable Redirect URLs on Supabase Dashboard:</p>
-                    <p className="leading-relaxed">
-                      To enable Google Login, open your Supabase URL Configuration page:
-                      <a 
-                        href="https://supabase.com/dashboard/project/rhtatjgmiancxyjtamou/auth/url-configuration" 
-                        target="_blank" 
-                        rel="noreferrer" 
-                        className="inline-flex items-center gap-1 text-brand hover:underline font-bold ml-1"
-                      >
-                        Open Supabase Config <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </p>
-                    <p className="leading-relaxed">
-                      Under **Redirect URLs**, click **Add URL** and paste these two application domains so Google Auth links back automatically:
-                    </p>
-                    <div className="bg-white/80 p-1.5 rounded-lg border border-clay-light font-mono text-[9.5px] text-neutral-700 space-y-1 block select-all">
-                      <div className="flex justify-between items-center gap-2">
-                        <span>https://ais-dev-cofmkg2o22ur6pskj6dlel-732445577245.europe-west2.run.app</span>
-                      </div>
-                      <div className="flex justify-between items-center gap-2 border-t border-neutral-100 pt-1">
-                        <span>https://ais-pre-cofmkg2o22ur6pskj6dlel-732445577245.europe-west2.run.app</span>
-                      </div>
-                    </div>
                   </div>
                 </div>
               )}

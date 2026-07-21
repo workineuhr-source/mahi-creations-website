@@ -1,0 +1,166 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidProfile(data, userId) {
+      return data.keys().hasAll(['id', 'email'])
+        && data.keys().size() >= 2
+        && data.id == request.auth.uid
+        && data.email is string
+        && (!('fullName' in data) || data.fullName is string)
+        && (!('avatarUrl' in data) || data.avatarUrl is string)
+        && (!('phone' in data) || data.phone is string);
+    }
+
+    function isValidAddress(data) {
+      return data.keys().hasAll(['id', 'userId', 'streetAddress', 'city', 'country'])
+        && data.userId == request.auth.uid
+        && data.id is string
+        && data.streetAddress is string
+        && data.city is string
+        && data.country is string;
+    }
+
+    function isValidWishlistItem(data) {
+      return data.keys().hasAll(['id', 'userId', 'productId'])
+        && data.userId == request.auth.uid
+        && data.id is string
+        && data.productId is string;
+    }
+
+    function isValidCartItem(data) {
+      return data.keys().hasAll(['id', 'userId', 'productId', 'quantity'])
+        && data.userId == request.auth.uid
+        && data.id is string
+        && data.productId is string
+        && data.quantity is int && data.quantity > 0;
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll(['id', 'userId', 'totalAmount', 'status', 'shippingAddress', 'paymentMethod', 'paymentStatus'])
+        && data.userId == request.auth.uid
+        && data.id is string
+        && data.totalAmount is number && data.totalAmount >= 0
+        && data.status in ['Pending', 'Confirmed', 'Packaging', 'Out for Delivery', 'Delivered', 'Cancelled']
+        && data.shippingAddress is string
+        && data.paymentMethod is string
+        && data.paymentStatus in ['Pending', 'Verified', 'Failed', 'Refunded'];
+    }
+
+    function isValidOrderItem(data) {
+      return data.keys().hasAll(['id', 'orderId', 'productId', 'productName', 'price', 'quantity'])
+        && data.id is string
+        && data.orderId is string
+        && data.productId is string
+        && data.productName is string
+        && data.price is number && data.price >= 0
+        && data.quantity is int && data.quantity > 0;
+    }
+
+    function isValidReview(data) {
+      return data.keys().hasAll(['id', 'userId', 'productId', 'rating'])
+        && data.userId == request.auth.uid
+        && data.id is string
+        && data.productId is string
+        && data.rating is int && data.rating >= 1 && data.rating <= 5;
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll(['id', 'userId', 'title', 'message', 'read'])
+        && data.userId == request.auth.uid
+        && data.id is string
+        && data.title is string
+        && data.message is string
+        && data.read is bool;
+    }
+
+    // Profiles rules
+    match /profiles/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow create: if isOwner(userId) && isValidId(userId) && isValidProfile(request.resource.data, userId);
+      allow update: if isOwner(userId) && isValidId(userId) && isValidProfile(request.resource.data, userId);
+      allow delete: if isOwner(userId) && isValidId(userId);
+    }
+
+    // Addresses rules
+    match /addresses/{addressId} {
+      allow get: if isAuthenticated() && isValidId(addressId) && resource.data.userId == request.auth.uid;
+      allow list: if isAuthenticated() && request.query.limit <= 100;
+      allow create: if isAuthenticated() && isValidId(addressId) && isValidAddress(request.resource.data);
+      allow update: if isAuthenticated() && isValidId(addressId) && resource.data.userId == request.auth.uid && isValidAddress(request.resource.data);
+      allow delete: if isAuthenticated() && isValidId(addressId) && resource.data.userId == request.auth.uid;
+    }
+
+    // Wishlist rules
+    match /wishlist/{wishlistId} {
+      allow get: if isAuthenticated() && isValidId(wishlistId) && resource.data.userId == request.auth.uid;
+      allow list: if isAuthenticated() && request.query.limit <= 100;
+      allow create: if isAuthenticated() && isValidId(wishlistId) && isValidWishlistItem(request.resource.data);
+      allow update: if isAuthenticated() && isValidId(wishlistId) && resource.data.userId == request.auth.uid && isValidWishlistItem(request.resource.data);
+      allow delete: if isAuthenticated() && isValidId(wishlistId) && resource.data.userId == request.auth.uid;
+    }
+
+    // Cart rules
+    match /cart/{cartId} {
+      allow get: if isAuthenticated() && isValidId(cartId) && resource.data.userId == request.auth.uid;
+      allow list: if isAuthenticated() && request.query.limit <= 100;
+      allow create: if isAuthenticated() && isValidId(cartId) && isValidCartItem(request.resource.data);
+      allow update: if isAuthenticated() && isValidId(cartId) && resource.data.userId == request.auth.uid && isValidCartItem(request.resource.data);
+      allow delete: if isAuthenticated() && isValidId(cartId) && resource.data.userId == request.auth.uid;
+    }
+
+    // Orders rules
+    match /orders/{orderId} {
+      allow get: if isAuthenticated() && isValidId(orderId) && (resource.data.userId == request.auth.uid || request.auth.token.admin == true);
+      allow list: if isAuthenticated() && request.query.limit <= 100;
+      allow create: if isAuthenticated() && isValidId(orderId) && isValidOrder(request.resource.data);
+      allow update: if isAuthenticated() && isValidId(orderId) && (resource.data.userId == request.auth.uid || request.auth.token.admin == true) && isValidOrder(request.resource.data);
+      allow delete: if isAuthenticated() && isValidId(orderId) && (resource.data.userId == request.auth.uid || request.auth.token.admin == true);
+
+      // Order items subcollection
+      match /items/{itemId} {
+        allow get: if isAuthenticated() && isValidId(itemId) && get(/databases/$(database)/documents/orders/$(orderId)).data.userId == request.auth.uid;
+        allow list: if isAuthenticated() && get(/databases/$(database)/documents/orders/$(orderId)).data.userId == request.auth.uid;
+        allow create: if isAuthenticated() && isValidId(itemId) && get(/databases/$(database)/documents/orders/$(orderId)).data.userId == request.auth.uid && isValidOrderItem(request.resource.data);
+        allow update: if isAuthenticated() && isValidId(itemId) && get(/databases/$(database)/documents/orders/$(orderId)).data.userId == request.auth.uid && isValidOrderItem(request.resource.data);
+        allow delete: if isAuthenticated() && isValidId(itemId) && get(/databases/$(database)/documents/orders/$(orderId)).data.userId == request.auth.uid;
+      }
+    }
+
+    // Reviews rules
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && isValidId(reviewId) && isValidReview(request.resource.data);
+      allow update: if isAuthenticated() && isValidId(reviewId) && resource.data.userId == request.auth.uid && isValidReview(request.resource.data);
+      allow delete: if isAuthenticated() && isValidId(reviewId) && resource.data.userId == request.auth.uid;
+    }
+
+    // Coupons rules
+    match /coupons/{couponId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    // Notifications rules
+    match /notifications/{notificationId} {
+      allow get: if isAuthenticated() && isValidId(notificationId) && resource.data.userId == request.auth.uid;
+      allow list: if isAuthenticated() && request.query.limit <= 100;
+      allow create: if isAuthenticated() && isValidId(notificationId) && isValidNotification(request.resource.data);
+      allow update: if isAuthenticated() && isValidId(notificationId) && resource.data.userId == request.auth.uid && isValidNotification(request.resource.data);
+      allow delete: if isAuthenticated() && isValidId(notificationId) && resource.data.userId == request.auth.uid;
+    }
+  }
+}

@@ -9,7 +9,7 @@ create extension if not exists "uuid-ossp";
 --------------------------------------------------------------------------------
 
 -- profiles table (automatically synced via trigger from auth.users)
-create table if nulls distinct public.profiles (
+create table if not exists public.profiles (
   id uuid references auth.users on delete cascade primary key,
   email text not null,
   full_name text,
@@ -122,33 +122,45 @@ alter table public.notifications enable row level security;
 --------------------------------------------------------------------------------
 
 -- PROFILES Policies
+drop policy if exists "Users can view their own profile" on public.profiles;
+drop policy if exists "Users can view own profile" on public.profiles;
 create policy "Users can view their own profile" on public.profiles
   for select using (auth.uid() = id);
 
+drop policy if exists "Users can update their own profile" on public.profiles;
+drop policy if exists "Users can update own profile" on public.profiles;
 create policy "Users can update their own profile" on public.profiles
   for update using (auth.uid() = id);
 
 -- ADDRESSES Policies
+drop policy if exists "Users can manage their own addresses" on public.addresses;
 create policy "Users can manage their own addresses" on public.addresses
   for all using (auth.uid() = user_id);
 
 -- WISHLIST Policies
+drop policy if exists "Users can manage their own wishlist items" on public.wishlist;
 create policy "Users can manage their own wishlist items" on public.wishlist
   for all using (auth.uid() = user_id);
 
 -- CART Policies
+drop policy if exists "Users can manage their own cart" on public.cart;
 create policy "Users can manage their own cart" on public.cart
   for all using (auth.uid() = user_id);
 
 -- ORDERS Policies
+drop policy if exists "Users can read their own orders" on public.orders;
+drop policy if exists "Users can view own orders" on public.orders;
 create policy "Users can read their own orders" on public.orders
   for select using (auth.uid() = user_id);
 
+drop policy if exists "Users can create their own orders" on public.orders;
+drop policy if exists "Users can insert own orders" on public.orders;
 create policy "Users can create their own orders" on public.orders
   for insert with check (auth.uid() = user_id);
 
 -- ORDER ITEMS Policies
 -- Users can see order items of their own orders
+drop policy if exists "Users can see items of their own orders" on public.order_items;
 create policy "Users can see items of their own orders" on public.order_items
   for select using (
     exists (
@@ -158,6 +170,7 @@ create policy "Users can see items of their own orders" on public.order_items
     )
   );
 
+drop policy if exists "Users can create items for their own orders" on public.order_items;
 create policy "Users can create items for their own orders" on public.order_items
   for insert with check (
     exists (
@@ -168,20 +181,25 @@ create policy "Users can create items for their own orders" on public.order_item
   );
 
 -- REVIEWS Policies
+drop policy if exists "Anyone can read reviews" on public.reviews;
 create policy "Anyone can read reviews" on public.reviews
   for select using (true);
 
+drop policy if exists "Authenticated users can create reviews" on public.reviews;
 create policy "Authenticated users can create reviews" on public.reviews
   for insert with check (auth.uid() = user_id);
 
+drop policy if exists "Users can update/delete their own reviews" on public.reviews;
 create policy "Users can update/delete their own reviews" on public.reviews
   for all using (auth.uid() = user_id);
 
 -- COUPONS Policies
+drop policy if exists "Anyone can view active coupons" on public.coupons;
 create policy "Anyone can view active coupons" on public.coupons
   for select using (active = true);
 
 -- NOTIFICATIONS Policies
+drop policy if exists "Users can view and manage their own notifications" on public.notifications;
 create policy "Users can view and manage their own notifications" on public.notifications
   for all using (auth.uid() = user_id);
 

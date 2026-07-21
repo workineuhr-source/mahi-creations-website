@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Product, CartItem, Order, OrderStatus, BoutiqueSettings, ProductReview, UserSession } from './types';
 import { INITIAL_PRODUCTS, DELIVERY_LOCATIONS, DEFAULT_PROMO_SLIDES } from './data';
-import { supabase, isSupabaseConfigured } from './lib/supabase';
+import { auth, db, isFirebaseConfigured } from './lib/firebase';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import AuthModal from './components/AuthModal';
@@ -699,8 +701,8 @@ export default function App() {
   };
 
   const handleLogout = () => {
-    if (isSupabaseConfigured) {
-      supabase.auth.signOut().catch(err => console.error("Error signing out from Supabase:", err));
+    if (isFirebaseConfigured) {
+      signOut(auth).catch(err => console.error("Error signing out from Firebase:", err));
     }
     setUserSession(null);
     setIsAdminLoggedIn(false);
@@ -708,28 +710,42 @@ export default function App() {
     localStorage.removeItem('mahi_admin_logged_in');
   };
 
-  // Listen for Supabase Authentication State Changes
+  // Listen for Firebase Authentication State Changes
   useEffect(() => {
-    if (isSupabaseConfigured) {
+    if (isFirebaseConfigured) {
       const syncSessionProfile = async (user: any) => {
         try {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', user.id)
-            .maybeSingle();
+          const docRef = doc(db, 'profiles', user.uid);
+          const docSnap = await getDoc(docRef);
+          let profile = docSnap.exists() ? docSnap.data() : null;
+
+          if (!profile) {
+            // First-time signup profile initialization
+            profile = {
+              id: user.uid,
+              email: user.email || `${user.phoneNumber || user.uid}@mahiboutique.com`,
+              fullName: user.displayName || '',
+              phone: user.phoneNumber || '',
+              avatarUrl: user.photoURL || '',
+              address: 'Kathmandu, Nepal',
+              is_admin: user.email === 'admin@mahiboutique.com' || user.email === 'workineuhr@gmail.com',
+              role: (user.email === 'admin@mahiboutique.com' || user.email === 'workineuhr@gmail.com') ? 'admin' : 'customer'
+            };
+            await setDoc(docRef, profile);
+          }
 
           const isAdmin = 
             profile?.is_admin === true || 
             profile?.role === 'admin' || 
-            user.email === 'admin@mahiboutique.com';
+            user.email === 'admin@mahiboutique.com' ||
+            user.email === 'workineuhr@gmail.com';
 
           const mappedSession: UserSession = {
-            fullName: profile?.full_name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'VIP Member',
-            phone: profile?.phone || user.user_metadata?.phone || '9801234567',
+            fullName: profile?.fullName || profile?.full_name || user.displayName || user.email?.split('@')[0] || 'VIP Member',
+            phone: profile?.phone || user.phoneNumber || '9801234567',
             address: profile?.address || 'Kathmandu, Nepal',
             country: 'Nepal',
-            whatsapp: profile?.phone || user.user_metadata?.phone || '9801234567',
+            whatsapp: profile?.phone || user.phoneNumber || '9801234567',
             location: 'Kathmandu'
           };
 
@@ -738,24 +754,17 @@ export default function App() {
 
           if (isAdmin) {
             setIsAdminLoggedIn(true);
+            localStorage.setItem('mahi_admin_logged_in', 'true');
           }
         } catch (err) {
-          console.error("Error loading profile from Supabase:", err);
+          console.error("Error loading profile from Firebase:", err);
         }
       };
 
-      // Check initial session
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session?.user) {
-          syncSessionProfile(session.user);
-        }
-      });
-
-      // Setup active subscription listener
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-        if (session?.user) {
-          syncSessionProfile(session.user);
-        } else if (event === 'SIGNED_OUT') {
+      const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        if (user) {
+          await syncSessionProfile(user);
+        } else {
           setUserSession(null);
           setIsAdminLoggedIn(false);
           localStorage.removeItem('mahi_session_v1');
@@ -764,7 +773,7 @@ export default function App() {
       });
 
       return () => {
-        subscription.unsubscribe();
+        unsubscribe();
       };
     }
   }, []);

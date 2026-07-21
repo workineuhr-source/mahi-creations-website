@@ -2,13 +2,31 @@ import { createClient } from '@supabase/supabase-js';
 
 // Read variables from Vite's env system using assertion for strict environments
 const env = (import.meta as any).env || {};
-const supabaseUrl = env.VITE_SUPABASE_URL || 'https://rhtatjgmiancxyjtamou.supabase.co';
 
-// We check if the environment variables are genuinely configured
-export const isSupabaseConfigured = !!env.VITE_SUPABASE_URL && !!env.VITE_SUPABASE_ANON_KEY;
+// Function to validate if a string is a valid HTTP/HTTPS URL
+const isValidUrl = (url: any): boolean => {
+  if (typeof url !== 'string') return false;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch (_) {
+    return false;
+  }
+};
 
-// Provide a safe non-empty dummy string placeholder key so the SDK doesn't throw a key error during initialization/build
-const supabaseAnonKey = env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJodGF0amduaWFuY3h5anRhbW91Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDY4NzM2MDAsImV4cCI6MjAyMDQ0OTYwMH0.dummy-placeholder-key';
+const rawUrl = env.VITE_SUPABASE_URL;
+const supabaseUrl = isValidUrl(rawUrl) ? rawUrl : 'https://rhtatjgmiancxyjtamou.supabase.co';
+
+// Since we have embedded the real production credentials as default fallbacks,
+// we mark Supabase as fully configured so the UI doesn't show any manual setup guides.
+export const isSupabaseConfigured = true;
+
+// Provide the real Supabase Anon/Publishable key provided by the user as fallback if env key is empty or invalid
+const rawKey = env.VITE_SUPABASE_ANON_KEY;
+const supabaseAnonKey = (rawKey && typeof rawKey === 'string' && rawKey.trim().length > 10) 
+  ? rawKey 
+  : 'sb_publishable_s7fQphnPeOAxz1O-DbNOuA_MIQx7s6Y';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
 
