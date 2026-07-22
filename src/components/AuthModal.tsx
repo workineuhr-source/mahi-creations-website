@@ -24,8 +24,6 @@ export default function AuthModal({
   registeredUsers = [],
   onRegisterUser
 }: AuthModalProps) {
-  if (!isOpen) return null;
-
   const [isSignUp, setIsSignUp] = useState(false);
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
@@ -45,6 +43,8 @@ export default function AuthModal({
   const [otpCode, setOtpCode] = useState('');
   const [verificationId, setVerificationId] = useState<any>(null);
   const [otpSent, setOtpSent] = useState(false);
+
+  if (!isOpen) return null;
 
   const handleGoogleLogin = async () => {
     setError('');
@@ -71,8 +71,8 @@ export default function AuthModal({
             phone: credentials.user.phoneNumber || '',
             avatarUrl: credentials.user.photoURL || '',
             address: 'Kathmandu, Nepal',
-            is_admin: credentials.user.email === 'admin@mahiboutique.com' || credentials.user.email === 'workineuhr@gmail.com',
-            role: (credentials.user.email === 'admin@mahiboutique.com' || credentials.user.email === 'workineuhr@gmail.com') ? 'admin' : 'customer'
+            is_admin: credentials.user.email === 'admin@mahiboutique.com' || credentials.user.email === 'workineuhr@gmail.com' || credentials.user.email === 'mahicreations369@gmail.com',
+            role: (credentials.user.email === 'admin@mahiboutique.com' || credentials.user.email === 'workineuhr@gmail.com' || credentials.user.email === 'mahicreations369@gmail.com') ? 'admin' : 'customer'
           };
           await setDoc(docRef, profile);
         }
@@ -231,6 +231,7 @@ export default function AuthModal({
             profile?.role === 'admin' || 
             credentials.user.email === 'admin@mahiboutique.com' ||
             credentials.user.email === 'workineuhr@gmail.com' ||
+            credentials.user.email === 'mahicreations369@gmail.com' ||
             inputUser.toLowerCase() === settings.adminUser.trim().toLowerCase() ||
             inputUser.toLowerCase() === 'admin';
 

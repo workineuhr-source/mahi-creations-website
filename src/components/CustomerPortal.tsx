@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Order, Product, ProductReview, UserSession, OrderStatus } from '../types';
+import { Order, Product, ProductReview, UserSession, OrderStatus, SavedBankCard, SavedBankAccount, SavedDigitalWallet } from '../types';
 import { 
   User, Phone, MapPin, Search, Star, MessageSquare, LogOut, CheckCircle2, 
   ShoppingBag, Truck, Calendar, Clock, CreditCard, ChevronRight, ChevronLeft, Sparkles, Printer, AlertCircle, Check, Download, Camera, X, Heart, Trash2,
-  Mail, Lock, ShieldAlert, ExternalLink
+  Mail, Lock, ShieldAlert, ExternalLink, Building2, Wallet, Plus, Edit2, Save, Globe, Upload, ShieldCheck, Key
 } from 'lucide-react';
 import { formatPrice, CurrencyCode, getProductDisplayPrices } from '../utils/currency';
 import { generateOrderReceiptPDF } from '../utils/pdfGenerator';
@@ -86,7 +86,7 @@ export default function CustomerPortal({
   const [location, setLocation] = useState('');
   const [loginError, setLoginError] = useState('');
 
-  // Supabase Auth States
+  // Firebase Auth States
   const [authTab, setAuthTab] = useState<'signin' | 'signup' | 'forgot' | 'guest'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -129,8 +129,8 @@ export default function CustomerPortal({
             phone: credentials.user.phoneNumber || '',
             avatarUrl: credentials.user.photoURL || '',
             address: 'Kathmandu, Nepal',
-            is_admin: credentials.user.email === 'admin@mahiboutique.com' || credentials.user.email === 'workineuhr@gmail.com',
-            role: (credentials.user.email === 'admin@mahiboutique.com' || credentials.user.email === 'workineuhr@gmail.com') ? 'admin' : 'customer'
+            is_admin: credentials.user.email === 'admin@mahiboutique.com' || credentials.user.email === 'workineuhr@gmail.com' || credentials.user.email === 'mahicreations369@gmail.com',
+            role: (credentials.user.email === 'admin@mahiboutique.com' || credentials.user.email === 'workineuhr@gmail.com' || credentials.user.email === 'mahicreations369@gmail.com') ? 'admin' : 'customer'
           };
           await setDoc(docRef, profile);
         }
@@ -278,6 +278,311 @@ export default function CustomerPortal({
   const [manualSearchId, setManualSearchId] = useState('');
   const [manualOrder, setManualOrder] = useState<Order | null>(null);
   const [manualError, setManualError] = useState('');
+
+  // Portal navigation tab state
+  const [portalTab, setPortalTab] = useState<'orders' | 'profile' | 'payments'>('orders');
+
+  // Edit Profile States
+  const [editFullName, setEditFullName] = useState(userSession?.fullName || '');
+  const [editEmail, setEditEmail] = useState(userSession?.email || '');
+  const [editPhone, setEditPhone] = useState(userSession?.phone || '');
+  const [editWhatsapp, setEditWhatsapp] = useState(userSession?.whatsapp || '');
+  const [editAddress, setEditAddress] = useState(userSession?.address || '');
+  const [editCountry, setEditCountry] = useState(userSession?.country || 'Nepal');
+  const [editLocation, setEditLocation] = useState(userSession?.location || '');
+  const [editAvatarUrl, setEditAvatarUrl] = useState(userSession?.avatarUrl || '');
+  const [profileSaveMsg, setProfileSaveMsg] = useState('');
+  const [profileSaveError, setProfileSaveError] = useState('');
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
+  // Sync edit profile form whenever userSession updates
+  React.useEffect(() => {
+    if (userSession) {
+      setEditFullName(userSession.fullName || '');
+      setEditEmail(userSession.email || '');
+      setEditPhone(userSession.phone || '');
+      setEditWhatsapp(userSession.whatsapp || userSession.phone || '');
+      setEditAddress(userSession.address || '');
+      setEditCountry(userSession.country || 'Nepal');
+      setEditLocation(userSession.location || '');
+      setEditAvatarUrl(userSession.avatarUrl || '');
+    }
+  }, [userSession]);
+
+  // Payment Methods States & Modals
+  const [cardModalOpen, setCardModalOpen] = useState(false);
+  const [editingCardId, setEditingCardId] = useState<string | null>(null);
+  const [cardholderName, setCardholderName] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
+  const [expiryMonth, setExpiryMonth] = useState('12');
+  const [expiryYear, setExpiryYear] = useState('28');
+  const [cardType, setCardType] = useState<'Visa' | 'Mastercard' | 'Amex' | 'UnionPay' | 'Other'>('Visa');
+
+  const [bankModalOpen, setBankModalOpen] = useState(false);
+  const [editingBankId, setEditingBankId] = useState<string | null>(null);
+  const [bankName, setBankName] = useState('');
+  const [accountName, setAccountName] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [branchName, setBranchName] = useState('');
+  const [swiftOrRouting, setSwiftOrRouting] = useState('');
+
+  const [walletModalOpen, setWalletModalOpen] = useState(false);
+  const [editingWalletId, setEditingWalletId] = useState<string | null>(null);
+  const [walletProvider, setWalletProvider] = useState<'eSewa' | 'Khalti' | 'Fonepay' | 'PayTM' | 'GCash' | 'PayPal' | 'Other'>('eSewa');
+  const [walletId, setWalletId] = useState('');
+  const [walletAccountName, setWalletAccountName] = useState('');
+
+  // Sync session across state, local storage and firestore
+  const syncUpdatedSession = async (updatedSession: UserSession) => {
+    onLogin(updatedSession);
+    localStorage.setItem('mahi_session_v1', JSON.stringify(updatedSession));
+
+    if (isFirebaseConfigured && auth.currentUser) {
+      try {
+        const docRef = doc(db, 'profiles', auth.currentUser.uid);
+        await setDoc(docRef, {
+          id: auth.currentUser.uid,
+          fullName: updatedSession.fullName,
+          email: updatedSession.email || '',
+          phone: updatedSession.phone,
+          whatsapp: updatedSession.whatsapp || updatedSession.phone,
+          address: updatedSession.address,
+          country: updatedSession.country || 'Nepal',
+          location: updatedSession.location || '',
+          avatarUrl: updatedSession.avatarUrl || '',
+          savedCards: updatedSession.savedCards || [],
+          savedBankAccounts: updatedSession.savedBankAccounts || [],
+          savedWallets: updatedSession.savedWallets || []
+        }, { merge: true });
+      } catch (err) {
+        console.error('Error syncing profile to Firestore:', err);
+      }
+    }
+  };
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProfileSaveMsg('');
+    setProfileSaveError('');
+    setIsUpdatingProfile(true);
+
+    try {
+      const updatedSession: UserSession = {
+        ...userSession!,
+        fullName: editFullName.trim(),
+        email: editEmail.trim(),
+        phone: editPhone.trim(),
+        whatsapp: editWhatsapp.trim() || editPhone.trim(),
+        address: editAddress.trim(),
+        country: editCountry.trim() || 'Nepal',
+        location: editLocation.trim() || editAddress.trim().split(',')[0],
+        avatarUrl: editAvatarUrl.trim()
+      };
+
+      await syncUpdatedSession(updatedSession);
+      setProfileSaveMsg('Profile updated successfully!');
+      setTimeout(() => setProfileSaveMsg(''), 4000);
+    } catch (err: any) {
+      setProfileSaveError(err.message || 'Error updating profile.');
+    } finally {
+      setIsUpdatingProfile(false);
+    }
+  };
+
+  const handleDeleteProfile = async () => {
+    setIsDeletingAccount(true);
+    try {
+      if (isFirebaseConfigured && auth.currentUser) {
+        const docRef = doc(db, 'profiles', auth.currentUser.uid);
+        await setDoc(docRef, {
+          deleted: true,
+          deletedAt: new Date().toISOString()
+        }, { merge: true });
+      }
+
+      localStorage.removeItem('mahi_session_v1');
+      onLogout();
+      setShowDeleteConfirmModal(false);
+      alert('Your profile and local session data have been deleted.');
+    } catch (err: any) {
+      alert('Error deleting profile: ' + (err.message || 'Please try again.'));
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
+
+  // CARD HANDLERS
+  const handleOpenCardModal = (card?: SavedBankCard) => {
+    if (card) {
+      setEditingCardId(card.id);
+      setCardholderName(card.cardholderName);
+      setCardNumber(card.cardNumber);
+      setExpiryMonth(card.expiryMonth);
+      setExpiryYear(card.expiryYear);
+      setCardType(card.cardType);
+    } else {
+      setEditingCardId(null);
+      setCardholderName(userSession?.fullName || '');
+      setCardNumber('');
+      setExpiryMonth('12');
+      setExpiryYear('28');
+      setCardType('Visa');
+    }
+    setCardModalOpen(true);
+  };
+
+  const handleSaveCard = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cardholderName.trim() || !cardNumber.trim()) return;
+
+    const rawNumber = cardNumber.replace(/\s+/g, '');
+    let displayNum = rawNumber;
+    if (rawNumber.length >= 12 && !rawNumber.includes('•')) {
+      displayNum = `•••• •••• •••• ${rawNumber.slice(-4)}`;
+    }
+
+    const cardObj: SavedBankCard = {
+      id: editingCardId || 'card-' + Date.now(),
+      cardholderName: cardholderName.trim(),
+      cardNumber: displayNum,
+      expiryMonth,
+      expiryYear,
+      cardType
+    };
+
+    let existingCards = userSession?.savedCards ? [...userSession.savedCards] : [];
+    if (editingCardId) {
+      existingCards = existingCards.map(c => c.id === editingCardId ? cardObj : c);
+    } else {
+      existingCards.push(cardObj);
+    }
+
+    await syncUpdatedSession({
+      ...userSession!,
+      savedCards: existingCards
+    });
+
+    setCardModalOpen(false);
+  };
+
+  const handleDeleteCard = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this saved card?')) return;
+    const filtered = (userSession?.savedCards || []).filter(c => c.id !== id);
+    await syncUpdatedSession({
+      ...userSession!,
+      savedCards: filtered
+    });
+  };
+
+  // BANK ACCOUNT HANDLERS
+  const handleOpenBankModal = (bank?: SavedBankAccount) => {
+    if (bank) {
+      setEditingBankId(bank.id);
+      setBankName(bank.bankName);
+      setAccountName(bank.accountName);
+      setAccountNumber(bank.accountNumber);
+      setBranchName(bank.branchName || '');
+      setSwiftOrRouting(bank.swiftOrRouting || '');
+    } else {
+      setEditingBankId(null);
+      setBankName('Nabil Bank');
+      setAccountName(userSession?.fullName || '');
+      setAccountNumber('');
+      setBranchName('');
+      setSwiftOrRouting('');
+    }
+    setBankModalOpen(true);
+  };
+
+  const handleSaveBankAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bankName.trim() || !accountName.trim() || !accountNumber.trim()) return;
+
+    const bankObj: SavedBankAccount = {
+      id: editingBankId || 'bank-' + Date.now(),
+      bankName: bankName.trim(),
+      accountName: accountName.trim(),
+      accountNumber: accountNumber.trim(),
+      branchName: branchName.trim(),
+      swiftOrRouting: swiftOrRouting.trim()
+    };
+
+    let existingBanks = userSession?.savedBankAccounts ? [...userSession.savedBankAccounts] : [];
+    if (editingBankId) {
+      existingBanks = existingBanks.map(b => b.id === editingBankId ? bankObj : b);
+    } else {
+      existingBanks.push(bankObj);
+    }
+
+    await syncUpdatedSession({
+      ...userSession!,
+      savedBankAccounts: existingBanks
+    });
+
+    setBankModalOpen(false);
+  };
+
+  const handleDeleteBankAccount = async (id: string) => {
+    if (!confirm('Are you sure you want to remove this saved bank account?')) return;
+    const filtered = (userSession?.savedBankAccounts || []).filter(b => b.id !== id);
+    await syncUpdatedSession({
+      ...userSession!,
+      savedBankAccounts: filtered
+    });
+  };
+
+  // DIGITAL WALLET HANDLERS
+  const handleOpenWalletModal = (wallet?: SavedDigitalWallet) => {
+    if (wallet) {
+      setEditingWalletId(wallet.id);
+      setWalletProvider(wallet.walletProvider);
+      setWalletId(wallet.walletId);
+      setWalletAccountName(wallet.accountName);
+    } else {
+      setEditingWalletId(null);
+      setWalletProvider('eSewa');
+      setWalletId(userSession?.phone || '');
+      setWalletAccountName(userSession?.fullName || '');
+    }
+    setWalletModalOpen(true);
+  };
+
+  const handleSaveWallet = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!walletId.trim() || !walletAccountName.trim()) return;
+
+    const walletObj: SavedDigitalWallet = {
+      id: editingWalletId || 'wallet-' + Date.now(),
+      walletProvider,
+      walletId: walletId.trim(),
+      accountName: walletAccountName.trim()
+    };
+
+    let existingWallets = userSession?.savedWallets ? [...userSession.savedWallets] : [];
+    if (editingWalletId) {
+      existingWallets = existingWallets.map(w => w.id === editingWalletId ? walletObj : w);
+    } else {
+      existingWallets.push(walletObj);
+    }
+
+    await syncUpdatedSession({
+      ...userSession!,
+      savedWallets: existingWallets
+    });
+
+    setWalletModalOpen(false);
+  };
+
+  const handleDeleteWallet = async (id: string) => {
+    if (!confirm('Are you sure you want to remove this saved digital wallet?')) return;
+    const filtered = (userSession?.savedWallets || []).filter(w => w.id !== id);
+    await syncUpdatedSession({
+      ...userSession!,
+      savedWallets: filtered
+    });
+  };
 
   // Filter orders for the logged-in customer
   const matchedOrders = userSession 
@@ -982,15 +1287,19 @@ export default function CustomerPortal({
         ) : (
           
           /* LOGGED IN ACTIVE DASHBOARD VIEW */
-          <div className="space-y-8 animate-fade-in">
+          <div className="space-y-6 animate-fade-in">
             
             {/* LOGGED IN USER BAR */}
             <div className="bg-dark text-white p-6 sm:p-8 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xl border border-white/5">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-full bg-brand/20 border border-brand/35 flex items-center justify-center text-brand">
-                  <User className="w-7 h-7" />
+                <div className="w-14 h-14 rounded-full bg-brand/20 border border-brand/35 flex items-center justify-center text-brand overflow-hidden flex-shrink-0">
+                  {userSession.avatarUrl ? (
+                    <img src={userSession.avatarUrl} alt={userSession.fullName} className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="w-7 h-7" />
+                  )}
                 </div>
-                <div>
+                <div className="text-left">
                   <div className="flex items-center gap-2">
                     <h3 className="font-serif text-lg sm:text-xl font-bold tracking-wide text-white">
                       Namaste, {userSession.fullName}!
@@ -999,7 +1308,10 @@ export default function CustomerPortal({
                       Verified VIP
                     </span>
                   </div>
-                  <p className="text-neutral-400 text-xs mt-0.5 flex items-center gap-3">
+                  <p className="text-neutral-400 text-xs mt-0.5 flex flex-wrap items-center gap-3">
+                    {userSession.email && (
+                      <span className="flex items-center gap-1 font-mono"><Mail className="w-3.5 h-3.5 text-neutral-500" /> {userSession.email}</span>
+                    )}
                     <span className="flex items-center gap-1 font-mono"><Phone className="w-3.5 h-3.5 text-neutral-500" /> {userSession.phone}</span>
                     <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-neutral-500" /> {userSession.address}</span>
                   </p>
@@ -1023,7 +1335,57 @@ export default function CustomerPortal({
               </div>
             </div>
 
-            {/* TWO-COLUMN GRID IN CUSTOMER LOUNGE */}
+            {/* DASHBOARD NAVIGATION TABS */}
+            <div className="flex flex-wrap gap-2 border-b border-clay pb-3">
+              <button
+                onClick={() => setPortalTab('orders')}
+                className={`px-5 py-3 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition cursor-pointer ${
+                  portalTab === 'orders'
+                    ? 'bg-dark text-white shadow-md'
+                    : 'bg-white text-neutral-600 hover:bg-clay-light border border-clay'
+                }`}
+              >
+                <ShoppingBag className="w-4 h-4 text-brand" />
+                <span>My Bookings & Orders</span>
+                {matchedOrders.length > 0 && (
+                  <span className="bg-brand text-white text-[10px] px-2 py-0.5 rounded-full font-bold ml-1">
+                    {matchedOrders.length}
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => setPortalTab('profile')}
+                className={`px-5 py-3 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition cursor-pointer ${
+                  portalTab === 'profile'
+                    ? 'bg-dark text-white shadow-md'
+                    : 'bg-white text-neutral-600 hover:bg-clay-light border border-clay'
+                }`}
+              >
+                <User className="w-4 h-4 text-brand" />
+                <span>Edit Profile & Account</span>
+              </button>
+
+              <button
+                onClick={() => setPortalTab('payments')}
+                className={`px-5 py-3 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition cursor-pointer ${
+                  portalTab === 'payments'
+                    ? 'bg-dark text-white shadow-md'
+                    : 'bg-white text-neutral-600 hover:bg-clay-light border border-clay'
+                }`}
+              >
+                <CreditCard className="w-4 h-4 text-brand" />
+                <span>Bank Cards, Accounts & Wallets</span>
+                {((userSession.savedCards?.length || 0) + (userSession.savedBankAccounts?.length || 0) + (userSession.savedWallets?.length || 0)) > 0 && (
+                  <span className="bg-emerald-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold ml-1">
+                    {(userSession.savedCards?.length || 0) + (userSession.savedBankAccounts?.length || 0) + (userSession.savedWallets?.length || 0)}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* TAB 1: ORDERS & BOOKINGS */}
+            {portalTab === 'orders' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               
               {/* LEFT & CENTER PORTION: MY SAMAN TRACKING LIST */}
@@ -1659,6 +2021,487 @@ export default function CustomerPortal({
               </div>
 
             </div>
+            )}
+
+            {/* TAB 2: PROFILE & PERSONAL DETAILS */}
+            {portalTab === 'profile' && (
+              <div className="bg-white p-6 sm:p-8 rounded-3xl border border-clay shadow-md space-y-8 animate-fade-in text-xs">
+                
+                {/* Section Header */}
+                <div className="flex items-center justify-between border-b border-clay pb-4 text-left">
+                  <div className="space-y-1">
+                    <h4 className="font-serif text-xl font-bold text-dark uppercase tracking-wider flex items-center gap-2">
+                      <User className="w-5 h-5 text-brand" />
+                      VIP Profile & Personal Settings
+                    </h4>
+                    <p className="text-neutral-500 text-[11px]">
+                      Manage your profile photo, full address, country, phone, WhatsApp, and Gmail details.
+                    </p>
+                  </div>
+                  <span className="bg-emerald-50 text-emerald-700 text-[10px] font-bold px-3 py-1 rounded-full uppercase border border-emerald-200">
+                    Active Profile
+                  </span>
+                </div>
+
+                {/* Profile Form */}
+                <form onSubmit={handleUpdateProfile} className="space-y-6">
+                  
+                  {/* Profile Photo Avatar Selection */}
+                  <div className="bg-bg-warm/30 p-5 rounded-2xl border border-clay space-y-4 text-left">
+                    <label className="font-bold text-dark uppercase tracking-wider block text-xs flex items-center gap-2">
+                      <Camera className="w-4 h-4 text-brand" />
+                      Profile Photo / Avatar Image
+                    </label>
+                    
+                    <div className="flex flex-col sm:flex-row items-center gap-5">
+                      {/* Current Avatar Display */}
+                      <div className="w-20 h-20 rounded-full border-2 border-brand/40 overflow-hidden bg-neutral-100 flex-shrink-0 flex items-center justify-center text-brand shadow-md">
+                        {editAvatarUrl ? (
+                          <img src={editAvatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                        ) : (
+                          <User className="w-10 h-10" />
+                        )}
+                      </div>
+
+                      <div className="space-y-2 w-full text-left">
+                        <input
+                          type="text"
+                          placeholder="Paste Image URL or select preset below... (https://...)"
+                          value={editAvatarUrl}
+                          onChange={(e) => setEditAvatarUrl(e.target.value)}
+                          className="w-full text-xs p-3 bg-white border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-mono"
+                        />
+                        
+                        {/* Quick Avatar Presets */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[10px] text-neutral-400 font-bold uppercase">Preset Photos:</span>
+                          {[
+                            { name: 'Royal Queen', url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80' },
+                            { name: 'Bridal Glow', url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=300&q=80' },
+                            { name: 'Glow Beauty', url: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=300&q=80' },
+                            { name: 'Classic Gold', url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80' }
+                          ].map((preset, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => setEditAvatarUrl(preset.url)}
+                              className="text-[9.5px] bg-white hover:bg-brand/10 border border-clay px-2.5 py-1 rounded-lg transition font-medium text-neutral-700 cursor-pointer"
+                            >
+                              ✨ {preset.name}
+                            </button>
+                          ))}
+                          {editAvatarUrl && (
+                            <button
+                              type="button"
+                              onClick={() => setEditAvatarUrl('')}
+                              className="text-[9.5px] text-rose-600 font-bold hover:underline cursor-pointer"
+                            >
+                              Clear Photo
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Grid of Inputs */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
+                    
+                    {/* Full Name */}
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-neutral-700 uppercase tracking-wider block text-[10px]">
+                        Full Name <span className="text-brand">*</span>
+                      </label>
+                      <div className="relative">
+                        <User className="w-4 h-4 text-neutral-400 absolute left-3 top-3" />
+                        <input
+                          type="text"
+                          required
+                          value={editFullName}
+                          onChange={(e) => setEditFullName(e.target.value)}
+                          placeholder="e.g. Mahi Shrestha"
+                          className="w-full text-xs pl-9 pr-3 py-2.5 bg-bg-warm/30 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Gmail / Email Address */}
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-neutral-700 uppercase tracking-wider block text-[10px]">
+                        Gmail / Email Address <span className="text-brand">*</span>
+                      </label>
+                      <div className="relative">
+                        <Mail className="w-4 h-4 text-neutral-400 absolute left-3 top-3" />
+                        <input
+                          type="email"
+                          required
+                          value={editEmail}
+                          onChange={(e) => setEditEmail(e.target.value)}
+                          placeholder="e.g. mahi@gmail.com"
+                          className="w-full text-xs pl-9 pr-3 py-2.5 bg-bg-warm/30 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Contact Phone */}
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-neutral-700 uppercase tracking-wider block text-[10px]">
+                        Mobile Phone Number <span className="text-brand">*</span>
+                      </label>
+                      <div className="relative">
+                        <Phone className="w-4 h-4 text-neutral-400 absolute left-3 top-3" />
+                        <input
+                          type="tel"
+                          required
+                          value={editPhone}
+                          onChange={(e) => setEditPhone(e.target.value)}
+                          placeholder="e.g. 9801234567"
+                          className="w-full text-xs pl-9 pr-3 py-2.5 bg-bg-warm/30 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    {/* WhatsApp Number */}
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-neutral-700 uppercase tracking-wider block text-[10px]">
+                        WhatsApp Number
+                      </label>
+                      <div className="relative">
+                        <MessageSquare className="w-4 h-4 text-emerald-600 absolute left-3 top-3" />
+                        <input
+                          type="tel"
+                          value={editWhatsapp}
+                          onChange={(e) => setEditWhatsapp(e.target.value)}
+                          placeholder="e.g. 9801234567"
+                          className="w-full text-xs pl-9 pr-3 py-2.5 bg-bg-warm/30 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Country */}
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-neutral-700 uppercase tracking-wider block text-[10px]">
+                        Country <span className="text-brand">*</span>
+                      </label>
+                      <div className="relative">
+                        <Globe className="w-4 h-4 text-neutral-400 absolute left-3 top-3" />
+                        <input
+                          type="text"
+                          required
+                          value={editCountry}
+                          onChange={(e) => setEditCountry(e.target.value)}
+                          placeholder="e.g. Nepal, India, USA, UAE"
+                          className="w-full text-xs pl-9 pr-3 py-2.5 bg-bg-warm/30 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium"
+                        />
+                      </div>
+                    </div>
+
+                    {/* City / Location */}
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-neutral-700 uppercase tracking-wider block text-[10px]">
+                        City / Area Location <span className="text-brand">*</span>
+                      </label>
+                      <div className="relative">
+                        <MapPin className="w-4 h-4 text-neutral-400 absolute left-3 top-3" />
+                        <input
+                          type="text"
+                          required
+                          value={editLocation}
+                          onChange={(e) => setEditLocation(e.target.value)}
+                          placeholder="e.g. Kathmandu, Pokhara, Lalitpur"
+                          className="w-full text-xs pl-9 pr-3 py-2.5 bg-bg-warm/30 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium"
+                        />
+                      </div>
+                    </div>
+
+                  </div>
+
+                  {/* Full Address */}
+                  <div className="space-y-1.5 text-left">
+                    <label className="font-bold text-neutral-700 uppercase tracking-wider block text-[10px]">
+                      Full Shipping / Delivery Address <span className="text-brand">*</span>
+                    </label>
+                    <textarea
+                      rows={3}
+                      required
+                      value={editAddress}
+                      onChange={(e) => setEditAddress(e.target.value)}
+                      placeholder="House No, Tole/Street, Landmark, Ward No, City"
+                      className="w-full text-xs p-3 bg-bg-warm/30 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium leading-relaxed"
+                    />
+                  </div>
+
+                  {/* Save Status Banners */}
+                  {profileSaveMsg && (
+                    <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                      <span>{profileSaveMsg}</span>
+                    </div>
+                  )}
+
+                  {profileSaveError && (
+                    <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs font-bold flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                      <span>{profileSaveError}</span>
+                    </div>
+                  )}
+
+                  {/* Save Button */}
+                  <div className="flex justify-end pt-2">
+                    <button
+                      type="submit"
+                      disabled={isUpdatingProfile}
+                      className="inline-flex items-center gap-2 bg-dark hover:bg-brand text-white font-bold uppercase tracking-wider px-6 py-3 rounded-xl transition cursor-pointer shadow-md shadow-brand/10 disabled:opacity-50"
+                    >
+                      <Save className="w-4 h-4 text-brand" />
+                      <span>{isUpdatingProfile ? 'Saving Changes...' : 'Update Profile'}</span>
+                    </button>
+                  </div>
+
+                </form>
+
+                {/* Danger Zone: Delete Profile */}
+                <div className="border-t border-rose-200 pt-6 text-left space-y-3">
+                  <div className="p-5 bg-rose-50/60 rounded-2xl border border-rose-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <h5 className="font-bold text-rose-900 flex items-center gap-1.5 uppercase text-xs tracking-wider">
+                        <Trash2 className="w-4 h-4 text-rose-600" />
+                        Delete VIP Profile & Data
+                      </h5>
+                      <p className="text-[11px] text-rose-700 font-light leading-relaxed max-w-lg">
+                        Permanently delete your profile, clear saved bank credentials, address records, and logout from Mahi Creations. This action cannot be undone.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowDeleteConfirmModal(true)}
+                      className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] uppercase tracking-wider px-4 py-2.5 rounded-xl transition cursor-pointer flex-shrink-0 shadow-sm"
+                    >
+                      Delete Profile
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            )}
+
+            {/* TAB 3: BANK CARDS, ACCOUNTS & DIGITAL WALLETS */}
+            {portalTab === 'payments' && (
+              <div className="bg-white p-6 sm:p-8 rounded-3xl border border-clay shadow-md space-y-8 animate-fade-in text-xs">
+                
+                {/* Header */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-clay pb-4 text-left">
+                  <div>
+                    <h4 className="font-serif text-xl font-bold text-dark uppercase tracking-wider flex items-center gap-2">
+                      <CreditCard className="w-5 h-5 text-brand" />
+                      Saved Financial Cards, Accounts & Wallets
+                    </h4>
+                    <p className="text-neutral-500 text-[11px] mt-0.5">
+                      Store your bank payment cards, bank account info, and digital wallets for 1-click checkout and refunds.
+                    </p>
+                  </div>
+                </div>
+
+                {/* SECTION 1: BANK CARDS */}
+                <div className="space-y-4 text-left border-b border-clay pb-8">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 bg-brand/10 text-brand rounded-xl">
+                        <CreditCard className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h5 className="font-bold text-dark text-sm uppercase tracking-wider">Saved Bank Cards</h5>
+                        <p className="text-[10px] text-neutral-400">Debit or Credit Cards (Visa, Mastercard, Amex, UnionPay)</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleOpenCardModal()}
+                      className="inline-flex items-center gap-1.5 bg-dark hover:bg-brand text-white text-[10px] font-bold uppercase tracking-wider px-3.5 py-2 rounded-xl transition cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Add Bank Card
+                    </button>
+                  </div>
+
+                  {!userSession.savedCards || userSession.savedCards.length === 0 ? (
+                    <div className="p-6 text-center bg-bg-warm/30 rounded-2xl border border-dashed border-clay text-neutral-400 space-y-2">
+                      <CreditCard className="w-8 h-8 mx-auto text-neutral-300" />
+                      <p className="font-bold text-neutral-500">No bank card added yet.</p>
+                      <p className="text-[10px]">Add your Visa/Mastercard to enable seamless booking payments.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {userSession.savedCards.map((card) => (
+                        <div key={card.id} className="relative overflow-hidden bg-gradient-to-br from-neutral-900 to-stone-800 text-white p-5 rounded-2xl border border-amber-500/30 shadow-lg space-y-4">
+                          <div className="flex justify-between items-start">
+                            <span className="font-bold text-amber-400 text-xs tracking-widest uppercase">{card.cardType}</span>
+                            <div className="flex items-center gap-1">
+                              <button onClick={() => handleOpenCardModal(card)} className="p-1 hover:bg-white/20 rounded text-neutral-300 transition cursor-pointer">
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button onClick={() => handleDeleteCard(card.id)} className="p-1 hover:bg-rose-500/20 text-rose-400 rounded transition cursor-pointer">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="font-mono text-base tracking-widest text-amber-100 font-bold">
+                            {card.cardNumber}
+                          </div>
+
+                          <div className="flex justify-between items-end text-[10px] text-neutral-300 border-t border-white/10 pt-2">
+                            <div>
+                              <p className="text-[8px] text-neutral-400 uppercase">Cardholder</p>
+                              <p className="font-bold truncate max-w-[130px]">{card.cardholderName}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-[8px] text-neutral-400 uppercase">Expires</p>
+                              <p className="font-bold font-mono">{card.expiryMonth}/{card.expiryYear}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* SECTION 2: BANK ACCOUNTS */}
+                <div className="space-y-4 text-left border-b border-clay pb-8">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 bg-blue-50 text-blue-600 rounded-xl border border-blue-200">
+                        <Building2 className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h5 className="font-bold text-dark text-sm uppercase tracking-wider">Saved Bank Accounts</h5>
+                        <p className="text-[10px] text-neutral-400">Direct Bank Transfer Details & Refund Account</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleOpenBankModal()}
+                      className="inline-flex items-center gap-1.5 bg-dark hover:bg-brand text-white text-[10px] font-bold uppercase tracking-wider px-3.5 py-2 rounded-xl transition cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Add Bank Account
+                    </button>
+                  </div>
+
+                  {!userSession.savedBankAccounts || userSession.savedBankAccounts.length === 0 ? (
+                    <div className="p-6 text-center bg-bg-warm/30 rounded-2xl border border-dashed border-clay text-neutral-400 space-y-2">
+                      <Building2 className="w-8 h-8 mx-auto text-neutral-300" />
+                      <p className="font-bold text-neutral-500">No bank account added yet.</p>
+                      <p className="text-[10px]">Add your bank details (Nabil, NIC Asia, Everest, etc.) for direct transfers or refunds.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {userSession.savedBankAccounts.map((bank) => (
+                        <div key={bank.id} className="bg-white p-4 rounded-2xl border border-clay shadow-sm space-y-3 relative group">
+                          <div className="flex justify-between items-start">
+                            <div className="space-y-0.5">
+                              <span className="text-[9px] bg-blue-50 text-blue-700 font-bold px-2 py-0.5 rounded uppercase border border-blue-200">
+                                {bank.bankName}
+                              </span>
+                              <h6 className="font-bold text-dark text-xs pt-1">{bank.accountName}</h6>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button onClick={() => handleOpenBankModal(bank)} className="p-1 hover:bg-clay-light rounded text-neutral-500 transition cursor-pointer">
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button onClick={() => handleDeleteBankAccount(bank.id)} className="p-1 hover:bg-rose-50 text-rose-600 rounded transition cursor-pointer">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="bg-bg-warm/50 p-2.5 rounded-xl border border-clay-light text-[11px] font-mono space-y-1">
+                            <div className="flex justify-between">
+                              <span className="text-neutral-400 text-[9px] uppercase font-sans">Account No:</span>
+                              <span className="font-bold text-dark">{bank.accountNumber}</span>
+                            </div>
+                            {bank.branchName && (
+                              <div className="flex justify-between text-[10px]">
+                                <span className="text-neutral-400 font-sans">Branch:</span>
+                                <span className="text-neutral-700">{bank.branchName}</span>
+                              </div>
+                            )}
+                            {bank.swiftOrRouting && (
+                              <div className="flex justify-between text-[10px]">
+                                <span className="text-neutral-400 font-sans">SWIFT/Routing:</span>
+                                <span className="text-neutral-700">{bank.swiftOrRouting}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* SECTION 3: DIGITAL WALLETS */}
+                <div className="space-y-4 text-left">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-200">
+                        <Wallet className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h5 className="font-bold text-dark text-sm uppercase tracking-wider">Saved Digital Wallets</h5>
+                        <p className="text-[10px] text-neutral-400">eSewa, Khalti, Fonepay, PayTM, GCash, PayPal</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleOpenWalletModal()}
+                      className="inline-flex items-center gap-1.5 bg-dark hover:bg-brand text-white text-[10px] font-bold uppercase tracking-wider px-3.5 py-2 rounded-xl transition cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Add Digital Wallet
+                    </button>
+                  </div>
+
+                  {!userSession.savedWallets || userSession.savedWallets.length === 0 ? (
+                    <div className="p-6 text-center bg-bg-warm/30 rounded-2xl border border-dashed border-clay text-neutral-400 space-y-2">
+                      <Wallet className="w-8 h-8 mx-auto text-neutral-300" />
+                      <p className="font-bold text-neutral-500">No digital wallet added yet.</p>
+                      <p className="text-[10px]">Add your eSewa ID or Khalti number for quick mobile payments.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {userSession.savedWallets.map((wallet) => (
+                        <div key={wallet.id} className="bg-white p-4 rounded-2xl border border-clay shadow-sm space-y-3">
+                          <div className="flex justify-between items-start">
+                            <div className="flex items-center gap-2">
+                              <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase border ${
+                                wallet.walletProvider === 'eSewa' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                wallet.walletProvider === 'Khalti' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                                wallet.walletProvider === 'Fonepay' ? 'bg-red-50 text-red-700 border-red-200' :
+                                'bg-amber-50 text-amber-700 border-amber-200'
+                              }`}>
+                                {wallet.walletProvider}
+                              </span>
+                              <span className="font-bold text-dark text-xs">{wallet.accountName}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button onClick={() => handleOpenWalletModal(wallet)} className="p-1 hover:bg-clay-light rounded text-neutral-500 transition cursor-pointer">
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button onClick={() => handleDeleteWallet(wallet.id)} className="p-1 hover:bg-rose-50 text-rose-600 rounded transition cursor-pointer">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="bg-bg-warm/50 p-2.5 rounded-xl border border-clay-light flex justify-between items-center text-[11px]">
+                            <span className="text-neutral-400 text-[9px] uppercase">Wallet ID / Mobile:</span>
+                            <span className="font-mono font-bold text-dark">{wallet.walletId}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            )}
 
           </div>
         )}
@@ -1823,6 +2666,315 @@ export default function CustomerPortal({
               <img src={zoomedPhoto} alt="Review attachment detail" className="w-full h-full object-cover" />
             </div>
             <p className="text-xs text-neutral-400 font-mono text-center">Verified Customer Attachment View</p>
+          </div>
+        </div>
+      )}
+
+      {/* BANK CARD ADD/EDIT MODAL */}
+      {cardModalOpen && (
+        <div className="fixed inset-0 bg-dark/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl border border-clay max-w-md w-full p-6 space-y-5 animate-fade-in text-xs text-left">
+            <div className="flex justify-between items-center pb-2 border-b border-clay-light">
+              <h3 className="font-serif text-base font-bold text-dark uppercase tracking-wide flex items-center gap-1.5">
+                <CreditCard className="w-5 h-5 text-brand" />
+                {editingCardId ? 'Edit Bank Card' : 'Save New Bank Card'}
+              </h3>
+              <button onClick={() => setCardModalOpen(false)} className="p-1 hover:bg-clay-light rounded-full transition cursor-pointer text-neutral-400 hover:text-dark">
+                &times;
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveCard} className="space-y-4">
+              <div className="space-y-1">
+                <label className="font-bold text-neutral-600 uppercase tracking-wider block text-[10px]">Card Type</label>
+                <select
+                  value={cardType}
+                  onChange={(e) => setCardType(e.target.value)}
+                  className="w-full text-xs p-2.5 bg-bg-warm/30 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-bold"
+                >
+                  <option value="Visa">Visa</option>
+                  <option value="Mastercard">Mastercard</option>
+                  <option value="American Express">American Express</option>
+                  <option value="UnionPay">UnionPay</option>
+                  <option value="SCT Debit Card">SCT Debit Card (Nepal)</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-neutral-600 uppercase tracking-wider block text-[10px]">Cardholder Full Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Name as printed on card"
+                  value={cardholderName}
+                  onChange={(e) => setCardholderName(e.target.value)}
+                  className="w-full text-xs p-2.5 bg-bg-warm/30 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-neutral-600 uppercase tracking-wider block text-[10px]">Card Number (16 Digits)</label>
+                <input
+                  type="text"
+                  required
+                  maxLength={19}
+                  placeholder="4111 2222 3333 4444"
+                  value={cardNumber}
+                  onChange={(e) => setCardNumber(e.target.value)}
+                  className="w-full text-xs p-2.5 bg-bg-warm/30 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-mono"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-bold text-neutral-600 uppercase tracking-wider block text-[10px]">Expiry Month</label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={2}
+                    placeholder="MM (e.g. 08)"
+                    value={expiryMonth}
+                    onChange={(e) => setExpiryMonth(e.target.value)}
+                    className="w-full text-xs p-2.5 bg-bg-warm/30 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-mono"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-neutral-600 uppercase tracking-wider block text-[10px]">Expiry Year</label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={2}
+                    placeholder="YY (e.g. 28)"
+                    value={expiryYear}
+                    onChange={(e) => setExpiryYear(e.target.value)}
+                    className="w-full text-xs p-2.5 bg-bg-warm/30 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setCardModalOpen(false)}
+                  className="px-4 py-2 bg-clay-light hover:bg-clay text-neutral-700 font-bold uppercase tracking-wide rounded-lg transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-dark hover:bg-brand text-white font-bold uppercase tracking-widest rounded-lg transition cursor-pointer shadow-sm"
+                >
+                  {editingCardId ? 'Update Card' : 'Save Card'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* BANK ACCOUNT ADD/EDIT MODAL */}
+      {bankModalOpen && (
+        <div className="fixed inset-0 bg-dark/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl border border-clay max-w-md w-full p-6 space-y-5 animate-fade-in text-xs text-left">
+            <div className="flex justify-between items-center pb-2 border-b border-clay-light">
+              <h3 className="font-serif text-base font-bold text-dark uppercase tracking-wide flex items-center gap-1.5">
+                <Building2 className="w-5 h-5 text-blue-600" />
+                {editingBankId ? 'Edit Bank Account' : 'Save New Bank Account'}
+              </h3>
+              <button onClick={() => setBankModalOpen(false)} className="p-1 hover:bg-clay-light rounded-full transition cursor-pointer text-neutral-400 hover:text-dark">
+                &times;
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveBankAccount} className="space-y-4">
+              <div className="space-y-1">
+                <label className="font-bold text-neutral-600 uppercase tracking-wider block text-[10px]">Bank Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Nabil Bank, NIC Asia, Everest Bank"
+                  value={bankName}
+                  onChange={(e) => setBankName(e.target.value)}
+                  className="w-full text-xs p-2.5 bg-bg-warm/30 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-neutral-600 uppercase tracking-wider block text-[10px]">Account Holder Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Mahi Shrestha"
+                  value={bankAccountHolderName}
+                  onChange={(e) => setBankAccountHolderName(e.target.value)}
+                  className="w-full text-xs p-2.5 bg-bg-warm/30 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-neutral-600 uppercase tracking-wider block text-[10px]">Account Number</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. 0120100100203"
+                  value={bankAccountNumber}
+                  onChange={(e) => setBankAccountNumber(e.target.value)}
+                  className="w-full text-xs p-2.5 bg-bg-warm/30 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-mono"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-bold text-neutral-600 uppercase tracking-wider block text-[10px]">Branch Name (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Durbar Marg"
+                    value={bankBranch}
+                    onChange={(e) => setBankBranch(e.target.value)}
+                    className="w-full text-xs p-2.5 bg-bg-warm/30 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-neutral-600 uppercase tracking-wider block text-[10px]">SWIFT / Routing (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. NARINPK1"
+                    value={swiftOrRouting}
+                    onChange={(e) => setSwiftOrRouting(e.target.value)}
+                    className="w-full text-xs p-2.5 bg-bg-warm/30 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setBankModalOpen(false)}
+                  className="px-4 py-2 bg-clay-light hover:bg-clay text-neutral-700 font-bold uppercase tracking-wide rounded-lg transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-dark hover:bg-brand text-white font-bold uppercase tracking-widest rounded-lg transition cursor-pointer shadow-sm"
+                >
+                  {editingBankId ? 'Update Bank' : 'Save Bank'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DIGITAL WALLET ADD/EDIT MODAL */}
+      {walletModalOpen && (
+        <div className="fixed inset-0 bg-dark/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl border border-clay max-w-md w-full p-6 space-y-5 animate-fade-in text-xs text-left">
+            <div className="flex justify-between items-center pb-2 border-b border-clay-light">
+              <h3 className="font-serif text-base font-bold text-dark uppercase tracking-wide flex items-center gap-1.5">
+                <Wallet className="w-5 h-5 text-emerald-600" />
+                {editingWalletId ? 'Edit Digital Wallet' : 'Save New Digital Wallet'}
+              </h3>
+              <button onClick={() => setWalletModalOpen(false)} className="p-1 hover:bg-clay-light rounded-full transition cursor-pointer text-neutral-400 hover:text-dark">
+                &times;
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveWallet} className="space-y-4">
+              <div className="space-y-1">
+                <label className="font-bold text-neutral-600 uppercase tracking-wider block text-[10px]">Wallet Provider</label>
+                <select
+                  value={walletProvider}
+                  onChange={(e) => setWalletProvider(e.target.value)}
+                  className="w-full text-xs p-2.5 bg-bg-warm/30 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-bold"
+                >
+                  <option value="eSewa">eSewa (Nepal)</option>
+                  <option value="Khalti">Khalti (Nepal)</option>
+                  <option value="Fonepay">Fonepay Direct</option>
+                  <option value="PayTM">PayTM</option>
+                  <option value="GCash">GCash</option>
+                  <option value="PayPal">PayPal</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-neutral-600 uppercase tracking-wider block text-[10px]">Wallet Account Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Mahi Shrestha"
+                  value={walletAccountName}
+                  onChange={(e) => setWalletAccountName(e.target.value)}
+                  className="w-full text-xs p-2.5 bg-bg-warm/30 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-neutral-600 uppercase tracking-wider block text-[10px]">Wallet ID / Mobile Number</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. 9801234567 or user@esewa.com.np"
+                  value={walletId}
+                  onChange={(e) => setWalletId(e.target.value)}
+                  className="w-full text-xs p-2.5 bg-bg-warm/30 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-mono"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setWalletModalOpen(false)}
+                  className="px-4 py-2 bg-clay-light hover:bg-clay text-neutral-700 font-bold uppercase tracking-wide rounded-lg transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-dark hover:bg-brand text-white font-bold uppercase tracking-widest rounded-lg transition cursor-pointer shadow-sm"
+                >
+                  {editingWalletId ? 'Update Wallet' : 'Save Wallet'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* PROFILE DELETE CONFIRMATION MODAL */}
+      {showDeleteConfirmModal && (
+        <div className="fixed inset-0 bg-dark/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl border border-rose-200 max-w-md w-full p-6 space-y-5 animate-fade-in text-xs text-left">
+            <div className="flex items-center gap-3 text-rose-600 border-b border-rose-100 pb-3">
+              <div className="p-2.5 bg-rose-50 rounded-2xl border border-rose-200">
+                <Trash2 className="w-6 h-6 text-rose-600" />
+              </div>
+              <div>
+                <h3 className="font-serif text-base font-bold text-rose-900 uppercase tracking-wide">Delete Profile Permanently</h3>
+                <p className="text-[10px] text-rose-600">This action cannot be reverted.</p>
+              </div>
+            </div>
+
+            <p className="text-neutral-600 leading-relaxed font-light">
+              Are you sure you want to delete your VIP Profile? Your saved bank cards, bank accounts, digital wallets, and address preferences will be removed.
+            </p>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirmModal(false)}
+                className="px-4 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold uppercase tracking-wide rounded-xl transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteAccount}
+                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold uppercase tracking-widest rounded-xl transition cursor-pointer shadow-sm"
+              >
+                Yes, Delete Account
+              </button>
+            </div>
           </div>
         </div>
       )}

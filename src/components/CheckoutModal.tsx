@@ -31,10 +31,8 @@ export default function CheckoutModal({
   products,
   orders = []
 }: CheckoutModalProps) {
-  if (!isOpen) return null;
-
   // Find country configuration based on selected currency, defaulting to UAE
-  const initialCountry = countries.find(c => c.defaultCurrency === currency) || countries[0];
+  const initialCountry = (countries && countries.length > 0) ? (countries.find(c => c.defaultCurrency === currency) || countries[0]) : { code: 'NP', defaultCurrency: 'NPR', locations: [] } as any;
   const [selectedCountryCode, setSelectedCountryCode] = useState<string>(initialCountry.code);
   
   const activeCountry = countries.find(c => c.code === selectedCountryCode) || countries[0];
@@ -139,9 +137,11 @@ export default function CheckoutModal({
   // Sync state when country changes
   useEffect(() => {
     if (activeCountry) {
-      setSelectedLocationId(activeCountry.locations[0]?.id || '');
+      setSelectedLocationId(activeCountry.locations?.[0]?.id || '');
       // Automatically update global currency to match selected country's default currency for frictionless shopping!
-      onCurrencyChange(activeCountry.defaultCurrency);
+      if (isOpen) {
+        onCurrencyChange(activeCountry.defaultCurrency);
+      }
       
       // Select appropriate payment methods
       let defaultMethod: 'eSewa' | 'Khalti' | 'COD' | 'Bank Transfer' | 'Card Payment' | 'PayPal' = activeCountry.code === 'NP' ? 'eSewa' : 'Card Payment';
@@ -152,6 +152,8 @@ export default function CheckoutModal({
       setPaymentMethod(defaultMethod);
     }
   }, [selectedCountryCode]);
+
+  if (!isOpen) return null;
 
   // SECURE ANTI-CHEAT CALCULATIONS (Calculates strictly from database state)
   const rawSubtotal = cart.reduce((sum, item) => {

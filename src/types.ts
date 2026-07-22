@@ -171,6 +171,34 @@ export interface ProductReview {
   photoUrl?: string;
 }
 
+export interface SavedBankCard {
+  id: string;
+  cardholderName: string;
+  cardNumber: string; // full or masked number
+  expiryMonth: string;
+  expiryYear: string;
+  cardType: 'Visa' | 'Mastercard' | 'Amex' | 'UnionPay' | 'Other';
+  isDefault?: boolean;
+}
+
+export interface SavedBankAccount {
+  id: string;
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
+  branchName?: string;
+  swiftOrRouting?: string;
+  isDefault?: boolean;
+}
+
+export interface SavedDigitalWallet {
+  id: string;
+  walletProvider: 'eSewa' | 'Khalti' | 'Fonepay' | 'PayTM' | 'GCash' | 'PayPal' | 'Other';
+  walletId: string; // phone number, ID or email
+  accountName: string;
+  isDefault?: boolean;
+}
+
 export interface UserSession {
   fullName: string;
   phone: string;
@@ -178,5 +206,10 @@ export interface UserSession {
   country?: string;
   whatsapp?: string;
   location?: string;
+  email?: string;
+  avatarUrl?: string;
+  savedCards?: SavedBankCard[];
+  savedBankAccounts?: SavedBankAccount[];
+  savedWallets?: SavedDigitalWallet[];
 }
 

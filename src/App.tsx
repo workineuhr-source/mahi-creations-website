@@ -728,8 +728,8 @@ export default function App() {
               phone: user.phoneNumber || '',
               avatarUrl: user.photoURL || '',
               address: 'Kathmandu, Nepal',
-              is_admin: user.email === 'admin@mahiboutique.com' || user.email === 'workineuhr@gmail.com',
-              role: (user.email === 'admin@mahiboutique.com' || user.email === 'workineuhr@gmail.com') ? 'admin' : 'customer'
+              is_admin: user.email === 'admin@mahiboutique.com' || user.email === 'workineuhr@gmail.com' || user.email === 'mahicreations369@gmail.com',
+              role: (user.email === 'admin@mahiboutique.com' || user.email === 'workineuhr@gmail.com' || user.email === 'mahicreations369@gmail.com') ? 'admin' : 'customer'
             };
             await setDoc(docRef, profile);
           }
@@ -738,15 +738,21 @@ export default function App() {
             profile?.is_admin === true || 
             profile?.role === 'admin' || 
             user.email === 'admin@mahiboutique.com' ||
-            user.email === 'workineuhr@gmail.com';
+            user.email === 'workineuhr@gmail.com' ||
+            user.email === 'mahicreations369@gmail.com';
 
           const mappedSession: UserSession = {
             fullName: profile?.fullName || profile?.full_name || user.displayName || user.email?.split('@')[0] || 'VIP Member',
             phone: profile?.phone || user.phoneNumber || '9801234567',
             address: profile?.address || 'Kathmandu, Nepal',
-            country: 'Nepal',
-            whatsapp: profile?.phone || user.phoneNumber || '9801234567',
-            location: 'Kathmandu'
+            country: profile?.country || 'Nepal',
+            whatsapp: profile?.whatsapp || profile?.phone || user.phoneNumber || '9801234567',
+            location: profile?.location || 'Kathmandu',
+            email: profile?.email || user.email || '',
+            avatarUrl: profile?.avatarUrl || user.photoURL || '',
+            savedCards: profile?.savedCards || [],
+            savedBankAccounts: profile?.savedBankAccounts || [],
+            savedWallets: profile?.savedWallets || []
           };
 
           setUserSession(mappedSession);

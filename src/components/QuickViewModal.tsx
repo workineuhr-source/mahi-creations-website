@@ -18,11 +18,11 @@ export default function QuickViewModal({
   onAddToCart,
   currency
 }: QuickViewModalProps) {
-  if (!isOpen || !product) return null;
-
   const [addedMessage, setAddedMessage] = useState(false);
   const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
   const [isZoomed, setIsZoomed] = useState(false);
+
+  if (!isOpen || !product) return null;
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!product.inStock) return;

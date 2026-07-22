@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Product, ProductReview, UserSession } from '../types';
-import { Star, X, ShoppingBag, Truck, Check, Sparkles, Heart, HelpCircle, MessageSquare, Flame, Camera, Image, Lock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Star, X, ShoppingBag, Truck, Check, Sparkles, Heart, HelpCircle, MessageSquare, Flame, Camera, Image, Lock, ChevronLeft, ChevronRight, Share2 } from 'lucide-react';
 import { formatPrice, CurrencyCode } from '../utils/currency';
 
 interface ProductDetailModalProps {
@@ -55,8 +55,6 @@ export default function ProductDetailModal({
   userSession,
   onAuthNeeded
 }: ProductDetailModalProps) {
-  if (!isOpen || !product) return null;
-
   const [currentImgIndex, setCurrentImgIndex] = useState(0);
   const [addedMessage, setAddedMessage] = useState(false);
   const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
@@ -64,7 +62,19 @@ export default function ProductDetailModal({
   const [zoomMode, setZoomMode] = useState<'loupe' | 'full'>('loupe');
   const [isZoomed, setIsZoomed] = useState(false);
 
-  const images = product.images && product.images.length > 0 ? product.images : [product.image];
+  // Review submission state
+  const [isWritingReview, setIsWritingReview] = useState(false);
+  const [reviewName, setReviewName] = useState(userSession?.fullName || '');
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewPhoto, setReviewPhoto] = useState('');
+  const [reviewSuccess, setReviewSuccess] = useState(false);
+  const [zoomedPhoto, setZoomedPhoto] = useState<string | null>(null);
+  const [shareCopied, setShareCopied] = useState(false);
+
+  const images = product && product.images && product.images.length > 0 
+    ? product.images 
+    : (product ? [product.image] : []);
 
   // Auto-slide images every 5 seconds if multiple photos exist
   React.useEffect(() => {
@@ -75,6 +85,15 @@ export default function ProductDetailModal({
     return () => clearInterval(interval);
   }, [currentImgIndex, images.length, isZoomed]);
 
+  // Sync session name if logged in
+  React.useEffect(() => {
+    if (userSession?.fullName) {
+      setReviewName(userSession.fullName);
+    }
+  }, [userSession?.fullName]);
+
+  if (!isOpen || !product) return null;
+
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!product.inStock) return;
     const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
@@ -84,21 +103,59 @@ export default function ProductDetailModal({
     setLensPos({ x: e.clientX - left, y: e.clientY - top });
   };
 
-  // Review submission state
-  const [isWritingReview, setIsWritingReview] = useState(false);
-  const [reviewName, setReviewName] = useState(userSession?.fullName || '');
-  const [reviewRating, setReviewRating] = useState(5);
-  const [reviewComment, setReviewComment] = useState('');
-  const [reviewPhoto, setReviewPhoto] = useState('');
-  const [reviewSuccess, setReviewSuccess] = useState(false);
-  const [zoomedPhoto, setZoomedPhoto] = useState<string | null>(null);
+  // Web Share API handler with Clipboard Fallback
+  const handleShare = async () => {
+    const shareUrl = window.location.href;
+    const shareData = {
+      title: `${product.name} | Mahi Creations`,
+      text: `Check out ${product.name} on Mahi Creations! ${product.description ? product.description.slice(0, 100) + '...' : ''}`,
+      url: shareUrl,
+    };
 
-  // Sync session name if logged in
-  React.useEffect(() => {
-    if (userSession?.fullName) {
-      setReviewName(userSession.fullName);
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          copyToClipboard(shareUrl);
+        }
+      }
+    } else {
+      copyToClipboard(shareUrl);
     }
-  }, [userSession?.fullName]);
+  };
+
+  const copyToClipboard = (url: string) => {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(() => {
+        setShareCopied(true);
+        setTimeout(() => setShareCopied(false), 2500);
+      }).catch(() => {
+        fallbackCopyTextToClipboard(url);
+      });
+    } else {
+      fallbackCopyTextToClipboard(url);
+    }
+  };
+
+  const fallbackCopyTextToClipboard = (text: string) => {
+    try {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.top = "0";
+      textArea.style.left = "0";
+      textArea.style.position = "fixed";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2500);
+    } catch {
+      // Ignore if copy unsupported
+    }
+  };
 
   // Compute pricing
   const discountAmount = (product.price * product.discountPercent) / 100;
@@ -392,11 +449,11 @@ export default function ProductDetailModal({
 
               {/* Direct buying CTAs */}
               <div className="space-y-3">
-                <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex flex-col sm:flex-row gap-2.5">
                   <button
                     onClick={handleDirectBuy}
                     disabled={!product.inStock}
-                    className={`flex-1 py-4 text-xs font-bold uppercase tracking-widest rounded-xl transition-all shadow-md flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] cursor-pointer ${
+                    className={`flex-1 py-3.5 px-4 text-xs font-bold uppercase tracking-widest rounded-xl transition-all shadow-md flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] cursor-pointer ${
                       product.inStock
                         ? 'bg-brand hover:bg-dark text-white'
                         : 'bg-clay-light text-neutral-400 cursor-not-allowed'
@@ -409,16 +466,33 @@ export default function ProductDetailModal({
                   <button
                     onClick={handleAddToBag}
                     disabled={!product.inStock}
-                    className={`flex-1 py-4 text-xs font-bold uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] border cursor-pointer ${
+                    className={`flex-1 py-3.5 px-4 text-xs font-bold uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] border cursor-pointer ${
                       product.inStock
                         ? 'bg-white hover:bg-clay-light text-dark border-clay'
                         : 'bg-clay-light text-neutral-400 border-transparent cursor-not-allowed'
                     }`}
                   >
                     <ShoppingBag className="w-4 h-4" />
-                    Add to Bag / Cart
+                    Add to Bag
+                  </button>
+
+                  <button
+                    onClick={handleShare}
+                    type="button"
+                    title="Share Product"
+                    className="py-3.5 px-4 bg-white hover:bg-clay-light text-dark border border-clay hover:border-brand rounded-xl transition-all flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] cursor-pointer font-bold text-xs uppercase tracking-wider"
+                  >
+                    <Share2 className="w-4 h-4 text-brand" />
+                    <span>Share</span>
                   </button>
                 </div>
+
+                {shareCopied && (
+                  <p className="text-emerald-700 text-xs text-center font-bold animate-fade-in flex items-center justify-center gap-1.5 bg-emerald-50 border border-emerald-200 py-2 rounded-xl">
+                    <Check className="w-4 h-4 text-emerald-600" />
+                    Product details & link copied to clipboard!
+                  </p>
+                )}
 
                 {addedMessage && (
                   <p className="text-emerald-700 text-xs text-center font-bold animate-pulse">
