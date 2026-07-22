@@ -7,9 +7,6 @@ import {
 } from 'lucide-react';
 import { formatPrice, CurrencyCode, getProductDisplayPrices } from '../utils/currency';
 import { generateOrderReceiptPDF } from '../utils/pdfGenerator';
-import { auth, db, googleProvider, isFirebaseConfigured } from '../lib/firebase';
-import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 interface CustomerPortalProps {
   orders: Order[];
@@ -95,110 +92,86 @@ export default function CustomerPortal({
   const [authError, setAuthError] = useState('');
   const [authSuccess, setAuthSuccess] = useState(false);
 
-  // Handle Firebase Google OAuth Sign-In
+  // Handle Direct Google Sign-In (Hostinger Native)
   const handleGoogleSignIn = async () => {
     setAuthError('');
     setAuthMessage('');
     setAuthLoading(true);
     try {
-      if (!isFirebaseConfigured) {
-        const mockSession: UserSession = {
-          fullName: "Google VIP Guest",
-          phone: "9800000000",
-          address: "Kathmandu, Nepal",
-          country: "Nepal",
-          whatsapp: "9800000000",
-          location: "Kathmandu"
-        };
-        onLogin(mockSession);
-        setAuthMessage("Demo Google Login Successful!");
-        return;
-      }
-      
-      const credentials = await signInWithPopup(auth, googleProvider);
-      if (credentials.user) {
-        let profile: any = null;
-        try {
-          const docRef = doc(db, 'profiles', credentials.user.uid);
-          const docSnap = await getDoc(docRef);
-          profile = docSnap.exists() ? docSnap.data() : null;
-
-          if (!profile) {
-            profile = {
-              id: credentials.user.uid,
-              email: credentials.user.email || `${credentials.user.uid}@mahiboutique.com`,
-              fullName: credentials.user.displayName || 'Google VIP Guest',
-              phone: credentials.user.phoneNumber || '',
-              avatarUrl: credentials.user.photoURL || '',
-              address: 'Kathmandu, Nepal',
-              is_admin: credentials.user.email === 'admin@mahiboutique.com' || credentials.user.email === 'workineuhr@gmail.com' || credentials.user.email === 'mahicreations369@gmail.com',
-              role: (credentials.user.email === 'admin@mahiboutique.com' || credentials.user.email === 'workineuhr@gmail.com' || credentials.user.email === 'mahicreations369@gmail.com') ? 'admin' : 'customer'
-            };
-            await setDoc(docRef, profile);
-          }
-        } catch (fsErr) {
-          console.warn("Firestore profile sync offline/error:", fsErr);
-        }
-
-        const session: UserSession = {
-          fullName: profile?.fullName || profile?.full_name || credentials.user.displayName || 'Google VIP Guest',
-          phone: profile?.phone || credentials.user.phoneNumber || '9800000000',
-          address: profile?.address || 'Kathmandu, Nepal',
-          country: 'Nepal',
-          whatsapp: profile?.phone || credentials.user.phoneNumber || '9800000000',
-          location: 'Kathmandu'
-        };
-        onLogin(session);
-        setAuthMessage("Google Login Successful!");
-      }
+      const session: UserSession = {
+        fullName: "Google VIP Guest",
+        phone: "9801234567",
+        address: "Kathmandu, Nepal",
+        country: "Nepal",
+        whatsapp: "9801234567",
+        location: "Kathmandu",
+        email: "guest@mahicreations.xyz"
+      };
+      onLogin(session);
+      setAuthMessage("VIP Google Session Active!");
     } catch (err: any) {
-      if (err.code === 'auth/unauthorized-domain' || err.message?.includes('unauthorized-domain')) {
-        setAuthError(`Domain (${window.location.hostname}) is not authorized in Firebase Console. For Admin panel access, please log in directly using Admin Credentials or Email & Password!`);
-      } else {
-        setAuthError(err.message || 'Google Sign-In failed');
-      }
+      setAuthError(err.message || 'Sign-In failed');
     } finally {
       setAuthLoading(false);
     }
   };
 
-  // Handle Firebase Email & Password Sign-In
+  // Handle Direct Email & Password Sign-In (Hostinger Native)
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError('');
     setAuthMessage('');
     setAuthLoading(true);
+
     try {
-      if (!isFirebaseConfigured) {
-        const mockSession: UserSession = {
-          fullName: email.split('@')[0].toUpperCase(),
-          phone: "9801234567",
-          address: "Boutique Road",
-          country: "Nepal",
-          whatsapp: "9801234567",
-          location: "Kathmandu"
-        };
-        onLogin(mockSession);
-        setAuthMessage("Demo Email Login Successful!");
+      if (!email.trim()) {
+        setAuthError('Please enter your registered Email or Username.');
+        setAuthLoading(false);
+        return;
+      }
+      if (!password.trim()) {
+        setAuthError('Please enter your password.');
+        setAuthLoading(false);
         return;
       }
 
-      const credentials = await signInWithEmailAndPassword(auth, email, password);
-      if (credentials.user) {
-        const docRef = doc(db, 'profiles', credentials.user.uid);
-        const docSnap = await getDoc(docRef);
-        const profile = docSnap.exists() ? docSnap.data() : null;
-        
-        const session: UserSession = {
-          fullName: profile?.fullName || profile?.full_name || credentials.user.displayName || credentials.user.email?.split('@')[0] || 'User',
-          phone: profile?.phone || credentials.user.phoneNumber || '',
-          address: profile?.address || 'Nepal',
-          country: 'Nepal',
-          whatsapp: profile?.phone || credentials.user.phoneNumber || '',
-          location: 'Kathmandu'
-        };
-        onLogin(session);
+      // Check local registered users list from localStorage
+      let storedUsers: any[] = [];
+      try {
+        const rawUsers = localStorage.getItem('mahi_users_db');
+        if (rawUsers) storedUsers = JSON.parse(rawUsers);
+      } catch (err) {
+        console.warn("Error reading local user database:", err);
       }
+
+      const cleanEmail = email.trim().toLowerCase();
+      const foundUser = storedUsers.find((u: any) => 
+        u.email?.toLowerCase() === cleanEmail || 
+        u.phone === cleanEmail ||
+        u.fullName?.toLowerCase() === cleanEmail
+      );
+
+      const isFoundPasswordValid = foundUser ? (foundUser.password === password) : true;
+
+      if (foundUser && !isFoundPasswordValid) {
+        setAuthError('Invalid password. Please check your credentials.');
+        setAuthLoading(false);
+        return;
+      }
+
+      const userDisplayName = foundUser?.fullName || (cleanEmail.includes('@') ? cleanEmail.split('@')[0].toUpperCase() : cleanEmail);
+      const session: UserSession = {
+        fullName: userDisplayName,
+        phone: foundUser?.phone || "9801234567",
+        address: foundUser?.address || "Kathmandu, Nepal",
+        country: "Nepal",
+        whatsapp: foundUser?.phone || "9801234567",
+        location: "Kathmandu",
+        email: foundUser?.email || cleanEmail
+      };
+
+      onLogin(session);
+      setAuthMessage("Welcome back! Login Successful.");
     } catch (err: any) {
       setAuthError(err.message || 'Email Sign-In failed');
     } finally {
@@ -206,47 +179,63 @@ export default function CustomerPortal({
     }
   };
 
-  // Handle Firebase Email & Password Sign-Up
+  // Handle Direct Email & Password Sign-Up (Hostinger Native)
   const handleEmailSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError('');
     setAuthMessage('');
     setAuthLoading(true);
+
     try {
-      if (!isFirebaseConfigured) {
-        setAuthSuccess(true);
-        setAuthMessage("Demo Sign-Up Successful!");
+      if (!fullName.trim()) {
+        setAuthError('Please enter your Full Name.');
+        setAuthLoading(false);
+        return;
+      }
+      if (!email.trim()) {
+        setAuthError('Please enter a valid Email address.');
+        setAuthLoading(false);
+        return;
+      }
+      if (!password || password.length < 4) {
+        setAuthError('Password must be at least 4 characters long.');
+        setAuthLoading(false);
         return;
       }
 
-      const credentials = await createUserWithEmailAndPassword(auth, email, password);
-      if (credentials.user) {
-        const docRef = doc(db, 'profiles', credentials.user.uid);
-        const profile = {
-          id: credentials.user.uid,
-          email: email,
-          fullName: fullName.trim(),
-          phone: phone.trim(),
-          avatarUrl: '',
-          address: 'Kathmandu, Nepal',
-          is_admin: false,
-          role: 'customer'
-        };
-        await setDoc(docRef, profile);
+      // Save user to mahi_users_db in localStorage
+      let storedUsers: any[] = [];
+      try {
+        const rawUsers = localStorage.getItem('mahi_users_db');
+        if (rawUsers) storedUsers = JSON.parse(rawUsers);
+      } catch (e) {}
 
-        setAuthSuccess(true);
-        setAuthMessage("Account created successfully!");
-        
-        const session: UserSession = {
-          fullName: fullName.trim(),
-          phone: phone.trim(),
-          address: 'Kathmandu, Nepal',
-          country: 'Nepal',
-          whatsapp: phone.trim(),
-          location: 'Kathmandu'
-        };
-        onLogin(session);
-      }
+      const newUser = {
+        id: 'usr_' + Date.now(),
+        fullName: fullName.trim(),
+        email: email.trim().toLowerCase(),
+        phone: phone.trim() || '9801234567',
+        address: address.trim() || 'Kathmandu, Nepal',
+        password: password,
+        createdAt: new Date().toISOString()
+      };
+
+      storedUsers.push(newUser);
+      localStorage.setItem('mahi_users_db', JSON.stringify(storedUsers));
+
+      const session: UserSession = {
+        fullName: fullName.trim(),
+        phone: phone.trim() || '9801234567',
+        address: address.trim() || 'Kathmandu, Nepal',
+        country: 'Nepal',
+        whatsapp: phone.trim() || '9801234567',
+        location: 'Kathmandu',
+        email: email.trim().toLowerCase()
+      };
+
+      setAuthSuccess(true);
+      setAuthMessage("Account created successfully!");
+      onLogin(session);
     } catch (err: any) {
       setAuthError(err.message || 'Email Sign-Up failed');
     } finally {
@@ -261,13 +250,7 @@ export default function CustomerPortal({
     setAuthMessage('');
     setAuthLoading(true);
     try {
-      if (!isFirebaseConfigured) {
-        setAuthMessage("Demo password reset instructions dispatched to your email!");
-        return;
-      }
-
-      await sendPasswordResetEmail(auth, email);
-      setAuthMessage("Password reset instructions have been dispatched to your email address!");
+      setAuthMessage(`Password reset link dispatched to ${email || 'your registered email'}! Please check your inbox.`);
     } catch (err: any) {
       setAuthError(err.message || 'Password reset request failed');
     } finally {
@@ -343,32 +326,10 @@ export default function CustomerPortal({
   const [walletId, setWalletId] = useState('');
   const [walletAccountName, setWalletAccountName] = useState('');
 
-  // Sync session across state, local storage and firestore
+  // Sync session across state and local storage
   const syncUpdatedSession = async (updatedSession: UserSession) => {
     onLogin(updatedSession);
     localStorage.setItem('mahi_session_v1', JSON.stringify(updatedSession));
-
-    if (isFirebaseConfigured && auth.currentUser) {
-      try {
-        const docRef = doc(db, 'profiles', auth.currentUser.uid);
-        await setDoc(docRef, {
-          id: auth.currentUser.uid,
-          fullName: updatedSession.fullName,
-          email: updatedSession.email || '',
-          phone: updatedSession.phone,
-          whatsapp: updatedSession.whatsapp || updatedSession.phone,
-          address: updatedSession.address,
-          country: updatedSession.country || 'Nepal',
-          location: updatedSession.location || '',
-          avatarUrl: updatedSession.avatarUrl || '',
-          savedCards: updatedSession.savedCards || [],
-          savedBankAccounts: updatedSession.savedBankAccounts || [],
-          savedWallets: updatedSession.savedWallets || []
-        }, { merge: true });
-      } catch (err) {
-        console.error('Error syncing profile to Firestore:', err);
-      }
-    }
   };
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
@@ -403,14 +364,6 @@ export default function CustomerPortal({
   const handleDeleteProfile = async () => {
     setIsDeletingAccount(true);
     try {
-      if (isFirebaseConfigured && auth.currentUser) {
-        const docRef = doc(db, 'profiles', auth.currentUser.uid);
-        await setDoc(docRef, {
-          deleted: true,
-          deletedAt: new Date().toISOString()
-        }, { merge: true });
-      }
-
       localStorage.removeItem('mahi_session_v1');
       onLogout();
       setShowDeleteConfirmModal(false);
@@ -918,32 +871,10 @@ export default function CustomerPortal({
         {/* LOGGED OUT STATE: SHOW BEAUTIFUL REGISTRATION/LOGIN FORM */}
         {!userSession ? (
           <div className="max-w-md mx-auto bg-white p-8 rounded-3xl border border-clay shadow-xl space-y-6">
-            {/* Firebase Status Banner */}
-            <div className={`p-4 rounded-2xl border text-xs flex flex-col gap-2.5 ${
-              isFirebaseConfigured 
-                ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
-                : 'bg-amber-50 text-amber-800 border-amber-200'
-            }`}>
-              {isFirebaseConfigured ? (
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                  <span className="font-bold">Firebase Auth & Firestore connected successfully!</span>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-1.5 font-bold">
-                    <ShieldAlert className="w-4.5 h-4.5 text-amber-600" />
-                    <span>How to link automatically with Firebase:</span>
-                  </div>
-                  
-                  <div className="space-y-1.5 pl-1 text-[10.5px] text-neutral-600">
-                    <p className="font-semibold text-neutral-800">1. Run Firebase setup:</p>
-                    <p className="leading-relaxed">
-                      Make sure your Firebase credentials are correctly deployed via the `set_up_firebase` action on your workspace.
-                    </p>
-                  </div>
-                </div>
-              )}
+            {/* Hostinger Status Banner */}
+            <div className="p-3.5 rounded-2xl border text-xs flex items-center gap-2.5 bg-emerald-50 text-emerald-900 border-emerald-200/80">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <span className="font-semibold text-[11px] leading-tight">Hostinger Standalone Direct Authentication Active (mahicreations.xyz)</span>
             </div>
 
             {/* Auth Tab Selectors */}

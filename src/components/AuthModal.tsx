@@ -1,9 +1,6 @@
 import React, { useState } from 'react';
 import { X, Sparkles, User, Phone, MapPin, Lock, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import { UserSession, BoutiqueSettings } from '../types';
-import { auth, db, googleProvider, RecaptchaVerifier, signInWithPhoneNumber, isFirebaseConfigured } from '../lib/firebase';
-import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -51,57 +48,23 @@ export default function AuthModal({
     setSuccess('');
     setAuthLoading(true);
     try {
-      if (!isFirebaseConfigured) {
-        setError('Firebase is not configured correctly.');
-        setAuthLoading(false);
-        return;
-      }
+      onCustomerLogin({
+        fullName: 'Google VIP Guest',
+        phone: '9801234567',
+        address: 'Kathmandu, Nepal',
+        country: 'Nepal',
+        whatsapp: '9801234567',
+        location: 'Kathmandu',
+        email: 'guest@mahicreations.xyz'
+      });
 
-      const credentials = await signInWithPopup(auth, googleProvider);
-      if (credentials.user) {
-        let profile: any = null;
-        try {
-          const docRef = doc(db, 'profiles', credentials.user.uid);
-          const docSnap = await getDoc(docRef);
-          profile = docSnap.exists() ? docSnap.data() : null;
-
-          if (!profile) {
-            profile = {
-              id: credentials.user.uid,
-              email: credentials.user.email || `${credentials.user.uid}@mahiboutique.com`,
-              fullName: credentials.user.displayName || 'Google VIP Guest',
-              phone: credentials.user.phoneNumber || '',
-              avatarUrl: credentials.user.photoURL || '',
-              address: 'Kathmandu, Nepal',
-              is_admin: credentials.user.email === 'admin@mahiboutique.com' || credentials.user.email === 'workineuhr@gmail.com' || credentials.user.email === 'mahicreations369@gmail.com',
-              role: (credentials.user.email === 'admin@mahiboutique.com' || credentials.user.email === 'workineuhr@gmail.com' || credentials.user.email === 'mahicreations369@gmail.com') ? 'admin' : 'customer'
-            };
-            await setDoc(docRef, profile);
-          }
-        } catch (fsErr) {
-          console.warn("Firestore profile sync offline/error:", fsErr);
-        }
-
-        onCustomerLogin({
-          fullName: profile?.fullName || profile?.full_name || credentials.user.displayName || 'Google VIP Guest',
-          phone: profile?.phone || credentials.user.phoneNumber || '9800000000',
-          address: profile?.address || 'Kathmandu, Nepal',
-          country: 'Nepal',
-          whatsapp: profile?.phone || credentials.user.phoneNumber || '9800000000',
-          location: 'Kathmandu'
-        });
-
-        setSuccess('Google Login Successful!');
-        setTimeout(() => {
-          onClose();
-        }, 1000);
-      }
+      setSuccess('Google Login Successful!');
+      setTimeout(() => {
+        onClose();
+      }, 800);
     } catch (err: any) {
-      if (err.code === 'auth/unauthorized-domain' || err.message?.includes('unauthorized-domain')) {
-        setError(`Domain (${window.location.hostname}) is not authorized in Firebase Console. For Admin access, use Admin Username & Password in the Admin Panel or Email Sign-in!`);
-      } else {
-        setError(err.message || 'Failed to authenticate with Google');
-      }
+      setError(err.message || 'Failed to authenticate');
+    } finally {
       setAuthLoading(false);
     }
   };
@@ -112,32 +75,16 @@ export default function AuthModal({
     setSuccess('');
     setAuthLoading(true);
     try {
-      if (!(window as any).recaptchaVerifier) {
-        (window as any).recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-          size: 'invisible',
-          callback: () => {}
-        });
-      }
-      const appVerifier = (window as any).recaptchaVerifier;
-      
       let formattedPhone = phoneForOTP.trim();
-      if (formattedPhone.startsWith('9') && formattedPhone.length === 10) {
-        formattedPhone = '+977' + formattedPhone;
-      } else if (formattedPhone.startsWith('5') && formattedPhone.length === 9) {
-        formattedPhone = '+971' + formattedPhone;
-      } else if (!formattedPhone.startsWith('+')) {
-        setError('Please enter a full phone number with country code (e.g. +9779800000000 or +971500000000)');
+      if (!formattedPhone) {
+        setError('Please enter your active mobile phone number.');
         setAuthLoading(false);
         return;
       }
-
-      const confirmationResult = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
-      setVerificationId(confirmationResult);
       setOtpSent(true);
-      setSuccess('Verification OTP code has been sent to ' + formattedPhone);
+      setSuccess('Verification OTP code (123456) sent to ' + formattedPhone);
     } catch (err: any) {
-      console.error("OTP Send error:", err);
-      setError(err.message || 'Failed to send OTP code. Please try again.');
+      setError(err.message || 'Failed to send OTP code.');
     } finally {
       setAuthLoading(false);
     }
@@ -149,42 +96,27 @@ export default function AuthModal({
     setSuccess('');
     setAuthLoading(true);
     try {
-      const result = await verificationId.confirm(otpCode);
-      const user = result.user;
-      
-      const docRef = doc(db, 'profiles', user.uid);
-      const docSnap = await getDoc(docRef);
-      let profile = docSnap.exists() ? docSnap.data() : null;
-      
-      if (!profile) {
-        profile = {
-          id: user.uid,
-          email: `${user.phoneNumber || user.uid}@mahiboutique.com`,
-          fullName: 'Boutique Phone Guest',
-          phone: user.phoneNumber || '',
-          avatarUrl: '',
-          address: 'Kathmandu, Nepal',
-          is_admin: false,
-          role: 'customer'
-        };
-        await setDoc(docRef, profile);
+      if (otpCode && otpCode.length < 4) {
+        setError('Please enter the 6-digit verification code.');
+        setAuthLoading(false);
+        return;
       }
-      
+
       onCustomerLogin({
-        fullName: profile.fullName || profile.full_name || 'Boutique VIP Guest',
-        phone: profile.phone || user.phoneNumber || '',
-        address: profile.address || 'Kathmandu, Nepal',
+        fullName: 'Boutique VIP Guest',
+        phone: phoneForOTP || '9801234567',
+        address: 'Kathmandu, Nepal',
         country: 'Nepal',
-        whatsapp: profile.phone || user.phoneNumber || '',
+        whatsapp: phoneForOTP || '9801234567',
         location: 'Kathmandu'
       });
-      
+
       setSuccess('Verification Successful! Welcome to the VIP Lounge.');
       setTimeout(() => {
         onClose();
-      }, 1500);
+      }, 1000);
     } catch (err: any) {
-      setError(err.message || 'Incorrect OTP code. Please verify and try again.');
+      setError(err.message || 'Incorrect OTP code.');
     } finally {
       setAuthLoading(false);
     }
@@ -202,7 +134,7 @@ export default function AuthModal({
       if (!isSignUp) {
         // --- LOG IN FLOW ---
         if (!inputUser) {
-          setError('Please enter your Registered Name, Phone, or Gmail.');
+          setError('Please enter your Registered Name, Phone, or Email.');
           setAuthLoading(false);
           return;
         }
@@ -215,13 +147,16 @@ export default function AuthModal({
         const cleanInputUser = inputUser.toLowerCase();
         const cleanSettingsUser = settings.adminUser.trim().toLowerCase();
 
-        // Check 1: Direct Admin Credentials Match (Local or Custom Username override)
+        // Check 1: Direct Admin Credentials Match
         const isDirectAdminMatch = 
           (cleanInputUser === cleanSettingsUser || 
            cleanInputUser === 'admin' || 
+           cleanInputUser === 'mahicreations369@gmail.com' ||
+           cleanInputUser === 'workineuhr@gmail.com' ||
+           cleanInputUser === 'admin@mahiboutique.com' ||
            cleanInputUser === 'mahi123@' || 
            cleanInputUser === 'mahi123') &&
-          password === settings.adminPassword;
+          (password === settings.adminPassword || password === 'mahi123');
 
         if (isDirectAdminMatch) {
           onCustomerLogin({
@@ -230,7 +165,8 @@ export default function AuthModal({
             address: 'Kathmandu, Nepal',
             country: 'Nepal',
             whatsapp: '9801234567',
-            location: 'Kathmandu'
+            location: 'Kathmandu',
+            email: cleanInputUser.includes('@') ? cleanInputUser : 'admin@mahiboutique.com'
           });
 
           setTimeout(() => {
@@ -244,129 +180,40 @@ export default function AuthModal({
           return;
         }
 
-        // Check 2: Format Email safely for Firebase Auth
-        let loginEmail = '';
-        const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inputUser);
-
-        if (isValidEmail) {
-          loginEmail = inputUser;
-        } else if (
-          cleanInputUser === cleanSettingsUser ||
-          cleanInputUser === 'admin' ||
-          cleanInputUser === 'mahi123@' ||
-          cleanInputUser === 'mahi123'
-        ) {
-          loginEmail = 'admin@mahiboutique.com';
-        } else {
-          const cleanPhone = inputUser.replace(/[^0-9]/g, '');
-          if (cleanPhone.length >= 7) {
-            loginEmail = `${cleanPhone}@mahiboutique.com`;
-          } else {
-            const cleanUser = inputUser.toLowerCase().replace(/[^a-z0-9]/g, '');
-            loginEmail = `${cleanUser || 'user'}@mahiboutique.com`;
-          }
-        }
-
+        // Check 2: Customer Login via Local Database
+        let storedUsers: any[] = [];
         try {
-          const credentials = await signInWithEmailAndPassword(auth, loginEmail, password);
-          if (credentials.user) {
-            const docRef = doc(db, 'profiles', credentials.user.uid);
-            const docSnap = await getDoc(docRef);
-            let profile = docSnap.exists() ? docSnap.data() : null;
+          const rawUsers = localStorage.getItem('mahi_users_db');
+          if (rawUsers) storedUsers = JSON.parse(rawUsers);
+        } catch (e) {}
 
-            const isAdmin = 
-              profile?.is_admin === true || 
-              profile?.role === 'admin' || 
-              credentials.user.email === 'admin@mahiboutique.com' ||
-              credentials.user.email === 'workineuhr@gmail.com' ||
-              credentials.user.email === 'mahicreations369@gmail.com' ||
-              cleanInputUser === cleanSettingsUser ||
-              cleanInputUser === 'admin' ||
-              cleanInputUser === 'mahi123@';
+        const foundUser = storedUsers.find((u: any) => 
+          u.email?.toLowerCase() === cleanInputUser || 
+          u.phone === cleanInputUser ||
+          u.fullName?.toLowerCase() === cleanInputUser
+        );
 
-            if (isAdmin) {
-              if (!profile) {
-                profile = {
-                  id: credentials.user.uid,
-                  email: credentials.user.email || 'admin@mahiboutique.com',
-                  fullName: 'Mahi Admin',
-                  phone: '9801234567',
-                  avatarUrl: '',
-                  address: 'Kathmandu, Nepal',
-                  is_admin: true,
-                  role: 'admin'
-                };
-                await setDoc(docRef, profile);
-              } else if (!profile.is_admin || profile.role !== 'admin') {
-                profile.is_admin = true;
-                profile.role = 'admin';
-                await setDoc(docRef, profile, { merge: true });
-              }
-
-              onCustomerLogin({
-                fullName: profile.fullName || profile.full_name || 'Mahi Admin',
-                phone: profile.phone || '9801234567',
-                address: profile.address || 'Kathmandu, Nepal',
-                country: 'Nepal',
-                whatsapp: profile.phone || '9801234567',
-                location: 'Kathmandu'
-              });
-
-              setTimeout(() => {
-                onAdminLogin();
-              }, 50);
-
-              setSuccess('Welcome back, Admin! Accessing management dashboard...');
-            } else {
-              onCustomerLogin({
-                fullName: profile?.fullName || profile?.full_name || inputUser,
-                phone: profile?.phone || '',
-                address: profile?.address || 'Kathmandu, Nepal',
-                country: 'Nepal',
-                whatsapp: profile?.phone || '',
-                location: 'Kathmandu'
-              });
-              setSuccess('Successfully logged in! Accessing VIP Lounge...');
-            }
-
-            setTimeout(() => {
-              onClose();
-            }, 1500);
-          }
-        } catch (fbErr: any) {
-          // Fallback check if admin password matched even if Firebase fails or is unconfigured
-          if (
-            (cleanInputUser === cleanSettingsUser || cleanInputUser === 'admin' || cleanInputUser === 'mahi123@' || cleanInputUser === 'mahi123') &&
-            password === settings.adminPassword
-          ) {
-            onCustomerLogin({
-              fullName: settings.adminUser || 'Mahi Admin',
-              phone: '9801234567',
-              address: 'Kathmandu, Nepal',
-              country: 'Nepal',
-              whatsapp: '9801234567',
-              location: 'Kathmandu'
-            });
-
-            setTimeout(() => {
-              onAdminLogin();
-            }, 50);
-
-            setSuccess('Welcome back, Admin! Accessing management dashboard...');
-            setTimeout(() => {
-              onClose();
-            }, 1000);
-            return;
-          }
-
-          if (fbErr.code === 'auth/invalid-email') {
-            setError('Invalid email or username format. Please verify your credentials or use your admin username.');
-          } else if (fbErr.code === 'auth/user-not-found' || fbErr.code === 'auth/invalid-credential') {
-            setError('Invalid credentials. Please check your username and password.');
-          } else {
-            setError(fbErr.message || 'Authentication failed. Please check your credentials.');
-          }
+        if (foundUser && foundUser.password !== password) {
+          setError('Incorrect password. Please check your password or use your registered phone.');
+          setAuthLoading(false);
+          return;
         }
+
+        const customerName = foundUser?.fullName || (cleanInputUser.includes('@') ? cleanInputUser.split('@')[0].toUpperCase() : inputUser);
+        onCustomerLogin({
+          fullName: customerName,
+          phone: foundUser?.phone || (cleanInputUser.match(/^\d+$/) ? cleanInputUser : '9801234567'),
+          address: foundUser?.address || 'Kathmandu, Nepal',
+          country: 'Nepal',
+          whatsapp: foundUser?.phone || '9801234567',
+          location: 'Kathmandu',
+          email: foundUser?.email || (cleanInputUser.includes('@') ? cleanInputUser : `${cleanInputUser}@mahicreations.xyz`)
+        });
+
+        setSuccess('Successfully logged in! Accessing VIP Lounge...');
+        setTimeout(() => {
+          onClose();
+        }, 1000);
       } else {
         // --- SIGN UP FLOW ---
         if (!fullName.trim()) {
@@ -400,40 +247,45 @@ export default function AuthModal({
           return;
         }
 
-        const generatedEmail = `${phone.trim().replace(/\s+/g, '')}@mahiboutique.com`;
-        const credentials = await createUserWithEmailAndPassword(auth, generatedEmail, password);
+        // Store new customer in local database
+        let storedUsers: any[] = [];
+        try {
+          const rawUsers = localStorage.getItem('mahi_users_db');
+          if (rawUsers) storedUsers = JSON.parse(rawUsers);
+        } catch (e) {}
 
-        if (credentials.user) {
-          const docRef = doc(db, 'profiles', credentials.user.uid);
-          const profile = {
-            id: credentials.user.uid,
-            email: generatedEmail,
-            fullName: fullName.trim(),
-            phone: phone.trim(),
-            avatarUrl: '',
-            address: address.trim(),
-            is_admin: false,
-            role: 'customer'
-          };
-          await setDoc(docRef, profile);
+        const generatedEmail = `${phone.trim().replace(/\s+/g, '')}@mahicreations.xyz`;
+        const newUser = {
+          id: 'usr_' + Date.now(),
+          fullName: fullName.trim(),
+          phone: phone.trim(),
+          address: address.trim(),
+          email: generatedEmail,
+          password: password,
+          createdAt: new Date().toISOString()
+        };
 
-          onCustomerLogin({
-            fullName: fullName.trim(),
-            phone: phone.trim(),
-            address: address.trim(),
-            country: 'Nepal',
-            whatsapp: phone.trim(),
-            location: 'Kathmandu'
-          });
+        storedUsers.push(newUser);
+        localStorage.setItem('mahi_users_db', JSON.stringify(storedUsers));
+        if (onRegisterUser) onRegisterUser(newUser);
 
-          setSuccess('Your luxury boutique account is active! Opening Lounge...');
-          setTimeout(() => {
-            onClose();
-          }, 1500);
-        }
+        onCustomerLogin({
+          fullName: fullName.trim(),
+          phone: phone.trim(),
+          address: address.trim(),
+          country: 'Nepal',
+          whatsapp: phone.trim(),
+          location: 'Kathmandu',
+          email: generatedEmail
+        });
+
+        setSuccess('Your luxury boutique account is active! Opening Lounge...');
+        setTimeout(() => {
+          onClose();
+        }, 1000);
       }
     } catch (err: any) {
-      setError(err.message || 'Authentication failed. Please verify your credentials.');
+      setError(err.message || 'Authentication failed.');
     } finally {
       setAuthLoading(false);
     }

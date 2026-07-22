@@ -14,6 +14,8 @@ interface ProductDetailModalProps {
   onAddReview?: (review: ProductReview) => void;
   userSession?: UserSession | null;
   onAuthNeeded?: () => void;
+  onPrevProduct?: () => void;
+  onNextProduct?: () => void;
 }
 
 const BEAUTY_PLACEHOLDERS = [
@@ -53,7 +55,9 @@ export default function ProductDetailModal({
   reviews,
   onAddReview,
   userSession,
-  onAuthNeeded
+  onAuthNeeded,
+  onPrevProduct,
+  onNextProduct
 }: ProductDetailModalProps) {
   const [currentImgIndex, setCurrentImgIndex] = useState(0);
   const [addedMessage, setAddedMessage] = useState(false);
@@ -75,6 +79,52 @@ export default function ProductDetailModal({
   const images = product && product.images && product.images.length > 0 
     ? product.images 
     : (product ? [product.image] : []);
+
+  // Reset image index when product changes or modal opens
+  React.useEffect(() => {
+    setCurrentImgIndex(0);
+  }, [product?.id, isOpen]);
+
+  // Keyboard navigation for accessibility: Esc to close, Arrow keys to cycle
+  React.useEffect(() => {
+    if (!isOpen || !product) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore key events when user is typing in a form control
+      const activeElement = document.activeElement;
+      const isTyping = activeElement && (
+        activeElement.tagName === 'INPUT' || 
+        activeElement.tagName === 'TEXTAREA' || 
+        activeElement.tagName === 'SELECT'
+      );
+
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (zoomedPhoto) {
+          setZoomedPhoto(null);
+        } else {
+          onClose();
+        }
+      } else if (!isTyping && (e.key === 'ArrowLeft' || e.key === 'ArrowUp')) {
+        e.preventDefault();
+        if (images.length > 1) {
+          setCurrentImgIndex((prev) => (prev - 1 + images.length) % images.length);
+        } else if (onPrevProduct) {
+          onPrevProduct();
+        }
+      } else if (!isTyping && (e.key === 'ArrowRight' || e.key === 'ArrowDown')) {
+        e.preventDefault();
+        if (images.length > 1) {
+          setCurrentImgIndex((prev) => (prev + 1) % images.length);
+        } else if (onNextProduct) {
+          onNextProduct();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, product, zoomedPhoto, images.length, onClose, onPrevProduct, onNextProduct]);
 
   // Auto-slide images every 5 seconds if multiple photos exist
   React.useEffect(() => {
@@ -180,14 +230,44 @@ export default function ProductDetailModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4 bg-dark/65 backdrop-blur-md font-sans">
+    <div 
+      className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4 bg-dark/65 backdrop-blur-md font-sans"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Product details for ${product.name}`}
+    >
       <div className="relative bg-white w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden border border-clay animate-fade-in my-8 max-h-[90vh] flex flex-col">
         
-        {/* Header Close */}
-        <div className="absolute right-5 top-5 z-20">
+        {/* Header Navigation & Close Controls */}
+        <div className="absolute right-5 top-5 z-20 flex items-center gap-2">
+          {onPrevProduct && (
+            <button
+              onClick={onPrevProduct}
+              className="p-2 bg-white/90 hover:bg-dark hover:text-white rounded-full shadow-md text-neutral-500 transition-all cursor-pointer border border-clay-light"
+              title="Previous product (← / ↑)"
+              aria-label="Previous product"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+          )}
+          {onNextProduct && (
+            <button
+              onClick={onNextProduct}
+              className="p-2 bg-white/90 hover:bg-dark hover:text-white rounded-full shadow-md text-neutral-500 transition-all cursor-pointer border border-clay-light"
+              title="Next product (→ / ↓)"
+              aria-label="Next product"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          )}
           <button
             onClick={onClose}
             className="p-2 bg-white/90 hover:bg-dark hover:text-white rounded-full shadow-md text-neutral-500 transition-all cursor-pointer border border-clay-light"
+            title="Close Product Details (Esc)"
+            aria-label="Close modal"
           >
             <X className="w-5 h-5" />
           </button>
@@ -216,6 +296,11 @@ export default function ProductDetailModal({
                     {product.discountPercent}% OFF
                   </div>
                 )}
+
+                {/* Keyboard shortcut hint badge */}
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-dark/70 backdrop-blur-xs text-[8px] text-white/90 font-mono px-2.5 py-1 rounded-full pointer-events-none opacity-0 group-hover/detailzoom:opacity-100 transition-opacity">
+                  Esc close • ← → cycle
+                </div>
 
                 <img
                   src={images[currentImgIndex]}

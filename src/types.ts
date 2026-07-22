@@ -148,6 +148,13 @@ export interface BoutiqueSettings {
   sourcingDescription?: string;
   sourcingBadge?: string;
   coupons?: Coupon[];
+  seoTitle?: string;
+  seoDescription?: string;
+  seoKeywords?: string;
+  seoOgImage?: string;
+  seoCanonicalUrl?: string;
+  seoAuthor?: string;
+  seoTwitterHandle?: string;
 }
 
 export interface Coupon {

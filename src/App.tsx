@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Product, CartItem, Order, OrderStatus, BoutiqueSettings, ProductReview, UserSession } from './types';
 import { INITIAL_PRODUCTS, DELIVERY_LOCATIONS, DEFAULT_PROMO_SLIDES } from './data';
-import { auth, db, isFirebaseConfigured } from './lib/firebase';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { isFirebaseConfigured } from './lib/firebase';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import AuthModal from './components/AuthModal';
@@ -617,37 +615,42 @@ export default function App() {
   // Dynamic Page Title & Meta tags for SEO & premium look
   useEffect(() => {
     const brandName = settings.shopName || "Mahi Creations";
-    let title = `${brandName} | Luxury Handcrafted Treasures & Apparel`;
-    let desc = `Explore ${brandName}' exclusive collection of luxury cosmetic treasures, handcrafted custom jewelry, premium traditional clothing, and curated premium lifestyle pieces.`;
-    let ogUrl = "https://mahicreations.xyz/";
-    let ogImage = "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&q=80&w=1200&h=630";
+    const defaultCanonical = settings.seoCanonicalUrl || "https://mahicreations.xyz/";
+    const defaultKeywords = settings.seoKeywords || "mahi creations, cosmetics nepal, luxury boutique, velvet liquid lipstick, foundation, organza saree, lehenga, bridal jewelry, online shopping kathmandu";
+    const defaultAuthor = settings.seoAuthor || brandName;
+    const defaultTwitter = settings.seoTwitterHandle || "@mahicreations";
+
+    let title = settings.seoTitle || `${brandName} | Luxury Handcrafted Treasures & Apparel`;
+    let desc = settings.seoDescription || `Explore ${brandName}' exclusive collection of luxury cosmetic treasures, handcrafted custom jewelry, premium traditional clothing, and curated premium lifestyle pieces.`;
+    let ogUrl = defaultCanonical;
+    let ogImage = settings.seoOgImage || "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&q=80&w=1200&h=630";
 
     if (detailModalOpen && selectedProduct) {
       title = `${selectedProduct.name} | ${brandName}`;
       desc = selectedProduct.description;
-      ogUrl = `https://mahicreations.xyz/?product=${selectedProduct.id}`;
+      ogUrl = `${defaultCanonical.replace(/\/$/, '')}/?product=${selectedProduct.id}`;
       ogImage = selectedProduct.image;
     } else if (quickViewOpen && quickViewProduct) {
       title = `Quick View: ${quickViewProduct.name} | ${brandName}`;
       desc = quickViewProduct.description;
-      ogUrl = `https://mahicreations.xyz/?product=${quickViewProduct.id}`;
+      ogUrl = `${defaultCanonical.replace(/\/$/, '')}/?product=${quickViewProduct.id}`;
       ogImage = quickViewProduct.image;
     } else if (activeView === 'admin') {
       title = `Merchant Admin Console | ${brandName}`;
       desc = "Manage products, track orders, adjust settings, and view business performance analytics.";
-      ogUrl = "https://mahicreations.xyz/admin";
+      ogUrl = `${defaultCanonical.replace(/\/$/, '')}/admin`;
     } else if (activeView === 'tracker') {
       title = `Track Your Order | ${brandName}`;
       desc = "Enter your tracking code or order ID to get live status, courier, and delivery details.";
-      ogUrl = "https://mahicreations.xyz/tracker";
+      ogUrl = `${defaultCanonical.replace(/\/$/, '')}/tracker`;
     } else if (activeView === 'portal') {
       title = `Customer Portal | ${brandName}`;
       desc = "View your order history, account information, loyalty points, and custom rewards.";
-      ogUrl = "https://mahicreations.xyz/portal";
+      ogUrl = `${defaultCanonical.replace(/\/$/, '')}/portal`;
     } else if (selectedCategory && selectedCategory !== 'All') {
       title = `${selectedCategory} Collection | ${brandName}`;
       desc = `Browse our premium handcrafted ${selectedCategory.toLowerCase()} collection.`;
-      ogUrl = `https://mahicreations.xyz/?category=${encodeURIComponent(selectedCategory)}`;
+      ogUrl = `${defaultCanonical.replace(/\/$/, '')}/?category=${encodeURIComponent(selectedCategory)}`;
     }
 
     // Update document title
@@ -682,6 +685,8 @@ export default function App() {
     // Primary Meta tags
     updateMeta('meta[name="description"]', 'content', desc);
     updateMeta('meta[name="title"]', 'content', title);
+    updateMeta('meta[name="keywords"]', 'content', defaultKeywords);
+    updateMeta('meta[name="author"]', 'content', defaultAuthor);
     
     // Open Graph / Facebook Meta tags
     updateMeta('meta[property="og:url"]', 'content', ogUrl);
@@ -689,119 +694,42 @@ export default function App() {
     updateMeta('meta[property="og:description"]', 'content', desc);
     updateMeta('meta[property="og:image"]', 'content', ogImage);
     updateMeta('meta[property="og:image:secure_url"]', 'content', ogImage);
+    updateMeta('meta[property="og:site_name"]', 'content', brandName);
     
     // Twitter Card Meta tags
+    updateMeta('meta[name="twitter:card"]', 'content', 'summary_large_image');
+    updateMeta('meta[name="twitter:site"]', 'content', defaultTwitter);
+    updateMeta('meta[name="twitter:creator"]', 'content', defaultTwitter);
     updateMeta('meta[name="twitter:url"]', 'content', ogUrl);
     updateMeta('meta[name="twitter:title"]', 'content', title);
     updateMeta('meta[name="twitter:description"]', 'content', desc);
     updateMeta('meta[name="twitter:image"]', 'content', ogImage);
-  }, [activeView, selectedCategory, selectedProduct, detailModalOpen, quickViewProduct, quickViewOpen]);
+  }, [activeView, selectedCategory, selectedProduct, detailModalOpen, quickViewProduct, quickViewOpen, settings]);
 
   const handleLogin = (session: UserSession) => {
     setUserSession(session);
   };
 
   const handleLogout = () => {
-    if (isFirebaseConfigured) {
-      signOut(auth).catch(err => console.error("Error signing out from Firebase:", err));
-    }
     setUserSession(null);
     setIsAdminLoggedIn(false);
     localStorage.removeItem('mahi_session_v1');
     localStorage.removeItem('mahi_admin_logged_in');
   };
 
-  // Listen for Firebase Authentication State Changes
+  // Restore session from Hostinger Local Storage on load
   useEffect(() => {
-    if (isFirebaseConfigured) {
-      const syncSessionProfile = async (user: any) => {
-        try {
-          const docRef = doc(db, 'profiles', user.uid);
-          const docSnap = await getDoc(docRef);
-          let profile = docSnap.exists() ? docSnap.data() : null;
-
-          if (!profile) {
-            // First-time signup profile initialization
-            profile = {
-              id: user.uid,
-              email: user.email || `${user.phoneNumber || user.uid}@mahiboutique.com`,
-              fullName: user.displayName || '',
-              phone: user.phoneNumber || '',
-              avatarUrl: user.photoURL || '',
-              address: 'Kathmandu, Nepal',
-              is_admin: user.email === 'admin@mahiboutique.com' || user.email === 'workineuhr@gmail.com' || user.email === 'mahicreations369@gmail.com',
-              role: (user.email === 'admin@mahiboutique.com' || user.email === 'workineuhr@gmail.com' || user.email === 'mahicreations369@gmail.com') ? 'admin' : 'customer'
-            };
-            await setDoc(docRef, profile);
-          }
-
-          const isAdmin = 
-            profile?.is_admin === true || 
-            profile?.role === 'admin' || 
-            user.email === 'admin@mahiboutique.com' ||
-            user.email === 'workineuhr@gmail.com' ||
-            user.email === 'mahicreations369@gmail.com';
-
-          const mappedSession: UserSession = {
-            fullName: profile?.fullName || profile?.full_name || user.displayName || user.email?.split('@')[0] || 'VIP Member',
-            phone: profile?.phone || user.phoneNumber || '9801234567',
-            address: profile?.address || 'Kathmandu, Nepal',
-            country: profile?.country || 'Nepal',
-            whatsapp: profile?.whatsapp || profile?.phone || user.phoneNumber || '9801234567',
-            location: profile?.location || 'Kathmandu',
-            email: profile?.email || user.email || '',
-            avatarUrl: profile?.avatarUrl || user.photoURL || '',
-            savedCards: profile?.savedCards || [],
-            savedBankAccounts: profile?.savedBankAccounts || [],
-            savedWallets: profile?.savedWallets || []
-          };
-
-          setUserSession(mappedSession);
-          localStorage.setItem('mahi_session_v1', JSON.stringify(mappedSession));
-
-          if (isAdmin) {
-            setIsAdminLoggedIn(true);
-            localStorage.setItem('mahi_admin_logged_in', 'true');
-          }
-        } catch (err) {
-          console.warn("Could not fetch profile from Firestore, using auth fallback:", err);
-          const isAdmin = user.email === 'admin@mahiboutique.com' || user.email === 'workineuhr@gmail.com' || user.email === 'mahicreations369@gmail.com';
-          const fallbackSession: UserSession = {
-            fullName: user.displayName || user.email?.split('@')[0] || 'VIP Member',
-            phone: user.phoneNumber || '9801234567',
-            address: 'Kathmandu, Nepal',
-            country: 'Nepal',
-            whatsapp: user.phoneNumber || '9801234567',
-            location: 'Kathmandu',
-            email: user.email || '',
-            avatarUrl: user.photoURL || '',
-            savedCards: [],
-            savedBankAccounts: [],
-            savedWallets: []
-          };
-          setUserSession(fallbackSession);
-          localStorage.setItem('mahi_session_v1', JSON.stringify(fallbackSession));
-          if (isAdmin) {
-            setIsAdminLoggedIn(true);
-            localStorage.setItem('mahi_admin_logged_in', 'true');
-          }
-        }
-      };
-
-      const unsubscribe = onAuthStateChanged(auth, async (user) => {
-        if (user) {
-          await syncSessionProfile(user);
-        } else {
-          setUserSession(null);
-          setIsAdminLoggedIn(false);
-          localStorage.removeItem('mahi_session_v1');
-          localStorage.removeItem('mahi_admin_logged_in');
-        }
-      });
-
-      return () => {
-        unsubscribe();
-      };
+    try {
+      const savedSession = localStorage.getItem('mahi_session_v1');
+      if (savedSession) {
+        setUserSession(JSON.parse(savedSession));
+      }
+      const savedAdmin = localStorage.getItem('mahi_admin_logged_in');
+      if (savedAdmin === 'true') {
+        setIsAdminLoggedIn(true);
+      }
+    } catch (e) {
+      console.warn("Could not load saved session:", e);
     }
   }, []);
 
@@ -1967,6 +1895,18 @@ export default function App() {
         onAddReview={handleAddReview}
         userSession={userSession}
         onAuthNeeded={() => setAuthModalOpen(true)}
+        onPrevProduct={() => {
+          if (!selectedProduct || products.length === 0) return;
+          const idx = products.findIndex(p => p.id === selectedProduct.id);
+          const prevIdx = idx === -1 ? 0 : (idx - 1 + products.length) % products.length;
+          setSelectedProduct(products[prevIdx]);
+        }}
+        onNextProduct={() => {
+          if (!selectedProduct || products.length === 0) return;
+          const idx = products.findIndex(p => p.id === selectedProduct.id);
+          const nextIdx = idx === -1 ? 0 : (idx + 1) % products.length;
+          setSelectedProduct(products[nextIdx]);
+        }}
       />
 
       <QuickViewModal
@@ -1975,6 +1915,18 @@ export default function App() {
         onClose={() => setQuickViewOpen(false)}
         onAddToCart={handleAddToCart}
         currency={currency}
+        onPrevProduct={() => {
+          if (!quickViewProduct || products.length === 0) return;
+          const idx = products.findIndex(p => p.id === quickViewProduct.id);
+          const prevIdx = idx === -1 ? 0 : (idx - 1 + products.length) % products.length;
+          setQuickViewProduct(products[prevIdx]);
+        }}
+        onNextProduct={() => {
+          if (!quickViewProduct || products.length === 0) return;
+          const idx = products.findIndex(p => p.id === quickViewProduct.id);
+          const nextIdx = idx === -1 ? 0 : (idx + 1) % products.length;
+          setQuickViewProduct(products[nextIdx]);
+        }}
       />
 
       <WhatsAppChat whatsappNumber={settings.whatsappNumber} />
