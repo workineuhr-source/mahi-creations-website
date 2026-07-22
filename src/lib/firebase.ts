@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import { getFirestore } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp({
@@ -14,17 +14,6 @@ const app = initializeApp({
 
 // Initialize Firestore
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId || '(default)');
-
-async function testConnection() {
-  try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
-  } catch (error) {
-    if (error instanceof Error && (error.message.includes('the client is offline') || error.message.includes('unavailable') || (error as any).code === 'unavailable')) {
-      console.warn("Firestore is operating in offline/cached mode.");
-    }
-  }
-}
-testConnection();
 
 export const auth = getAuth(app);
 
