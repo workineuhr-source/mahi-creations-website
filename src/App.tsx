@@ -17,6 +17,7 @@ import PolicyPage from './components/PolicyPage';
 import ProductDetailModal from './components/ProductDetailModal';
 import QuickViewModal from './components/QuickViewModal';
 import WhatsAppChat from './components/WhatsAppChat';
+import AIChatBot from './components/AIChatBot';
 import FaqSection from './components/FaqSection';
 import CompareBar from './components/CompareBar';
 import CompareModal from './components/CompareModal';
@@ -763,7 +764,27 @@ export default function App() {
             localStorage.setItem('mahi_admin_logged_in', 'true');
           }
         } catch (err) {
-          console.error("Error loading profile from Firebase:", err);
+          console.warn("Could not fetch profile from Firestore, using auth fallback:", err);
+          const isAdmin = user.email === 'admin@mahiboutique.com' || user.email === 'workineuhr@gmail.com' || user.email === 'mahicreations369@gmail.com';
+          const fallbackSession: UserSession = {
+            fullName: user.displayName || user.email?.split('@')[0] || 'VIP Member',
+            phone: user.phoneNumber || '9801234567',
+            address: 'Kathmandu, Nepal',
+            country: 'Nepal',
+            whatsapp: user.phoneNumber || '9801234567',
+            location: 'Kathmandu',
+            email: user.email || '',
+            avatarUrl: user.photoURL || '',
+            savedCards: [],
+            savedBankAccounts: [],
+            savedWallets: []
+          };
+          setUserSession(fallbackSession);
+          localStorage.setItem('mahi_session_v1', JSON.stringify(fallbackSession));
+          if (isAdmin) {
+            setIsAdminLoggedIn(true);
+            localStorage.setItem('mahi_admin_logged_in', 'true');
+          }
         }
       };
 
@@ -1957,6 +1978,23 @@ export default function App() {
       />
 
       <WhatsAppChat whatsappNumber={settings.whatsappNumber} />
+
+      <AIChatBot
+        products={products}
+        cartItems={cart}
+        currency={currency}
+        onAddToCart={handleAddToCart}
+        onViewProductDetails={(product) => {
+          setSelectedProduct(product);
+          setDetailModalOpen(true);
+        }}
+        onOpenCart={() => setCartOpen(true)}
+        onOpenCheckout={() => {
+          setCartOpen(false);
+          setCheckoutOpen(true);
+        }}
+        whatsappNumber={settings.whatsappNumber}
+      />
 
       {/* Back to Top button */}
       <AnimatePresence>

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { MessageSquare, X, Send, Sparkles } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { MessageSquare, X, Send, Sparkles, GripHorizontal } from 'lucide-react';
+import { motion } from 'motion/react';
 
 interface WhatsAppChatProps {
   whatsappNumber?: string;
@@ -8,6 +9,7 @@ interface WhatsAppChatProps {
 export default function WhatsAppChat({ whatsappNumber = '971501942989' }: WhatsAppChatProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [customMsg, setCustomMsg] = useState('');
+  const isDraggingRef = useRef(false);
 
   const handleStartChat = (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,22 +21,38 @@ export default function WhatsAppChat({ whatsappNumber = '971501942989' }: WhatsA
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-40 font-sans">
+    <motion.div 
+      drag
+      dragMomentum={false}
+      onDragStart={() => {
+        isDraggingRef.current = true;
+      }}
+      onDragEnd={() => {
+        setTimeout(() => {
+          isDraggingRef.current = false;
+        }, 150);
+      }}
+      className="fixed bottom-6 right-6 z-40 font-sans cursor-move"
+      title="Drag WhatsApp widget anywhere on screen"
+    >
       
       {/* Expanded Chat Card */}
       {isOpen ? (
-        <div className="bg-white w-80 rounded-3xl shadow-2xl border border-clay overflow-hidden animate-fade-in flex flex-col">
+        <div className="bg-white w-80 rounded-3xl shadow-2xl border border-clay overflow-hidden flex flex-col">
           
           {/* Header */}
-          <div className="bg-dark text-white p-4.5 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="relative w-9 h-9 rounded-full bg-clay-light flex items-center justify-center text-brand font-serif font-black shadow-sm">
+          <div className="bg-dark text-white p-3.5 flex items-center justify-between cursor-grab active:cursor-grabbing">
+            <div className="flex items-center gap-2">
+              <div className="p-1 text-neutral-400 hover:text-white transition" title="Drag to move chat">
+                <GripHorizontal className="w-4 h-4" />
+              </div>
+              <div className="relative w-8 h-8 rounded-full bg-clay-light flex items-center justify-center text-brand font-serif font-black shadow-sm">
                 M
                 <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-dark"></span>
               </div>
               <div>
-                <p className="font-serif text-sm font-bold tracking-wide uppercase">Mahi Creations Chat</p>
-                <p className="text-[10px] text-emerald-400 font-bold tracking-wide uppercase">● Online (Boutique Support)</p>
+                <p className="font-serif text-xs font-bold tracking-wide uppercase">WhatsApp Support</p>
+                <p className="text-[9px] text-emerald-400 font-bold tracking-wide uppercase">● Drag to move • Online</p>
               </div>
             </div>
             <button
@@ -78,7 +96,10 @@ export default function WhatsAppChat({ whatsappNumber = '971501942989' }: WhatsA
       ) : (
         /* Floating Button Trigger */
         <button
-          onClick={() => setIsOpen(true)}
+          onClick={() => {
+            if (isDraggingRef.current) return;
+            setIsOpen(true);
+          }}
           className="bg-emerald-600 hover:bg-emerald-700 text-white p-4.5 rounded-full shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all cursor-pointer animate-bounce border border-emerald-500"
           title="Direct WhatsApp Chat with Seller"
           aria-label="WhatsApp Chat"
@@ -87,6 +108,6 @@ export default function WhatsAppChat({ whatsappNumber = '971501942989' }: WhatsA
         </button>
       )}
 
-    </div>
+    </motion.div>
   );
 }

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Order, OrderStatus, BoutiqueSettings } from '../types';
 import { Search, MapPin, Calendar, Clock, CreditCard, Sparkles, MessageSquare, AlertCircle, ShoppingBag, Truck, Check, Printer, Copy, Download, User, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import MockDeliveryMap from './MockDeliveryMap';
 
 interface OrderTrackerProps {
   orders: Order[];
@@ -751,6 +752,20 @@ export default function OrderTracker({ orders, onBackToShop, initialSearchId = '
                   })}
                 </div>
               </div>
+            )}
+
+            {/* MOCK DELIVERY MAP INTERFACE */}
+            {searchedOrder.status !== 'Cancelled' && (
+              <MockDeliveryMap
+                deliveryLocationName={searchedOrder.deliveryLocationName}
+                customerAddress={searchedOrder.customerAddress}
+                customerName={searchedOrder.customerName}
+                orderStatus={searchedOrder.status}
+                courierName={searchedOrder.courierName}
+                courierPhone={searchedOrder.courierPhone}
+                estimatedDelivery={searchedOrder.estimatedDelivery}
+                orderId={searchedOrder.id}
+              />
             )}
 
             {/* Details breakdown split */}

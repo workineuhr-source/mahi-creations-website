@@ -117,37 +117,46 @@ export default function CustomerPortal({
       
       const credentials = await signInWithPopup(auth, googleProvider);
       if (credentials.user) {
-        const docRef = doc(db, 'profiles', credentials.user.uid);
-        const docSnap = await getDoc(docRef);
-        let profile = docSnap.exists() ? docSnap.data() : null;
+        let profile: any = null;
+        try {
+          const docRef = doc(db, 'profiles', credentials.user.uid);
+          const docSnap = await getDoc(docRef);
+          profile = docSnap.exists() ? docSnap.data() : null;
 
-        if (!profile) {
-          profile = {
-            id: credentials.user.uid,
-            email: credentials.user.email || `${credentials.user.uid}@mahiboutique.com`,
-            fullName: credentials.user.displayName || 'Google VIP Guest',
-            phone: credentials.user.phoneNumber || '',
-            avatarUrl: credentials.user.photoURL || '',
-            address: 'Kathmandu, Nepal',
-            is_admin: credentials.user.email === 'admin@mahiboutique.com' || credentials.user.email === 'workineuhr@gmail.com' || credentials.user.email === 'mahicreations369@gmail.com',
-            role: (credentials.user.email === 'admin@mahiboutique.com' || credentials.user.email === 'workineuhr@gmail.com' || credentials.user.email === 'mahicreations369@gmail.com') ? 'admin' : 'customer'
-          };
-          await setDoc(docRef, profile);
+          if (!profile) {
+            profile = {
+              id: credentials.user.uid,
+              email: credentials.user.email || `${credentials.user.uid}@mahiboutique.com`,
+              fullName: credentials.user.displayName || 'Google VIP Guest',
+              phone: credentials.user.phoneNumber || '',
+              avatarUrl: credentials.user.photoURL || '',
+              address: 'Kathmandu, Nepal',
+              is_admin: credentials.user.email === 'admin@mahiboutique.com' || credentials.user.email === 'workineuhr@gmail.com' || credentials.user.email === 'mahicreations369@gmail.com',
+              role: (credentials.user.email === 'admin@mahiboutique.com' || credentials.user.email === 'workineuhr@gmail.com' || credentials.user.email === 'mahicreations369@gmail.com') ? 'admin' : 'customer'
+            };
+            await setDoc(docRef, profile);
+          }
+        } catch (fsErr) {
+          console.warn("Firestore profile sync offline/error:", fsErr);
         }
 
         const session: UserSession = {
-          fullName: profile.fullName || profile.full_name || credentials.user.displayName || 'Google VIP Guest',
-          phone: profile.phone || credentials.user.phoneNumber || '9800000000',
-          address: profile.address || 'Kathmandu, Nepal',
+          fullName: profile?.fullName || profile?.full_name || credentials.user.displayName || 'Google VIP Guest',
+          phone: profile?.phone || credentials.user.phoneNumber || '9800000000',
+          address: profile?.address || 'Kathmandu, Nepal',
           country: 'Nepal',
-          whatsapp: profile.phone || credentials.user.phoneNumber || '9800000000',
+          whatsapp: profile?.phone || credentials.user.phoneNumber || '9800000000',
           location: 'Kathmandu'
         };
         onLogin(session);
         setAuthMessage("Google Login Successful!");
       }
     } catch (err: any) {
-      setAuthError(err.message || 'Google Sign-In failed');
+      if (err.code === 'auth/unauthorized-domain' || err.message?.includes('unauthorized-domain')) {
+        setAuthError(`Domain (${window.location.hostname}) is not authorized in Firebase Console. For Admin panel access, please log in directly using Admin Credentials or Email & Password!`);
+      } else {
+        setAuthError(err.message || 'Google Sign-In failed');
+      }
     } finally {
       setAuthLoading(false);
     }
@@ -2689,7 +2698,7 @@ export default function CustomerPortal({
                 <label className="font-bold text-neutral-600 uppercase tracking-wider block text-[10px]">Card Type</label>
                 <select
                   value={cardType}
-                  onChange={(e) => setCardType(e.target.value)}
+                  onChange={(e) => setCardType(e.target.value as any)}
                   className="w-full text-xs p-2.5 bg-bg-warm/30 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-bold"
                 >
                   <option value="Visa">Visa</option>
@@ -2805,8 +2814,8 @@ export default function CustomerPortal({
                   type="text"
                   required
                   placeholder="e.g. Mahi Shrestha"
-                  value={bankAccountHolderName}
-                  onChange={(e) => setBankAccountHolderName(e.target.value)}
+                  value={accountName}
+                  onChange={(e) => setAccountName(e.target.value)}
                   className="w-full text-xs p-2.5 bg-bg-warm/30 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium"
                 />
               </div>
@@ -2817,8 +2826,8 @@ export default function CustomerPortal({
                   type="text"
                   required
                   placeholder="e.g. 0120100100203"
-                  value={bankAccountNumber}
-                  onChange={(e) => setBankAccountNumber(e.target.value)}
+                  value={accountNumber}
+                  onChange={(e) => setAccountNumber(e.target.value)}
                   className="w-full text-xs p-2.5 bg-bg-warm/30 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-mono"
                 />
               </div>
@@ -2829,8 +2838,8 @@ export default function CustomerPortal({
                   <input
                     type="text"
                     placeholder="e.g. Durbar Marg"
-                    value={bankBranch}
-                    onChange={(e) => setBankBranch(e.target.value)}
+                    value={branchName}
+                    onChange={(e) => setBranchName(e.target.value)}
                     className="w-full text-xs p-2.5 bg-bg-warm/30 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-medium"
                   />
                 </div>
@@ -2885,7 +2894,7 @@ export default function CustomerPortal({
                 <label className="font-bold text-neutral-600 uppercase tracking-wider block text-[10px]">Wallet Provider</label>
                 <select
                   value={walletProvider}
-                  onChange={(e) => setWalletProvider(e.target.value)}
+                  onChange={(e) => setWalletProvider(e.target.value as any)}
                   className="w-full text-xs p-2.5 bg-bg-warm/30 border border-clay rounded-xl focus:outline-none focus:ring-1 focus:ring-brand font-bold"
                 >
                   <option value="eSewa">eSewa (Nepal)</option>
@@ -2969,10 +2978,11 @@ export default function CustomerPortal({
               </button>
               <button
                 type="button"
-                onClick={handleDeleteAccount}
-                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold uppercase tracking-widest rounded-xl transition cursor-pointer shadow-sm"
+                disabled={isDeletingAccount}
+                onClick={handleDeleteProfile}
+                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-bold uppercase tracking-widest rounded-xl transition cursor-pointer shadow-sm"
               >
-                Yes, Delete Account
+                {isDeletingAccount ? 'Deleting...' : 'Yes, Delete Account'}
               </button>
             </div>
           </div>

@@ -1,6 +1,17 @@
 import React, { useState } from 'react';
 import { Product, Order, OrderStatus, BoutiqueSettings, ProductReview, PromoSlide, Coupon } from '../types';
 import { 
+  ResponsiveContainer, 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  Tooltip, 
+  CartesianGrid, 
+  AreaChart, 
+  Area 
+} from 'recharts';
+import { 
   Settings, Lock, LayoutDashboard, Plus, Edit, Trash2, Check, RefreshCw, X, 
   TrendingUp, DollarSign, Package, ShoppingCart, Percent, Share2, Facebook, 
   Instagram, Linkedin, MessageSquare, Copy, CheckCircle2, Eye, EyeOff, User, Phone, 
@@ -242,6 +253,37 @@ export default function AdminPanel({
   // Sharing Modal states
   const [sharingProduct, setSharingProduct] = useState<Product | null>(null);
   const [copiedText, setCopiedText] = useState(false);
+
+  // Reviews sorting and filtering state
+  const [reviewSort, setReviewSort] = useState<'newest' | 'oldest' | 'rating-desc' | 'rating-asc'>('newest');
+  const [reviewSearch, setReviewSearch] = useState('');
+
+  const filteredAndSortedReviews = React.useMemo(() => {
+    let list = [...reviews];
+    if (reviewSearch.trim()) {
+      const q = reviewSearch.toLowerCase().trim();
+      list = list.filter(r => 
+        (r.customerName || '').toLowerCase().includes(q) ||
+        (r.productName || '').toLowerCase().includes(q) ||
+        (r.comment || '').toLowerCase().includes(q)
+      );
+    }
+    return list.sort((a, b) => {
+      if (reviewSort === 'newest') {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+      if (reviewSort === 'oldest') {
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      }
+      if (reviewSort === 'rating-desc') {
+        return b.rating - a.rating;
+      }
+      if (reviewSort === 'rating-asc') {
+        return a.rating - b.rating;
+      }
+      return 0;
+    });
+  }, [reviews, reviewSort, reviewSearch]);
 
   // Settings update temporary state
   const [tempUser, setTempUser] = useState(settings.adminUser);
@@ -1921,160 +1963,107 @@ export default function AdminPanel({
                 </div>
               </div>
 
-              {/* SMART ADVANCED CONTROL CENTER: 7-DAY sales AREA CHART & SMART BOUTIQUE COMMAND CONSOLE */}
+              {/* SMART ADVANCED CONTROL CENTER: 7-DAY RECHARTS LINE CHART & COMMAND CONSOLE */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 
-                {/* 1. 7-Day Cumulative Sales Area Chart (8 cols) */}
+                {/* 1. 7-Day Total Orders Placed Line Chart (8 cols) */}
                 <div className="lg:col-span-8 bg-white p-6 rounded-3xl border border-clay shadow-sm flex flex-col justify-between">
                   <div>
-                    <div className="flex justify-between items-center border-b border-clay-light pb-4 mb-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-clay-light pb-4 mb-4 gap-2">
                       <div>
                         <h4 className="font-serif text-base font-bold text-dark uppercase tracking-wide flex items-center gap-2">
                           <TrendingUp className="w-5 h-5 text-brand" />
-                          7-Day Boutique Sales Curve (७-दिने बिक्री रेखाचित्र)
+                          7-Day Orders Placed (गत ७ दिनको अर्डर चार्ट)
                         </h4>
-                        <p className="text-neutral-400 text-[10px] font-light">Real-time cumulative earnings mapped dynamically over the last seven calendar days.</p>
+                        <p className="text-neutral-400 text-[10px] font-light">Interactive Recharts line chart tracking daily total orders placed over the past week.</p>
                       </div>
-                      <span className="text-[9px] bg-brand/10 text-brand px-2.5 py-1 rounded-md font-bold uppercase tracking-wider font-mono">
-                        AED Valuation
-                      </span>
+                      <div className="flex items-center gap-2 self-start sm:self-center">
+                        <span className="text-[9px] bg-brand/10 text-brand px-2.5 py-1 rounded-md font-bold uppercase tracking-wider font-mono">
+                          Recharts Analytics
+                        </span>
+                      </div>
                     </div>
 
-                    {/* Chart Generator */}
+                    {/* Recharts Line Chart for Total Orders */}
                     {(() => {
-                      const chartData = getLast7DaysSales().map(d => ({ ...d, sales: convertPrice(d.sales, 'AED') }));
-                      const maxVal = Math.max(...chartData.map(d => d.sales), 300);
-                      
-                      // Chart Dimensions
-                      const w = 600;
-                      const h = 200;
-                      const padLeft = 60;
-                      const padRight = 20;
-                      const padTop = 20;
-                      const padBottom = 30;
-                      
-                      const effW = w - padLeft - padRight;
-                      const effH = h - padTop - padBottom;
-                      
-                      // Map points
-                      const points = chartData.map((d, i) => {
-                        const x = padLeft + (i * (effW / 6));
-                        const y = padTop + effH - ((d.sales / maxVal) * effH);
-                        return { x, y, data: d };
-                      });
-                      
-                      const linePath = points.length > 0 
-                        ? points.map((p, i) => (i === 0 ? 'M' : 'L') + ` ${p.x} ${p.y}`).join(' ')
-                        : '';
-                        
-                      const areaPath = points.length > 0
-                        ? `${linePath} L ${points[points.length - 1].x} ${padTop + effH} L ${points[0].x} ${padTop + effH} Z`
-                        : '';
-                        
+                      const last7DaysData = getLast7DaysSales().map(d => ({
+                        date: d.label,
+                        day: d.dayName,
+                        orders: d.orderCount,
+                        sales: convertPrice(d.sales, 'AED'),
+                        fullLabel: `${d.dayName}, ${d.label}`
+                      }));
+
+                      const total7DayOrders = last7DaysData.reduce((acc, curr) => acc + curr.orders, 0);
+
                       return (
-                        <div className="relative pt-2">
-                          <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-auto overflow-visible select-none">
-                            <defs>
-                              <linearGradient id="chartAreaGrad" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#c5a880" stopOpacity="0.32" />
-                                <stop offset="100%" stopColor="#c5a880" stopOpacity="0.00" />
-                              </linearGradient>
-                            </defs>
-                            
-                            {/* Horizontal grid lines & Y labels */}
-                            {[0, 0.25, 0.5, 0.75, 1].map((ratio, index) => {
-                              const y = padTop + effH - (ratio * effH);
-                              const labelVal = Math.round(ratio * maxVal);
-                              return (
-                                <g key={index}>
-                                  <line 
-                                    x1={padLeft} 
-                                    y1={y} 
-                                    x2={w - padRight} 
-                                    y2={y} 
-                                    className="stroke-neutral-100" 
-                                    strokeWidth="1" 
-                                    strokeDasharray="4,4" 
-                                  />
-                                  <text 
-                                    x={padLeft - 8} 
-                                    y={y + 4} 
-                                    textAnchor="end" 
-                                    className="fill-neutral-400 font-mono text-[9px] font-bold"
-                                  >
-                                    AED {labelVal >= 1000 ? (labelVal / 1000).toFixed(1) + 'k' : labelVal}
-                                  </text>
-                                </g>
-                              );
-                            })}
-                            
-                            {/* Area fill */}
-                            {areaPath && (
-                              <path d={areaPath} fill="url(#chartAreaGrad)" />
-                            )}
-                            
-                            {/* Line stroke */}
-                            {linePath && (
-                              <path d={linePath} fill="none" className="stroke-brand" strokeWidth="2.5" strokeLinecap="round" />
-                            )}
-                            
-                            {/* Interactive Data Nodes & Text Overlays */}
-                            {points.map((p, i) => (
-                              <g key={i} className="group/node">
-                                <circle 
-                                  cx={p.x} 
-                                  cy={p.y} 
-                                  r="4.5" 
-                                  className="fill-white stroke-brand stroke-2 hover:r-6 cursor-pointer transition-all duration-200" 
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between text-xs px-2">
+                            <span className="text-neutral-500 font-medium">7-Day Total Orders: <strong className="text-dark font-extrabold">{total7DayOrders} orders</strong></span>
+                            <span className="text-emerald-700 font-bold text-[11px] bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                              ● Live Orders Trend
+                            </span>
+                          </div>
+
+                          <div className="w-full h-60 pt-2">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <LineChart data={last7DaysData} margin={{ top: 15, right: 15, left: -20, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#f0ece1" vertical={false} />
+                                <XAxis 
+                                  dataKey="day" 
+                                  tick={{ fontSize: 11, fill: '#666666', fontWeight: 600 }} 
+                                  axisLine={{ stroke: '#e5e0d8' }}
+                                  tickLine={false}
                                 />
-                                {/* Value bubble on top of nodes */}
-                                <g className="opacity-0 group-hover/node:opacity-100 transition-opacity duration-200">
-                                  <rect 
-                                    x={p.x - 45} 
-                                    y={p.y - 28} 
-                                    width="90" 
-                                    height="18" 
-                                    rx="5" 
-                                    className="fill-dark text-white" 
-                                  />
-                                  <text 
-                                    x={p.x} 
-                                    y={p.y - 16} 
-                                    textAnchor="middle" 
-                                    className="fill-white font-mono font-bold text-[9px]"
-                                  >
-                                    AED {p.data.sales.toLocaleString()}
-                                  </text>
-                                </g>
-                                
-                                {/* X-axis Labels */}
-                                <text 
-                                  x={p.x} 
-                                  y={padTop + effH + 16} 
-                                  textAnchor="middle" 
-                                  className="fill-neutral-500 font-serif font-bold text-[9px] uppercase tracking-wide"
-                                >
-                                  {p.data.dayName}
-                                </text>
-                                <text 
-                                  x={p.x} 
-                                  y={padTop + effH + 26} 
-                                  textAnchor="middle" 
-                                  className="fill-neutral-400 font-mono text-[8px]"
-                                >
-                                  {p.data.label}
-                                </text>
-                              </g>
-                            ))}
-                          </svg>
+                                <YAxis 
+                                  allowDecimals={false} 
+                                  tick={{ fontSize: 11, fill: '#888888' }} 
+                                  axisLine={false}
+                                  tickLine={false}
+                                />
+                                <Tooltip 
+                                  content={({ active, payload }) => {
+                                    if (active && payload && payload.length) {
+                                      const data = payload[0].payload;
+                                      return (
+                                        <div className="bg-dark text-white p-3 rounded-2xl shadow-2xl border border-brand/40 text-xs space-y-1 font-sans">
+                                          <p className="font-serif font-bold text-amber-300 uppercase tracking-wider text-[11px]">{data.fullLabel}</p>
+                                          <div className="pt-1 border-t border-white/10 space-y-1">
+                                            <p className="text-white font-bold flex items-center justify-between gap-4">
+                                              <span>📦 Total Orders Placed:</span>
+                                              <span className="font-extrabold text-amber-400 text-sm">{data.orders} {data.orders === 1 ? 'order' : 'orders'}</span>
+                                            </p>
+                                            <p className="text-neutral-300 flex items-center justify-between gap-4 text-[11px]">
+                                              <span>💰 Sales Revenue:</span>
+                                              <span className="font-semibold text-emerald-300">AED {data.sales.toLocaleString()}</span>
+                                            </p>
+                                          </div>
+                                        </div>
+                                      );
+                                    }
+                                    return null;
+                                  }}
+                                />
+                                <Line 
+                                  type="monotone" 
+                                  dataKey="orders" 
+                                  name="Total Orders" 
+                                  stroke="#c5a880" 
+                                  strokeWidth={3} 
+                                  activeDot={{ r: 7, fill: '#111111', stroke: '#c5a880', strokeWidth: 2 }}
+                                  dot={{ r: 4, fill: '#ffffff', stroke: '#c5a880', strokeWidth: 2.5 }}
+                                />
+                              </LineChart>
+                            </ResponsiveContainer>
+                          </div>
                         </div>
                       );
                     })()}
                   </div>
 
                   <div className="border-t border-clay-light pt-4 mt-4 flex items-center justify-between text-[10px] text-neutral-400 font-medium">
-                    <span>💡 Hover over circles to inspect daily boutique revenue breakdowns</span>
-                    <span className="font-bold text-emerald-600">Calculated automatically</span>
+                    <span>💡 Interactive Recharts visualization: Hover over data nodes for detailed daily order counts</span>
+                    <span className="font-bold text-emerald-600">Recharts Engine</span>
                   </div>
                 </div>
 
@@ -3533,6 +3522,45 @@ export default function AdminPanel({
                 </div>
               </div>
 
+              {/* Filter and Sort Toolbar */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-clay-light/20 p-3 rounded-2xl border border-clay">
+                <div className="relative flex-1 max-w-sm">
+                  <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Search reviews by name, product, or comment..."
+                    value={reviewSearch}
+                    onChange={(e) => setReviewSearch(e.target.value)}
+                    className="w-full pl-9 pr-8 py-2 bg-white border border-clay rounded-xl text-xs focus:ring-2 focus:ring-brand focus:outline-none"
+                  />
+                  {reviewSearch && (
+                    <button 
+                      onClick={() => setReviewSearch('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-dark"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <label htmlFor="review-sort-select" className="text-neutral-500 font-bold uppercase tracking-wider text-[10px] whitespace-nowrap">
+                    Sort By:
+                  </label>
+                  <select
+                    id="review-sort-select"
+                    value={reviewSort}
+                    onChange={(e) => setReviewSort(e.target.value as any)}
+                    className="bg-white border border-clay rounded-xl px-3 py-2 text-xs font-semibold text-dark focus:ring-2 focus:ring-brand focus:outline-none cursor-pointer"
+                  >
+                    <option value="newest">Date: Newest First</option>
+                    <option value="oldest">Date: Oldest First</option>
+                    <option value="rating-desc">Rating: Highest to Lowest (5★ → 1★)</option>
+                    <option value="rating-asc">Rating: Lowest to Highest (1★ → 5★)</option>
+                  </select>
+                </div>
+              </div>
+
               {reviews.length === 0 ? (
                 <div className="text-center py-16 bg-bg-warm/10 rounded-2xl border border-clay/80 space-y-3">
                   <div className="w-12 h-12 rounded-full bg-clay-light flex items-center justify-center text-neutral-400 mx-auto">
@@ -3544,6 +3572,16 @@ export default function AdminPanel({
                       Customer feedback posted via the VIP portal will automatically list here for your boutique audit!
                     </p>
                   </div>
+                </div>
+              ) : filteredAndSortedReviews.length === 0 ? (
+                <div className="text-center py-12 bg-bg-warm/10 rounded-2xl border border-clay/80 space-y-2">
+                  <p className="font-bold text-dark text-sm">No reviews matching "{reviewSearch}"</p>
+                  <button 
+                    onClick={() => setReviewSearch('')}
+                    className="text-xs text-brand underline font-semibold hover:text-amber-700"
+                  >
+                    Clear Search Filter
+                  </button>
                 </div>
               ) : (
                 <div className="overflow-x-auto border border-clay rounded-2xl bg-white shadow-sm">
@@ -3560,7 +3598,7 @@ export default function AdminPanel({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-clay-light">
-                      {reviews.map((rev) => (
+                      {filteredAndSortedReviews.map((rev) => (
                         <tr key={rev.id} className="hover:bg-bg-warm/30 transition">
                           
                           {/* Customer name */}

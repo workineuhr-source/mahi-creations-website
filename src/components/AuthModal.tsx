@@ -59,30 +59,35 @@ export default function AuthModal({
 
       const credentials = await signInWithPopup(auth, googleProvider);
       if (credentials.user) {
-        const docRef = doc(db, 'profiles', credentials.user.uid);
-        const docSnap = await getDoc(docRef);
-        let profile = docSnap.exists() ? docSnap.data() : null;
+        let profile: any = null;
+        try {
+          const docRef = doc(db, 'profiles', credentials.user.uid);
+          const docSnap = await getDoc(docRef);
+          profile = docSnap.exists() ? docSnap.data() : null;
 
-        if (!profile) {
-          profile = {
-            id: credentials.user.uid,
-            email: credentials.user.email || `${credentials.user.uid}@mahiboutique.com`,
-            fullName: credentials.user.displayName || 'Google VIP Guest',
-            phone: credentials.user.phoneNumber || '',
-            avatarUrl: credentials.user.photoURL || '',
-            address: 'Kathmandu, Nepal',
-            is_admin: credentials.user.email === 'admin@mahiboutique.com' || credentials.user.email === 'workineuhr@gmail.com' || credentials.user.email === 'mahicreations369@gmail.com',
-            role: (credentials.user.email === 'admin@mahiboutique.com' || credentials.user.email === 'workineuhr@gmail.com' || credentials.user.email === 'mahicreations369@gmail.com') ? 'admin' : 'customer'
-          };
-          await setDoc(docRef, profile);
+          if (!profile) {
+            profile = {
+              id: credentials.user.uid,
+              email: credentials.user.email || `${credentials.user.uid}@mahiboutique.com`,
+              fullName: credentials.user.displayName || 'Google VIP Guest',
+              phone: credentials.user.phoneNumber || '',
+              avatarUrl: credentials.user.photoURL || '',
+              address: 'Kathmandu, Nepal',
+              is_admin: credentials.user.email === 'admin@mahiboutique.com' || credentials.user.email === 'workineuhr@gmail.com' || credentials.user.email === 'mahicreations369@gmail.com',
+              role: (credentials.user.email === 'admin@mahiboutique.com' || credentials.user.email === 'workineuhr@gmail.com' || credentials.user.email === 'mahicreations369@gmail.com') ? 'admin' : 'customer'
+            };
+            await setDoc(docRef, profile);
+          }
+        } catch (fsErr) {
+          console.warn("Firestore profile sync offline/error:", fsErr);
         }
 
         onCustomerLogin({
-          fullName: profile.fullName || profile.full_name || credentials.user.displayName || 'Google VIP Guest',
-          phone: profile.phone || credentials.user.phoneNumber || '9800000000',
-          address: profile.address || 'Kathmandu, Nepal',
+          fullName: profile?.fullName || profile?.full_name || credentials.user.displayName || 'Google VIP Guest',
+          phone: profile?.phone || credentials.user.phoneNumber || '9800000000',
+          address: profile?.address || 'Kathmandu, Nepal',
           country: 'Nepal',
-          whatsapp: profile.phone || credentials.user.phoneNumber || '9800000000',
+          whatsapp: profile?.phone || credentials.user.phoneNumber || '9800000000',
           location: 'Kathmandu'
         });
 
@@ -92,7 +97,11 @@ export default function AuthModal({
         }, 1000);
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to authenticate with Google');
+      if (err.code === 'auth/unauthorized-domain' || err.message?.includes('unauthorized-domain')) {
+        setError(`Domain (${window.location.hostname}) is not authorized in Firebase Console. For Admin access, use Admin Username & Password in the Admin Panel or Email Sign-in!`);
+      } else {
+        setError(err.message || 'Failed to authenticate with Google');
+      }
       setAuthLoading(false);
     }
   };
@@ -203,12 +212,49 @@ export default function AuthModal({
           return;
         }
 
+        const cleanInputUser = inputUser.toLowerCase();
+        const cleanSettingsUser = settings.adminUser.trim().toLowerCase();
+
+        // Check 1: Direct Admin Credentials Match (Local or Custom Username override)
+        const isDirectAdminMatch = 
+          (cleanInputUser === cleanSettingsUser || 
+           cleanInputUser === 'admin' || 
+           cleanInputUser === 'mahi123@' || 
+           cleanInputUser === 'mahi123') &&
+          password === settings.adminPassword;
+
+        if (isDirectAdminMatch) {
+          onCustomerLogin({
+            fullName: settings.adminUser || 'Mahi Admin',
+            phone: '9801234567',
+            address: 'Kathmandu, Nepal',
+            country: 'Nepal',
+            whatsapp: '9801234567',
+            location: 'Kathmandu'
+          });
+
+          setTimeout(() => {
+            onAdminLogin();
+          }, 50);
+
+          setSuccess('Welcome back, Admin! Accessing management dashboard...');
+          setTimeout(() => {
+            onClose();
+          }, 1000);
+          return;
+        }
+
+        // Check 2: Format Email safely for Firebase Auth
         let loginEmail = '';
-        if (inputUser.includes('@')) {
+        const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inputUser);
+
+        if (isValidEmail) {
           loginEmail = inputUser;
         } else if (
-          inputUser.toLowerCase() === settings.adminUser.trim().toLowerCase() ||
-          inputUser.toLowerCase() === 'admin'
+          cleanInputUser === cleanSettingsUser ||
+          cleanInputUser === 'admin' ||
+          cleanInputUser === 'mahi123@' ||
+          cleanInputUser === 'mahi123'
         ) {
           loginEmail = 'admin@mahiboutique.com';
         } else {
@@ -216,50 +262,89 @@ export default function AuthModal({
           if (cleanPhone.length >= 7) {
             loginEmail = `${cleanPhone}@mahiboutique.com`;
           } else {
-            loginEmail = `${inputUser.toLowerCase().replace(/[^a-z0-9]/g, '')}@mahiboutique.com`;
+            const cleanUser = inputUser.toLowerCase().replace(/[^a-z0-9]/g, '');
+            loginEmail = `${cleanUser || 'user'}@mahiboutique.com`;
           }
         }
 
-        const credentials = await signInWithEmailAndPassword(auth, loginEmail, password);
-        if (credentials.user) {
-          const docRef = doc(db, 'profiles', credentials.user.uid);
-          const docSnap = await getDoc(docRef);
-          let profile = docSnap.exists() ? docSnap.data() : null;
+        try {
+          const credentials = await signInWithEmailAndPassword(auth, loginEmail, password);
+          if (credentials.user) {
+            const docRef = doc(db, 'profiles', credentials.user.uid);
+            const docSnap = await getDoc(docRef);
+            let profile = docSnap.exists() ? docSnap.data() : null;
 
-          const isAdmin = 
-            profile?.is_admin === true || 
-            profile?.role === 'admin' || 
-            credentials.user.email === 'admin@mahiboutique.com' ||
-            credentials.user.email === 'workineuhr@gmail.com' ||
-            credentials.user.email === 'mahicreations369@gmail.com' ||
-            inputUser.toLowerCase() === settings.adminUser.trim().toLowerCase() ||
-            inputUser.toLowerCase() === 'admin';
+            const isAdmin = 
+              profile?.is_admin === true || 
+              profile?.role === 'admin' || 
+              credentials.user.email === 'admin@mahiboutique.com' ||
+              credentials.user.email === 'workineuhr@gmail.com' ||
+              credentials.user.email === 'mahicreations369@gmail.com' ||
+              cleanInputUser === cleanSettingsUser ||
+              cleanInputUser === 'admin' ||
+              cleanInputUser === 'mahi123@';
 
-          if (isAdmin) {
-            if (!profile) {
-              profile = {
-                id: credentials.user.uid,
-                email: credentials.user.email || 'admin@mahiboutique.com',
-                fullName: 'Mahi Admin',
-                phone: '9801234567',
-                avatarUrl: '',
-                address: 'Kathmandu, Nepal',
-                is_admin: true,
-                role: 'admin'
-              };
-              await setDoc(docRef, profile);
-            } else if (!profile.is_admin || profile.role !== 'admin') {
-              profile.is_admin = true;
-              profile.role = 'admin';
-              await setDoc(docRef, profile, { merge: true });
+            if (isAdmin) {
+              if (!profile) {
+                profile = {
+                  id: credentials.user.uid,
+                  email: credentials.user.email || 'admin@mahiboutique.com',
+                  fullName: 'Mahi Admin',
+                  phone: '9801234567',
+                  avatarUrl: '',
+                  address: 'Kathmandu, Nepal',
+                  is_admin: true,
+                  role: 'admin'
+                };
+                await setDoc(docRef, profile);
+              } else if (!profile.is_admin || profile.role !== 'admin') {
+                profile.is_admin = true;
+                profile.role = 'admin';
+                await setDoc(docRef, profile, { merge: true });
+              }
+
+              onCustomerLogin({
+                fullName: profile.fullName || profile.full_name || 'Mahi Admin',
+                phone: profile.phone || '9801234567',
+                address: profile.address || 'Kathmandu, Nepal',
+                country: 'Nepal',
+                whatsapp: profile.phone || '9801234567',
+                location: 'Kathmandu'
+              });
+
+              setTimeout(() => {
+                onAdminLogin();
+              }, 50);
+
+              setSuccess('Welcome back, Admin! Accessing management dashboard...');
+            } else {
+              onCustomerLogin({
+                fullName: profile?.fullName || profile?.full_name || inputUser,
+                phone: profile?.phone || '',
+                address: profile?.address || 'Kathmandu, Nepal',
+                country: 'Nepal',
+                whatsapp: profile?.phone || '',
+                location: 'Kathmandu'
+              });
+              setSuccess('Successfully logged in! Accessing VIP Lounge...');
             }
 
+            setTimeout(() => {
+              onClose();
+            }, 1500);
+          }
+        } catch (fbErr: any) {
+          // Fallback check if admin password matched even if Firebase fails or is unconfigured
+          if (
+            (cleanInputUser === cleanSettingsUser || cleanInputUser === 'admin' || cleanInputUser === 'mahi123@' || cleanInputUser === 'mahi123') &&
+            password === settings.adminPassword
+          ) {
             onCustomerLogin({
-              fullName: profile.fullName || profile.full_name || 'Mahi Admin',
-              phone: profile.phone || '9801234567',
-              address: profile.address || 'Kathmandu, Nepal',
+              fullName: settings.adminUser || 'Mahi Admin',
+              phone: '9801234567',
+              address: 'Kathmandu, Nepal',
               country: 'Nepal',
-              whatsapp: profile.phone || '9801234567',
+              whatsapp: '9801234567',
               location: 'Kathmandu'
             });
 
@@ -268,21 +353,19 @@ export default function AuthModal({
             }, 50);
 
             setSuccess('Welcome back, Admin! Accessing management dashboard...');
-          } else {
-            onCustomerLogin({
-              fullName: profile?.fullName || profile?.full_name || inputUser,
-              phone: profile?.phone || '',
-              address: profile?.address || 'Kathmandu, Nepal',
-              country: 'Nepal',
-              whatsapp: profile?.phone || '',
-              location: 'Kathmandu'
-            });
-            setSuccess('Successfully logged in! Accessing VIP Lounge...');
+            setTimeout(() => {
+              onClose();
+            }, 1000);
+            return;
           }
 
-          setTimeout(() => {
-            onClose();
-          }, 1500);
+          if (fbErr.code === 'auth/invalid-email') {
+            setError('Invalid email or username format. Please verify your credentials or use your admin username.');
+          } else if (fbErr.code === 'auth/user-not-found' || fbErr.code === 'auth/invalid-credential') {
+            setError('Invalid credentials. Please check your username and password.');
+          } else {
+            setError(fbErr.message || 'Authentication failed. Please check your credentials.');
+          }
         }
       } else {
         // --- SIGN UP FLOW ---
