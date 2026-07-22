@@ -22,7 +22,7 @@ import CompareBar from './components/CompareBar';
 import CompareModal from './components/CompareModal';
 import ToastContainer, { ToastItem } from './components/Toast';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, Filter, ArrowUpDown, CheckCircle2, Heart, ShieldAlert, ShoppingBag, Eye, HelpCircle, Globe, Mail, ShieldCheck, Send, CreditCard, Check, Facebook, Instagram, Linkedin, RefreshCw, FileText, X, Truck, Info, Lock, ChevronDown, MapPin, Phone, Clock, ChevronLeft, ChevronRight, ArrowUp, Flame, Landmark } from 'lucide-react';
+import { Sparkles, Filter, ArrowUpDown, CheckCircle2, Heart, ShieldAlert, ShoppingBag, Eye, HelpCircle, Globe, Mail, ShieldCheck, Send, CreditCard, Check, Facebook, Instagram, Linkedin, RefreshCw, FileText, X, Truck, Info, Lock, ChevronDown, MapPin, Phone, Clock, ChevronLeft, ChevronRight, ArrowUp, Flame, Landmark, Search } from 'lucide-react';
 import { CurrencyCode, CountryConfig, getCustomCountries, saveCustomCountries } from './utils/currency';
 import { ESewaLogo, KhaltiLogo, VisaLogo, MasterCardLogo, CODLogo, BankTransferLogo, PayPalLogo, FacebookLogo, InstagramLogo, TikTokLogo, WhatsAppLogo } from './components/BrandLogos';
 import SmartRoutineQuiz from './components/SmartRoutineQuiz';
@@ -1206,6 +1206,13 @@ export default function App() {
           setActiveView('shop');
         }}
         categories={CATEGORIES}
+        searchQuery={searchQuery}
+        onSearchChange={(q) => {
+          setSearchQuery(q);
+          if (q.trim() !== '' && activeView !== 'shop') {
+            setActiveView('shop');
+          }
+        }}
       />
 
       {/* Primary Views Route dispatcher */}
@@ -1353,6 +1360,35 @@ export default function App() {
                 {/* PRODUCT CATALOG WRAPPER */}
                 <section id="shop-catalog" className={`mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-10 transition-all duration-300 ${isHDMode ? 'max-w-[1440px]' : 'max-w-7xl'}`}>
                   
+                  {/* Live Active Search Filter Banner */}
+                  {searchQuery && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-gradient-to-r from-brand/10 via-brand/5 to-amber-50 border border-brand/30 rounded-2xl p-4 gap-3 shadow-sm"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-2 bg-brand/15 rounded-xl text-brand">
+                          <Search className="w-4 h-4 animate-pulse" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-black text-dark uppercase tracking-wider">
+                            Active Search Filter
+                          </p>
+                          <p className="text-xs text-neutral-600">
+                            Showing results matching <span className="font-extrabold text-brand">"{searchQuery}"</span> ({sortedProducts.length} items found)
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setSearchQuery('')}
+                        className="self-end sm:self-center text-xs font-bold text-neutral-600 hover:text-rose-600 flex items-center gap-1.5 bg-white/80 hover:bg-white border border-clay px-3 py-1.5 rounded-xl transition-all cursor-pointer shadow-2xs"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        <span>Clear Search</span>
+                      </button>
+                    </motion.div>
+                  )}
 
                   {/* Dynamic Empty state or Grid */}
                   {sortedProducts.length === 0 ? (
